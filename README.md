@@ -91,6 +91,33 @@ export KUBECONFIG=~/.kube/config-dramble-k3s
 - The deprecated upstream Ansible playbooks, kubeadm manifests, kube-vip plan,
   cert-manager manifests, and the abandoned `ghost-blog` workload.
 
+## Branching and review workflow
+
+`dev` is the integration branch and the repository default. `master` mirrors what
+is deployed to the cluster, so changes reach it only through a reviewed pull
+request.
+
+```bash
+git switch dev && git pull
+git switch -c fix/short-description      # short-lived topic branch
+# edit, commit
+git push -u origin fix/short-description
+gh pr create --base dev --fill
+```
+
+Merge the topic branch into `dev` once it looks right. When a batch is ready to
+be deployed, promote `dev` to `master` with a second pull request:
+
+```bash
+gh pr create --base master --head dev --title "Release: <summary>"
+```
+
+Repository settings back this up: `master` rejects direct pushes, force-pushes,
+and deletion; `dev` rejects force-pushes and deletion. A single maintainer cannot
+approve their own PR, so no approving review is required — the PR itself is the
+review record. Enable "required approvals" in the branch protection settings if
+another maintainer joins.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
