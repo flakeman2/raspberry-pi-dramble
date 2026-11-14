@@ -67,44 +67,15 @@ access. Only 80/443 should reach `192.168.0.201`.
 
 ### 5. Plan the upgrade off end-of-life versions
 
-This is also the prerequisite for Argo CD — see [gitops.md](gitops.md). The whole
-stack is from 2021:
+k3s 1.22 is EOL, and Longhorn 1.2.3, MetalLB 0.11.0, and Traefik 2.5.6 all cap
+which Kubernetes minor can follow. The full plan — target versions, the
+in-place-versus-rebuild decision, component migration notes, and verification
+gates — is in [upgrade.md](upgrade.md).
 
-| Component | Live | Notes |
-|---|---|---|
-| k3s / Kubernetes | 1.22.5 | EOL since 2022-05 |
-| Longhorn | 1.2.3 | upgrade through 1.3 → 1.4 → … |
-| MetalLB | 0.11.0 | 0.13 moved the address pool to `IPAddressPool` CRs |
-| Traefik | 2.5.6 | 2.x → 3.x changes the CRD API group |
-| Prometheus | 2.31.1 | chart 15.1.3 |
-| Grafana | 8.3.5 | chart 6.21.4 |
-
-Kubernetes does not support skipping minor versions. Upgrade **one minor at a
-time** (1.22 → 1.23 → 1.24 → …), server first, then agents one at a time:
-
-```bash
-# on kube1
-curl -sfL https://get.k3s.io | \
-  INSTALL_K3S_VERSION=v1.23.x+k3s1 \
-  INSTALL_K3S_EXEC="server --disable servicelb --disable local-storage --disable traefik" \
-  sh -
-
-# on each agent, one at a time
-curl -sfL https://get.k3s.io | \
-  INSTALL_K3S_VERSION=v1.23.x+k3s1 \
-  K3S_URL=https://192.168.0.61:6443 K3S_TOKEN=... \
-  INSTALL_K3S_EXEC="agent" sh -
-```
-
-Component order after Kubernetes is current:
-
-1. MetalLB → 0.13+ (migrate `ConfigMap/config` to `IPAddressPool` +
-   `L2Advertisement`)
-2. Longhorn → next minor, verify replicas healthy between hops
-3. Traefik → 2.10 then v3 (rewrite `traefik.containo.us` → `traefik.io`)
-4. Prometheus/Grafana charts
-
-Do the upgrade after the rebuild is verified, not during it.
+Short version: rebuilding on k3s 1.36 / Longhorn 1.13 / MetalLB 0.16 /
+Traefik 3.7 is recommended over roughly 25 in-place upgrade hops. Only the
+1 GiB `mysite-content` volume is irreplaceable; back it up first, then rebuild.
+Do the upgrade before Argo CD ([gitops.md](gitops.md)), not during it.
 
 ### 6. Add resource requests/limits and probes
 
@@ -185,3 +156,11 @@ a recurring snapshot/backup job, then test a restore.
   are transient and harmless; they disappear once the ConfigMap is cached.
 - Remove the abandoned kube-vip, cert-manager, ghost-blog, and
   kubernetes-dashboard material from any remaining notes or scripts.
+
+### 15. Adopt Argo CD
+
+After the upgrade lands, bootstrap Argo CD from `gitops/` and let it reconcile
+from `master`. Rollout phases and conventions: [gitops.md](gitops.md) and
+[../gitops/README.md](../gitops/README.md). Do not start until k3s is on 1.36,
+Longhorn is healthy, and the manifests have been re-targeted to the new
+component versions.

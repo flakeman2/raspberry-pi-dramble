@@ -1,9 +1,10 @@
 # GitOps
 
 Declarative cluster state for Argo CD. **Nothing here is applied yet** — the live
-cluster is still installed by `scripts/install-addons.sh`. The design, upgrade
-prerequisites, and phased rollout are in
-[../docs/gitops.md](../docs/gitops.md).
+cluster is still installed by `scripts/install-addons.sh`. The design, phased
+rollout, and conventions are in [../docs/gitops.md](../docs/gitops.md); the
+component upgrade that must land first is in
+[../docs/upgrade.md](../docs/upgrade.md).
 
 ## Layout
 

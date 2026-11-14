@@ -31,9 +31,8 @@ The pinned add-ons also cap the k3s version:
 | MetalLB | 0.11.0 | ConfigMap address pool; 0.13+ requires `IPAddressPool` CRs |
 | Traefik | 2.5.6 | Manifests use `traefik.containo.us`; Traefik 3 dropped that group |
 
-Component order and commands are in
-[action-items.md](action-items.md#5-plan-the-upgrade-off-end-of-life-versions).
-Do not install Argo CD until:
+The full component plan, including the in-place versus rebuild decision, is in
+[upgrade.md](upgrade.md). Do not install Argo CD until:
 
 - k3s is on a Kubernetes minor inside Argo CD's tested range;
 - Longhorn, MetalLB, and Traefik support that minor and are migrated;
@@ -45,7 +44,7 @@ Do not install Argo CD until:
 | | |
 |---|---|
 | Namespace | `argocd` |
-| Version | pinned in `gitops/bootstrap/`; currently 3.6.x once the cluster supports it |
+| Version | pinned in `gitops/bootstrap/`; 3.6.x once k8s reaches the 1.36 target |
 | HA | no — single replicas, bundled Redis |
 | Dex / notifications | disabled |
 | Ingress | `argocd.devinflake.com` via `IngressRoute`, TLS-ALPN, server runs `--insecure` |
