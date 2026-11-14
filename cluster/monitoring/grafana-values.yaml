@@ -1,0 +1,46 @@
+# Grafana values for chart `grafana` 6.21.4 (app 8.3.5).
+#
+#   kubectl -n monitoring create secret generic grafana \
+#     --from-literal=admin-user=admin \
+#     --from-literal=admin-password='...'
+#
+#   helm install grafana grafana/grafana \
+#     --namespace monitoring --version 6.21.4 \
+#     -f cluster/monitoring/grafana-values.yaml
+#
+# The Prometheus datasource is codified here because on the live cluster it was
+# added through the UI and is not present in the stored Helm values.
+
+image:
+  repository: grafana/grafana
+  tag: 8.3.5
+
+replicas: 1
+
+persistence:
+  enabled: true
+  storageClassName: longhorn
+  size: 10Gi
+
+service:
+  type: ClusterIP
+  port: 80
+
+adminUser: admin
+admin:
+  existingSecret: grafana
+  userKey: admin-user
+  passwordKey: admin-password
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      access: proxy
+      url: http://prometheus-server
+      isDefault: true
+      jsonData:
+        httpMethod: POST
+        manageAlerts: true

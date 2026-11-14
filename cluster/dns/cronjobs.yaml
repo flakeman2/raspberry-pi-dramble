@@ -1,0 +1,74 @@
+# Dynamic DNS updater for the two domains served by Park-Your-Domain.
+#
+# The password comes from the `dyn-dns-credentials` Secret (see
+# cluster/secrets/examples/dyn-dns-credentials.yaml). The live cluster still has
+# the password inline in the container command; these manifests replace that.
+#
+# `image` is pinned; the live cluster runs the floating `curlimages/curl` tag.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: dyn-dns-devinflake.com
+  namespace: default
+spec:
+  schedule: "*/30 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: dyn-dns
+            image: curlimages/curl:7.81.0
+            env:
+            - name: DDNS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dyn-dns-credentials
+                  key: password
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              for host in '@' 'www' '*'; do
+                curl -fsS --retry 3 \
+                  "https://dynamicdns.park-your-domain.com/update?host=${host}&domain=devinflake.com&password=${DDNS_PASSWORD}"
+              done
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: dyn-dns-flakeman2.com
+  namespace: default
+spec:
+  schedule: "*/30 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: dyn-dns
+            image: curlimages/curl:7.81.0
+            env:
+            - name: DDNS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dyn-dns-credentials
+                  key: password
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              for host in '@' 'www' '*'; do
+                curl -fsS --retry 3 \
+                  "https://dynamicdns.park-your-domain.com/update?host=${host}&domain=flakeman2.com&password=${DDNS_PASSWORD}"
+              done

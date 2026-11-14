@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jekyll-website
+  namespace: jekyll
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 3
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: jekyll-website
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: jekyll-website
+    spec:
+      containers:
+      - image: flakeman2/jekyll:1.0.4
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          successThreshold: 1
+          tcpSocket:
+            port: 80
+          timeoutSeconds: 1
+        name: website
+        ports:
+        - containerPort: 80
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: 80
+          timeoutSeconds: 1
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30

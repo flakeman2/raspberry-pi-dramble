@@ -1,0 +1,39 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: longhorn-dashboard
+  namespace: longhorn-system
+spec:
+  entryPoints:
+  - web
+  - websecure
+  routes:
+  - kind: Rule
+    match: Host(`longhorn.devinflake.com`, `longhorn.flakeman2.com`)
+    middlewares:
+    - name: basic-auth
+      namespace: default
+    - name: redirect-to-https
+      namespace: default
+    services:
+    - name: longhorn-frontend
+      port: 80
+  tls:
+    certResolver: letsencrypt
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: grafana-dashboard
+  namespace: monitoring
+spec:
+  entryPoints:
+  - websecure
+  routes:
+  - kind: Rule
+    match: Host(`grafana.devinflake.com`, `grafana.flakeman2.com`)
+    services:
+    - name: grafana
+      port: 80
+  tls:
+    certResolver: letsencrypt

@@ -1,10 +1,13 @@
 .DS_Store
-.vagrant
 *.retry
+*.log
 
+# Local configuration and credentials
 config.yml
-
-roles/geerlingguy.*
-
-setup/networking/inventory
-setup/networking/vars.yml
+.env
+kubeconfig
+*.kubeconfig
+acme.json
+*.token
+*.pem
+*.key

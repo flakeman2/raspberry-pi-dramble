@@ -1,0 +1,148 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: traefik-dflake-dashboard
+  namespace: traefik
+spec:
+  entryPoints:
+  - web
+  - websecure
+  routes:
+  - kind: Rule
+    match: Host(`traefik.devinflake.com`, `traefik.flakeman2.com`)
+    middlewares:
+    - name: basic-auth
+      namespace: default
+    - name: redirect-to-https
+      namespace: default
+    services:
+    - kind: TraefikService
+      name: api@internal
+  tls:
+    certResolver: letsencrypt
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: whoami-ingress
+  namespace: whoami
+spec:
+  entryPoints:
+  - web
+  - websecure
+  routes:
+  - kind: Rule
+    match: Host(`devinflake.com`, `www.devinflake.com`, `flakeman2.com`, `www.flakeman2.com`)
+      && PathPrefix(`/whoami`)
+    middlewares:
+    - name: redirect-to-https
+      namespace: default
+    services:
+    - name: whoami
+      port: 80
+  tls:
+    certResolver: letsencrypt
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: mysite-nginx-ingress-http
+  namespace: mysite-nginx
+spec:
+  entryPoints:
+  - web
+  routes:
+  - kind: Rule
+    match: Host(`devinflake.com`, `www.devinflake.com`, `flakeman2.com`, `www.flakeman2.com`)
+    middlewares:
+    - name: redirect-to-https
+    services:
+    - name: mysite-nginx-service
+      port: 80
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: mysite-nginx-ingress-https
+  namespace: mysite-nginx
+spec:
+  entryPoints:
+  - websecure
+  routes:
+  - kind: Rule
+    match: Host(`devinflake.com`, `www.devinflake.com`, `flakeman2.com`, `www.flakeman2.com`)
+    services:
+    - name: mysite-nginx-service
+      port: 80
+  tls:
+    certResolver: letsencrypt
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: jekyll-ingress-http
+  namespace: jekyll
+spec:
+  entryPoints:
+  - web
+  routes:
+  - kind: Rule
+    match: Host(`blog.devinflake.com`)
+    middlewares:
+    - name: redirect-to-https
+    services:
+    - name: jekyll-website
+      port: 80
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: jekyll-ingressroute
+  namespace: jekyll
+spec:
+  entryPoints:
+  - websecure
+  routes:
+  - kind: Rule
+    match: Host(`blog.devinflake.com`)
+    services:
+    - name: jekyll-website
+      port: 80
+  tls:
+    certResolver: letsencrypt
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: pi-hole-http
+  namespace: pi-hole
+spec:
+  entryPoints:
+  - web
+  routes:
+  - kind: Rule
+    match: Host(`pi-hole.devinflake.com`)
+    middlewares:
+    - name: redirect-to-https
+    services:
+    - kind: Service
+      name: pi-hole-service
+      port: 80
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: pi-hole-ingress
+  namespace: pi-hole
+spec:
+  entryPoints:
+  - websecure
+  routes:
+  - kind: Rule
+    match: Host(`pi-hole.devinflake.com`)
+    services:
+    - kind: Service
+      name: pi-hole-service
+      port: 80
+  tls:
+    certResolver: letsencrypt

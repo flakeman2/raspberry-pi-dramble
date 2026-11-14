@@ -1,0 +1,57 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: basic-auth
+  namespace: default
+spec:
+  basicAuth:
+    secret: authsecret
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-to-https
+  namespace: default
+spec:
+  redirectScheme:
+    permanent: true
+    scheme: https
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-to-https
+  namespace: mysite-nginx
+spec:
+  redirectScheme:
+    permanent: true
+    scheme: https
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: ssl-redirect
+  namespace: mysite-nginx
+spec:
+  headers:
+    sslRedirect: true
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-to-https
+  namespace: jekyll
+spec:
+  redirectScheme:
+    permanent: true
+    scheme: https
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-to-https
+  namespace: pi-hole
+spec:
+  redirectScheme:
+    permanent: true
+    scheme: https

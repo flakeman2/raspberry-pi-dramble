@@ -1,0 +1,42 @@
+# Workloads
+
+| Directory | Namespace | What it is |
+|---|---|---|
+| `mysite/` | `mysite-nginx` | Static site for `devinflake.com` / `flakeman2.com` |
+| `jekyll/` | `jekyll` | Blog for `blog.devinflake.com` |
+| `whoami/` | `whoami` | Traefik whoami demo at `/whoami` |
+| `pi-hole/` | `pi-hole` | ExternalName stub to `192.168.0.46` (currently unreachable) |
+
+```bash
+kubectl apply -R -f cluster/workloads
+```
+
+## mysite
+
+- `nginx:latest`, 1 replica, ClusterIP Service on 80/443.
+- `mysite-content` 1 GiB **RWX** PVC mounted at `/usr/share/nginx/html`.
+- `nginx-conf` ConfigMap mounted at `/etc/nginx/conf.d/default.conf`.
+- The current document root is checked in under `mysite/content/`.
+
+Restore the content after a rebuild:
+
+```bash
+kubectl -n mysite-nginx cp mysite/content/. \
+  deploy/mysite-nginx:/usr/share/nginx/html/
+```
+
+## jekyll
+
+`flakeman2/jekyll:1.0.4`, 3 replicas, ClusterIP port 80, TCP readiness and
+liveness probes. No PVC.
+
+## whoami
+
+`traefik/whoami`, 2 replicas, ClusterIP port 80. Routed at
+`PathPrefix(/whoami)` on the apex domains.
+
+## pi-hole
+
+`pi-hole-service` is an `ExternalName` Service to `192.168.0.46` (port 80). That
+host is not reachable, so `pi-hole.devinflake.com` returns an error. Restore the
+host or remove the namespace and its IngressRoutes.

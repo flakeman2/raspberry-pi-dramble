@@ -1,120 +1,76 @@
-<a href="http://www.pidramble.com"><img src="https://cdn.rawgit.com/geerlingguy/raspberry-pi-dramble/master/images/logo.svg" width="100%" height="73"></a>
+# Raspberry Pi Drumble
 
-# Raspberry Pi Dramble
+A six-node Raspberry Pi 4 Kubernetes cluster running **k3s**, **Longhorn**
+storage, **MetalLB** load balancing, and **Traefik** ingress with Let's Encrypt
+TLS. This repository documents the cluster as it actually runs and contains the
+manifests needed to rebuild it from scratch.
 
-[![Build Status](https://travis-ci.com/geerlingguy/raspberry-pi-dramble.svg?branch=master)](https://travis-ci.com/geerlingguy/raspberry-pi-dramble)
+This is a fork of [geerlingguy/raspberry-pi-dramble][upstream]. The upstream
+Ansible/kubeadm material has been removed because this cluster never used it;
+see [docs/architecture.md](docs/architecture.md) for what is actually deployed.
 
-A cluster ([Bramble](http://elinux.org/Bramble)) of Raspberry Pis on which Drupal is deployed using Ansible and Kubernetes.
+[upstream]: https://github.com/geerlingguy/raspberry-pi-dramble
 
-<p align="center"><img src="https://raw.githubusercontent.com/geerlingguy/raspberry-pi-dramble/master/images/raspberry-pi-dramble-hero-2019.jpg" alt="Raspberry Pi Dramble - Hero Image" /></p>
+## Cluster at a glance
 
-Read the rest of this README and the official [Pi Dramble Wiki](http://www.pidramble.com/wiki) for more information about the Dramble.
+| | |
+|---|---|
+| Distribution | k3s `v1.22.5+k3s1` (single control plane, embedded SQLite) |
+| Nodes | 6 × Raspberry Pi 4 Model B, 4 cores / 4 GB RAM each |
+| Storage | Longhorn `1.2.3`, `longhorn` default StorageClass, 3 replicas |
+| Load balancer | MetalLB `0.11.0`, L2 pool `192.168.0.201–192.168.0.250` |
+| Ingress | Traefik `2.5.6` (chart `10.9.1`) at `192.168.0.201` |
+| TLS | Traefik built-in ACME (TLS-ALPN), Let's Encrypt production |
+| Monitoring | Prometheus `2.31.1`, Grafana `8.3.5`, Alertmanager, kube-state-metrics, node-exporter |
+| Metrics | metrics-server `0.5.0`, CoreDNS `1.8.4` |
+| DNS | Park-Your-Domain dynamic DNS via two CronJobs |
 
-## Why
+> **Status:** the cluster is live on 4 of 6 nodes. `rpi-argon` and
+> `rpi-retropie` are powered off/unreachable. The full snapshot, including
+> faults and end-of-life warnings, is in
+> [docs/cluster-status.md](docs/cluster-status.md).
 
-I'm doing presentations on Ansible, and how easy it makes infrastructure configuration, even for high-performance/high-availability Drupal sites. WiFi/Internet access is spotty at most conferences, so deploying to AWS, DigitalOcean, or other live public cloud instances that require a stable Internet connection is a Bad Idea™.
+## Repository layout
 
-I'm also presenting on Kubernetes, and how easy it is to have self-healing, almost-infinitely-scalable infrastructure (managed with Ansible), and it's more fun to build with Kubernetes on bare metal... at least when the RAM on the Kubernetes master isn't all eaten up!
+```
+cluster/                     Manifests for everything the cluster runs
+  namespaces.yaml            All application namespaces
+  metallb/                   MetalLB install manifest + address pool
+  longhorn/                  Longhorn install notes (upstream manifest)
+  traefik/                   Helm values + IngressRoutes/Middlewares/TLSOption
+  monitoring/                Grafana Helm values (Prometheus uses chart defaults)
+  dns/                       Dynamic DNS CronJobs
+  workloads/                 mysite, jekyll, whoami, pi-hole
+  dashboards/                IngressRoutes for Grafana/Longhorn UIs
+  secrets/                   Secret requirements + example manifests (no values)
+scripts/                     Install scripts for k3s and the add-ons
+docs/                        Architecture, hardware, status, redeploy, secrets
+```
 
-But really, it's just plain awesome. How many people can say they carry their entire datacenter in a travel bag, and can run it from a USB battery pack?
+## Rebuild from bare Pis
 
-A cluster of servers, in my hand, at the presentation. With blinking LEDs!
+The complete procedure is in [docs/redeploy.md](docs/redeploy.md). Short form:
 
-## Official Site
+```bash
+# On kube1, after imaging and node preparation:
+sudo ./scripts/install-server.sh
 
-You can browse more information about _geerlingguy_'s Dramble on [http://www.pidramble.com/](http://www.pidramble.com/). This website is actually running on the Rasbperry Pi Dramble cluster pictured above!
+# On kube2–kube4:
+sudo K3S_URL=https://192.168.0.61:6443 K3S_TOKEN=... ./scripts/install-agent.sh
 
-## Specs
+# From a workstation with kubectl + helm:
+export KUBECONFIG=~/.kube/config-dramble-k3s
+# create the Secrets first (see cluster/secrets/README.md)
+./scripts/install-addons.sh
+```
 
-  - 16+ ARMv7 CPU Cores
-  - 5.6 GHz combined compute power
-  - 4 GB RAM
-  - 128 GB microSD flash-based storage
-  - 1 Gbps private network with PoE
+## What is not in this repository
 
-## Getting the Pis (and other accessories)
+- Secrets, k3s join tokens, kubeconfigs, `acme.json`, htpasswd hashes, Grafana
+  and dynamic-DNS passwords. See [docs/secrets.md](docs/secrets.md).
+- The deprecated upstream Ansible playbooks, kubeadm manifests, kube-vip plan,
+  cert-manager manifests, and the abandoned `ghost-blog` workload.
 
-Many people have asked for a basic list of components used in constructing the Dramble, or where I found particular parts. In the Wiki, I've added pages listing the following:
+## License
 
-  - [Raspberry Pis and Accessories](http://www.pidramble.com/wiki/hardware/pis)
-  - [Other Necessities](http://www.pidramble.com/wiki/hardware/necessities)
-  - [Recommended Extras](http://www.pidramble.com/wiki/hardware/extras)
-
-## Setting up the Pis
-
-The process for setting up all the Raspberry Pis is outlined in the Wiki:
-
-  1. [Prepare the Raspberry Pis for provisioning](http://www.pidramble.com/wiki/setup/prepare)
-  1. [Rack the Raspberry Pis](http://www.pidramble.com/wiki/setup/rack)
-  1. [Network the Raspberry Pis](http://www.pidramble.com/wiki/setup/network)
-  1. [Test the Ansible configuration](http://www.pidramble.com/wiki/setup/test-ansible)
-  1. [Provision the Raspberry Pis](http://www.pidramble.com/wiki/setup/provision)
-  1. [Deploy Drupal to the Raspberry Pis](http://www.pidramble.com/wiki/setup/deploy-drupal)
-
-> It is recommended you use the 64-bit version of Raspberry Pi OS, as some of this project's dependencies require it (and may not install on 32-bit Pi OS).
-
-#### Adding more nodes
-
-You can add more than four nodes, if you desire; add additional hosts in the same sequence in the following files:
-
-  - `setup/networking/inventory`
-  - `setup/networking/vars.yml`
-  - `inventory`
-
-If you need to change the IP subnet (default is `10.0.100.x`), make sure to also update `hosts.j2` to use the new subnet so hostnames resolve correctly.
-
-#### Private Docker Registry Usage
-
-The Pi Dramble includes a built-in Docker registry that is used to host Drupal images for deployment to Kubernetes. To use the Docker registry manually (to push or pull images):
-
-  1. Edit your `/etc/hosts` file and add the line:
-
-     ```
-     10.0.100.62  registry.pidramble.test
-     ```
-
-  1. Follow the linked directions to [get Docker to use your self-signed Docker Registry cert](https://docs.docker.com/registry/insecure/#use-self-signed-certificates). For macOS, using the GUI:
-    1. Double-click on `k8s-manifests/docker-registry/certs/tls.crt` to add it to your Keychain
-    1. Select the certificate in Keychain Access, choose 'File' > 'Get Info'
-    1. Expand the 'Trust' section, and choose 'Always Trust' for "When using this certificate:"
-    1. Close the info dialog and enter your password to save the changes.
-    1. Restart Docker for Mac.
-  1. Tag your image for the registry and push it:
-
-     ```
-     docker tag my/image:latest registry.pidramble.test/my/image:latest
-     docker push registry.pidramble.test/my/image:latest
-     ```
-
-## Benchmarks - Testing the performance of the Dramble
-
-See the [Pi Dramble Benchmarks](http://www.pidramble.com/wiki/benchmarks) section of the Wiki for current benchmarks and statistics.
-
-## Local testing
-
-A Vagrantfile is also included for local testing and debugging of the Kubernetes cluster and manifests using [Vagrant](https://www.vagrantup.com). See the [Vagrant README](testing/vagrant/README.md) for more details.
-
-## Drupal on a Single Pi - Drupal Pi
-
-If you have only a single Raspberry Pi, you can use the [Drupal Pi](https://github.com/geerlingguy/drupal-pi) project to quickly get Drupal running on the single Pi.
-
-## Using older or slower Raspberry Pi models
-
-The Raspberry Pi 2, 3, 3 B+, and 4 have quad-core processors that make certain operations four to ten times faster than single-core Pis like the A+, B+, Zero, etc. Additionally, cluster members need as much RAM as possible, and any Pi without at least 1 GB of RAM simply [can't be used as a Kubernetes master](https://kubernetes.io/docs/tasks/administer-cluster/manage-resources/memory-constraint-namespace/#before-you-begin).
-
-Therefore only the following Pi models are officially supported:
-
-  - Raspberry Pi model 4 B
-  - Raspberry Pi model 3 B+
-  - Raspberry Pi model 3 B
-  - Raspberry Pi model 2
-
-## Presentation Mode
-
-The Raspberry Pi Dramble Kubernetes cluster can function entirely 'air-gapped' from the Internet, and this is in fact how the maintainer uses it in presentations.
-
-See the README in the [`testing/presentation`](testing/presentation) directory for instructions for operating the cluster standalone.
-
-## Author
-
-This project was started in 2015 by [Jeff Geerling](https://www.jeffgeerling.com/), author of [Ansible for DevOps](https://www.ansiblefordevops.com/) and [Ansible for Kubernetes](https://www.ansibleforkubernetes.com).
+MIT — see [LICENSE](LICENSE).

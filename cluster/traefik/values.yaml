@@ -1,0 +1,66 @@
+# Traefik values for chart `traefik` 10.9.1 (app 2.5.6).
+#
+#   helm install traefik traefik/traefik \
+#     --namespace traefik --version 10.9.1 -f cluster/traefik/values.yaml
+#
+# The LoadBalancer Service receives 192.168.0.201 from the MetalLB pool.
+# Certificates are issued by Traefik's built-in ACME (TLS-ALPN challenge) and
+# stored in /data/acme.json on the `traefik` Longhorn PVC.
+
+image:
+  name: traefik
+  # Empty means "use the chart appVersion" (2.5.6 for chart 10.9.1).
+  tag: ""
+
+deployment:
+  replicas: 1
+  initContainers:
+  - name: volume-permissions
+    image: busybox:1.31.1
+    command:
+    - sh
+    - -c
+    - touch /data/acme.json ; chown 65532:65532 /data/acme.json ; chmod -Rv 600 /data/*
+    volumeMounts:
+    - name: data
+      mountPath: /data
+
+persistence:
+  enabled: true
+  accessMode: ReadWriteOnce
+  size: 128Mi
+
+service:
+  type: LoadBalancer
+
+ingressRoute:
+  dashboard:
+    enabled: true
+
+additionalArguments:
+- "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+- "--certificatesresolvers.letsencrypt.acme.email=devinflake@gmail.com"
+- "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json"
+- "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
+- "--providers.kubernetesingress.allowexternalnameservices"
+- "--providers.kubernetescrd.allowexternalnameservices"
+
+providers:
+  kubernetesCRD:
+    allowCrossNamespace: true
+
+logs:
+  general:
+    level: ERROR
+  access:
+    enabled: true
+    fields:
+      headers:
+        defaultmode: drop
+
+metrics:
+  prometheus:
+    entryPoint: metrics
+
+pilot:
+  enabled: false

@@ -1,0 +1,392 @@
+# Full redeploy: from bare Pis to a running cluster
+
+This is the end-to-end procedure to rebuild the cluster after reimaging the
+Raspberry Pis. It reproduces the live stack:
+
+- k3s `v1.22.5+k3s1`, single server
+- MetalLB `0.11.0`
+- Longhorn `1.2.3`
+- Traefik chart `10.9.1` (app `2.5.6`) with ACME
+- Prometheus chart `15.1.3` (app `2.31.1`)
+- Grafana chart `6.21.4` (app `8.3.5`)
+- Workloads in `cluster/workloads/`
+
+> **Version warning:** the live stack is pinned to 2021 releases because the
+> Traefik manifests use the `traefik.containo.us` API group (Traefik 2.x) and
+> the rest of the stack has not been upgraded. Reproduce the pinned versions
+> first, verify, then plan the upgrade described in
+> [action-items.md](action-items.md). Do not mix a current k3s/Traefik with
+> these manifests.
+
+## 0. Prerequisites
+
+On the workstation that will drive the install:
+
+```bash
+kubectl version --client
+helm version
+```
+
+Install `helm` if needed (<https://helm.sh/docs/intro/install/>). On Debian/Ubuntu:
+
+```bash
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+```
+
+You also need SSH access to the nodes and the ability to write the SSD of each
+Pi.
+
+## 1. Reimage the Pis
+
+### Image
+
+Use **Raspberry Pi OS Lite (Legacy) 64-bit, Debian 11 bullseye**, or an
+equivalent Debian 11 arm64 image with the Raspberry Pi `5.10` kernel. The live
+nodes report:
+
+```
+Debian GNU/Linux 11 (bullseye)
+Linux 5.10.92-v8+
+```
+
+Write the image directly to the **USB SSD** (not an SD card). Raspberry Pi
+Imager can target a USB device; alternatively use `dd`/`bmaptool` with the SSD
+in a USB adapter.
+
+In Raspberry Pi Imager's advanced settings, set:
+
+- hostname (`kube1` … `kube4`)
+- user `pi` with your SSH public key
+- SSH enabled
+- locale/timezone
+
+### First boot
+
+Boot each node with the SSD attached and log in over SSH. Perform the
+node-specific steps below **before** installing k3s.
+
+#### 1.1 Hostname and hosts file
+
+```bash
+sudo hostnamectl set-hostname kube1
+sudo sed -i 's/^127\.0\.1\.1.*/127.0.1.1\tkube1/' /etc/hosts
+```
+
+Append the cluster mapping to `/etc/hosts` on every node:
+
+```
+192.168.0.61 kube1 kube1.devinflake.com
+192.168.0.62 kube2 kube2.devinflake.com
+192.168.0.63 kube3 kube3.devinflake.com
+192.168.0.64 kube4 kube4.devinflake.com
+192.168.0.37 rpi-argon rpi-argon.devinflake.com
+192.168.0.7  rpi-retropie rpi-retropie.devinflake.com
+```
+
+#### 1.2 Static IP
+
+Edit `/etc/dhcpcd.conf` (adjust the address per node):
+
+```
+interface eth0
+static ip_address=192.168.0.61/24
+static routers=192.168.0.1
+static domain_name_servers=208.67.220.220 208.67.222.222
+
+interface wlan0
+static ip_address=192.168.0.61/24
+static routers=192.168.0.1
+static domain_name_servers=208.67.220.220 208.67.222.222
+```
+
+The `wlan0` block is present on the live nodes but inert because Wi-Fi is
+disabled.
+
+#### 1.3 Boot configuration
+
+Append to `/boot/config.txt`:
+
+```ini
+arm_64bit=1
+arm_boost=1
+dtoverlay=vc4-kms-v3d
+dtoverlay=disable-wifi
+dtoverlay=disable-bt
+over_voltage=6
+arm_freq=2000
+gpu_mem=16
+```
+
+`over_voltage=6` / `arm_freq=2000` are the 2.0 GHz overclock used live. Omit
+them if you do not have adequate cooling; everything else is required or part
+of the headless baseline.
+
+Append to the **single line** in `/boot/cmdline.txt`:
+
+```
+cgroup_enable=cpuset cgroup_enable=memory cgroup_memory=1 swapaccount=1
+```
+
+These cgroup arguments are required for Kubernetes.
+
+#### 1.4 Disable swap and install prerequisites
+
+```bash
+sudo systemctl disable --now dphys-swapfile 2>/dev/null || true
+sudo swapoff -a
+sudo apt-get update
+sudo apt-get install -y curl ca-certificates jq open-iscsi nfs-common
+sudo systemctl enable --now iscsid
+```
+
+`open-iscsi` and `nfs-common` are Longhorn prerequisites. Verify:
+
+```bash
+systemctl is-active iscsid          # active
+swapon --show                       # empty
+```
+
+#### 1.5 Reboot
+
+```bash
+sudo reboot
+```
+
+After reboot, verify the node:
+
+```bash
+hostname
+ip -4 addr show eth0
+vcgencmd measure_temp
+vcgencmd get_throttled               # 0x0
+free -m
+df -h /
+```
+
+Repeat on `kube2`–`kube4` with their own hostnames/IPs. `rpi-argon` and
+`rpi-retropie` are optional; add them only if you intend to bring them back.
+
+## 2. Install k3s
+
+### 2.1 Server (`kube1`)
+
+From the repository on `kube1`:
+
+```bash
+sudo ./scripts/install-server.sh
+```
+
+The script pins `v1.22.5+k3s1` and passes:
+
+```
+server --disable servicelb --disable local-storage --disable traefik
+```
+
+Retrieve the join token:
+
+```bash
+sudo cat /var/lib/rancher/k3s/server/node-token
+```
+
+### 2.2 Agents (`kube2`–`kube4`)
+
+Copy the repository or just the script to each agent, then:
+
+```bash
+sudo K3S_URL=https://192.168.0.61:6443 \
+     K3S_TOKEN='<token>' \
+     ./scripts/install-agent.sh
+```
+
+The script installs **only** `k3s-agent.service` and disables `k3s.service`.
+Do not create a server unit on an agent: the live kube2 acquired a broken
+`k3s server --server https://192.168.0.200:6443` unit from an abandoned
+kube-vip attempt and looped ~1.58 million times.
+
+### 2.3 kubeconfig on the workstation
+
+```bash
+ssh pi@192.168.0.61 'sudo cat /etc/rancher/k3s/k3s.yaml' > ~/.kube/config-dramble-k3s
+sed -i 's/127\.0\.0\.1/192.168.0.61/' ~/.kube/config-dramble-k3s
+chmod 600 ~/.kube/config-dramble-k3s
+export KUBECONFIG=~/.kube/config-dramble-k3s
+kubectl get nodes -o wide
+```
+
+All intended nodes should be `Ready`. Do not continue until they are.
+
+## 3. Create the Secrets
+
+Apply the namespaces first so the Secrets have somewhere to live:
+
+```bash
+kubectl apply -f cluster/namespaces.yaml
+```
+
+Create the three required Secrets. See [secrets.md](secrets.md) for details and
+rotation notes.
+
+```bash
+# Dashboard basic auth (htpasswd format)
+kubectl -n default create secret generic authsecret \
+  --from-literal=users="$(htpasswd -nbB admin 'CHOOSE-A-PASSWORD')"
+
+# Park-Your-Domain dynamic DNS
+kubectl -n default create secret generic dyn-dns-credentials \
+  --from-literal=password='CHOOSE-A-PASSWORD'
+
+# Grafana admin
+kubectl -n monitoring create secret generic grafana \
+  --from-literal=admin-user=admin \
+  --from-literal=admin-password='CHOOSE-A-PASSWORD'
+```
+
+`htpasswd` comes from `apache2-utils`. If you prefer, copy
+`cluster/secrets/examples/*.yaml`, replace the placeholders, and `kubectl apply`
+them.
+
+> Never commit real Secret values.
+
+## 4. Install the add-ons and workloads
+
+```bash
+export KUBECONFIG=~/.kube/config-dramble-k3s
+./scripts/install-addons.sh
+```
+
+The script performs, in order:
+
+1. MetalLB namespace, manifest, and address pool
+2. Longhorn manifest, waits for the driver deployer and manager
+3. Helm repo setup
+4. Traefik chart `10.9.1` with `cluster/traefik/values.yaml`
+5. Prometheus chart `15.1.3` with chart defaults
+6. Grafana chart `6.21.4` with `cluster/monitoring/grafana-values.yaml`
+7. Traefik `TLSOption`, `Middleware`, and `IngressRoute` objects
+8. Workloads (`cluster/workloads/`)
+9. Dashboard `IngressRoute`s
+10. Dynamic DNS CronJobs
+
+It fails fast if a required Secret is missing.
+
+### Manual equivalent
+
+If you prefer to run the steps yourself:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.11.0/manifests/namespace.yaml
+kubectl apply -f cluster/metallb/metallb-v0.11.0.yaml
+kubectl apply -f cluster/metallb/config.yaml
+
+kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.2.3/deploy/longhorn.yaml
+kubectl -n longhorn-system rollout status deploy/longhorn-driver-deployer --timeout=15m
+
+helm repo add traefik https://helm.traefik.io/traefik
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
+
+helm install traefik traefik/traefik -n traefik --version 10.9.1 \
+  -f cluster/traefik/values.yaml
+helm install prometheus prometheus-community/prometheus -n monitoring --version 15.1.3
+helm install grafana grafana/grafana -n monitoring --version 6.21.4 \
+  -f cluster/monitoring/grafana-values.yaml
+
+kubectl apply -f cluster/traefik/tlsoption.yaml
+kubectl apply -f cluster/traefik/middlewares.yaml
+kubectl apply -f cluster/traefik/ingressroutes.yaml
+kubectl apply -R -f cluster/workloads
+kubectl apply -f cluster/dashboards/ingressroutes.yaml
+kubectl apply -f cluster/dns/cronjobs.yaml
+```
+
+## 5. Restore the static site content
+
+The current document root is checked in at
+`cluster/workloads/mysite/content/`. Once the `mysite-nginx` pod is running:
+
+```bash
+kubectl -n mysite-nginx cp cluster/workloads/mysite/content/. \
+  deploy/mysite-nginx:/usr/share/nginx/html/
+```
+
+Verify:
+
+```bash
+kubectl -n mysite-nginx exec deploy/mysite-nginx -- ls -la /usr/share/nginx/html
+```
+
+Longhorn volumes are new and empty. Prometheus and Grafana start with empty
+databases; historical metrics and Grafana dashboards are not part of this repo.
+
+## 6. DNS and TLS
+
+- Traefik receives `192.168.0.201` from MetalLB.
+- Forward TCP 80 and 443 on the router (`192.168.0.1`) to `192.168.0.201`.
+- Park-Your-Domain records for `@`, `www`, and `*` are updated every 30 minutes
+  by the CronJobs. They discover the WAN address from the request, so no manual
+  A-record changes are needed after the first run.
+- Traefik obtains Let's Encrypt certificates on first request to each host via
+  TLS-ALPN-01. The ACME account email is in `cluster/traefik/values.yaml`
+  (`devinflake@gmail.com`); change it if needed.
+- Certificate issuance can take a minute. Watch Traefik logs:
+
+```bash
+kubectl -n traefik logs deploy/traefik -f | grep -i acme
+```
+
+## 7. Validate
+
+```bash
+kubectl get nodes
+kubectl get pods -A
+kubectl get pvc -A
+kubectl get svc -A
+kubectl -n traefik get svc traefik
+kubectl get ingressroute -A
+kubectl -n metallb-system get cm config -o jsonpath='{.data.config}'
+kubectl -n longhorn-system get volumes.longhorn.io
+kubectl top nodes
+```
+
+Expected:
+
+- 4 (or 6) nodes `Ready`
+- all pods `Running`/`Completed`
+- every PVC `Bound`
+- Traefik Service `EXTERNAL-IP=192.168.0.201`
+- Longhorn volumes `healthy`
+- MetalLB pool `192.168.0.201-192.168.0.250`
+
+End-to-end checks from the LAN:
+
+```bash
+for h in devinflake.com blog.devinflake.com grafana.devinflake.com; do
+  printf '%-26s ' "$h"
+  curl -s -o /dev/null -H "Host: $h" -w '%{http_code} -> %{redirect_url}\n' http://192.168.0.201/
+done
+
+curl -sk -o /dev/null -H 'Host: blog.devinflake.com' \
+  -w '%{http_code}\n' https://192.168.0.201/
+
+echo | openssl s_client -connect 192.168.0.201:443 \
+  -servername grafana.devinflake.com 2>/dev/null | \
+  openssl x509 -noout -subject -issuer -dates
+```
+
+The dashboards at `traefik.` and `longhorn.` require the basic-auth credentials
+from step 3.
+
+## 8. Post-install notes
+
+- `pi-hole.devinflake.com` points at `192.168.0.46:80`, which is currently
+  unreachable. Either restore that host or remove the `pi-hole` namespace and
+  its IngressRoutes.
+- The Grafana datasource is provisioned from `cluster/monitoring/grafana-values.yaml`.
+  Grafana has no dashboards; import them after the rebuild if desired.
+- The Prometheus chart is installed with **default values**, matching the live
+  cluster. It creates server, alertmanager, pushgateway, kube-state-metrics, and
+  node-exporter.
+- If you bring `rpi-argon`/`rpi-retropie` back, join them as agents with
+  `install-agent.sh`. Do not wipe their Longhorn disks blindly: existing
+  replicas re-register from `/var/lib/longhorn` if the disk data is intact.
