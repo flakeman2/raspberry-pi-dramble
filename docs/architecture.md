@@ -1,6 +1,6 @@
 # Architecture
 
-The cluster is a single-control-plane k3s cluster on six Raspberry Pi 4 nodes.
+The cluster is a single-control-plane k3s cluster on four Raspberry Pi 4 nodes.
 Kubernetes objects are applied directly with `kubectl` and Helm; there is no GitOps
 controller and no Ansible.
 

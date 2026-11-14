@@ -41,34 +41,21 @@ sudo journalctl -u k3s --since '5 min ago' --no-pager | tail
 
 No workloads are affected; `k3s-agent` continues to serve the node.
 
-### 3. Decide the fate of `rpi-argon` and `rpi-retropie`
+### 3. ~~Decide the fate of `rpi-argon` and `rpi-retropie`~~ — done 2026-11-14
 
-Both are powered off/unreachable. They contribute seven down Prometheus targets,
-stale MetalLB speaker pods, and two Longhorn instance-manager pods stuck
-`Terminating` for 627 days. No Longhorn replica lives on either node, so no
-volume is degraded.
-
-**Repair:** power them on, confirm they rejoin, then:
-
-```bash
-kubectl get nodes -w
-kubectl -n longhorn-system get nodes.longhorn.io
-```
-
-**Remove:** if they are permanently retired:
+Both were unreachable. They were removed from the cluster:
 
 ```bash
 kubectl delete node rpi-argon rpi-retropie
-kubectl -n longhorn-system delete node.longhorn.io rpi-argon rpi-retropie
-kubectl -n longhorn-system delete pod --field-selector=status.phase!=Running --force --grace-period=0
+# force-deleted the eight pods still bound to those node names
 ```
 
-Before deleting, confirm no Longhorn replica references them:
+Longhorn removed its node records automatically. All 15 replicas remained
+`running` and all five volumes stayed healthy. Prometheus now reports 23 targets
+with **0 down** (was 30 targets / 7 down).
 
-```bash
-kubectl -n longhorn-system get replicas.longhorn.io \
-  -o custom-columns='NAME:.metadata.name,NODE:.spec.nodeID,STATE:.status.currentState'
-```
+If the hardware is ever returned to service, reimage it and join with
+`scripts/install-agent.sh`; it will register as a new node.
 
 ### 4. Control access to the cluster API
 

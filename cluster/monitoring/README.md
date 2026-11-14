@@ -44,5 +44,5 @@ Grafana is exposed at `grafana.devinflake.com` by the IngressRoute in
 - The Prometheus datasource is codified in `grafana-values.yaml`; on the live
   cluster it was added through the UI.
 - Alertmanager has no receivers configured.
-- Prometheus targets on the two offline nodes are down; see
-  [../../docs/cluster-status.md](../../docs/cluster-status.md).
+- Prometheus targets are healthy after the 2026-11-14 node removal (23 targets,
+  0 down); see [../../docs/cluster-status.md](../../docs/cluster-status.md).

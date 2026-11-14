@@ -1,7 +1,8 @@
 # Cluster status snapshot
 
 **Captured:** 2026-11-14 via `~/.kube/config-dramble-k3s` and SSH to each node.
-**Scope:** read-only inspection; no cluster changes were made.
+**Updated:** 2026-11-14, after removing `rpi-argon` and `rpi-retropie`.
+**Scope:** read-only inspection followed by the node removal described below.
 
 This is a point-in-time snapshot of the live cluster. For what *should* be
 running, see [architecture.md](architecture.md). For the rebuild procedure, see
@@ -9,9 +10,10 @@ running, see [architecture.md](architecture.md). For the rebuild procedure, see
 
 ## Headline
 
-- The cluster is **serving traffic** and is healthy on **4 of 6 nodes**.
+- The cluster is **serving traffic** and is healthy on **four nodes**.
 - The stack is a **frozen 2021 release** and is **end-of-life**.
-- `rpi-argon` and `rpi-retropie` are **unreachable**; no volume is degraded.
+- `rpi-argon` and `rpi-retropie` were **removed** after being unreachable; all
+  Longhorn volumes stayed healthy throughout.
 - `kube2` runs a **broken, looping `k3s.service`** that has restarted ~1.58M
   times because it points at the abandoned kube-vip VIP `192.168.0.200`.
 - Both dynamic-DNS CronJobs have the **password inline in the command**.
@@ -44,12 +46,23 @@ objects.
 | `kube2` | 192.168.0.62 | node | **Ready** | stray `k3s.service` looping |
 | `kube3` | 192.168.0.63 | node | **Ready** | 52.5 °C |
 | `kube4` | 192.168.0.64 | node | **Ready** | 54.5 °C |
-| `rpi-argon` | 192.168.0.37 | node | **NotReady** | no route to host; last kubelet activity ~2025-02 |
-| `rpi-retropie` | 192.168.0.7 | node | **NotReady** | no route to host; last kubelet activity ~2022-02 |
 
-All Ready nodes report `MemoryPressure=False`, `DiskPressure=False`,
-`PIDPressure=False`. No node-level taints other than the automatic
-`unreachable` taints on the two dead nodes.
+All nodes report `MemoryPressure=False`, `DiskPressure=False`,
+`PIDPressure=False`. There are no unreachable nodes and no stale node taints.
+
+`rpi-argon` (192.168.0.37) and `rpi-retropie` (192.168.0.7) were deleted from
+the cluster. The removal sequence was:
+
+```bash
+kubectl delete node rpi-argon rpi-retropie
+# force-deleted the eight pods still bound to those node names
+kubectl get nodes                       # 4 Ready
+kubectl -n longhorn-system get nodes.longhorn.io   # 4 nodes
+```
+
+Longhorn removed its own node records when the Kubernetes Node objects
+disappeared. All 15 replicas remained `running` and all five volumes stayed
+`healthy` before, during, and after the removal.
 
 ### kube2's broken unit
 
@@ -77,39 +90,40 @@ sudo systemctl disable --now k3s     # on kube2
 | kube-system | `coredns` | 1/1 | `rancher/mirrored-coredns-coredns:1.8.4` |
 | kube-system | `metrics-server` | 1/1 | `rancher/mirrored-metrics-server:v0.5.0` |
 | metallb-system | `controller` | 1/1 | `quay.io/metallb/controller:v0.11.0` |
-| metallb-system | `speaker` (DaemonSet) | 4 live / 2 stale | `quay.io/metallb/speaker:v0.11.0` |
+| metallb-system | `speaker` (DaemonSet) | 4/4 | `quay.io/metallb/speaker:v0.11.0` |
 | longhorn-system | `longhorn-manager` (DaemonSet) | 1/1 per node | `longhornio/longhorn-manager:v1.2.3` |
 | longhorn-system | `longhorn-driver-deployer` | 1/1 | `longhornio/longhorn-manager:v1.2.3` |
 | longhorn-system | `longhorn-ui` | 1/1 | `longhornio/longhorn-ui:v1.2.3` |
 | longhorn-system | `csi-attacher` / `csi-provisioner` / `csi-resizer` / `csi-snapshotter` | 3/3 each | Longhorn CSI |
-| longhorn-system | `instance-manager-*` | 10 running / 2 Terminating | Longhorn |
+| longhorn-system | `instance-manager-*` | 8 running | Longhorn |
 | traefik | `traefik` | 1/1 | `traefik:2.5.6` |
 | monitoring | `prometheus-server` | 1/1 | `quay.io/prometheus/prometheus:v2.31.1` |
 | monitoring | `prometheus-alertmanager` | 1/1 | `quay.io/prometheus/alertmanager:v0.23.0` |
 | monitoring | `prometheus-kube-state-metrics` | 1/1 | `k8s.gcr.io/kube-state-metrics/kube-state-metrics:v2.3.0` |
 | monitoring | `prometheus-pushgateway` | 1/1 | `prom/pushgateway:v1.4.2` |
-| monitoring | `prometheus-node-exporter` (DaemonSet) | 4 live | `quay.io/prometheus/node-exporter:v1.3.0` |
+| monitoring | `prometheus-node-exporter` (DaemonSet) | 4/4 | `quay.io/prometheus/node-exporter:v1.3.0` |
 | monitoring | `grafana` | 1/1 | `grafana/grafana:8.3.5` |
 | mysite-nginx | `mysite-nginx` | 1/1 | `nginx:latest` |
 | jekyll | `jekyll-website` | 3/3 | `flakeman2/jekyll:1.0.4` |
 | whoami | `whoami` | 2/2 | `traefik/whoami` |
 | default | `dyn-dns-*` CronJobs | completed | `curlimages/curl` (untagged) |
 
-Total: 72 pods, 12 namespaces, 18 Deployments, 5 DaemonSets, 2 CronJobs, 23
-Services, 11 IngressRoutes, 6 Middlewares, 1 TLSOption.
+Total: 64 pods, 12 namespaces, 18 Deployments, 5 DaemonSets, 2 CronJobs, 23
+Services, 11 IngressRoutes, 6 Middlewares, 1 TLSOption, 8 Longhorn PDBs.
 
-### Stuck objects
+### Node removal cleanup
 
-Two Longhorn `instance-manager` pods on the dead nodes have been `Terminating`
-for **627 days**. Their PDBs (`instance-manager-*`, 12 total) show
-`ALLOWED DISRUPTIONS=0`. No Longhorn replica is on a dead node, so volumes are
-healthy.
+The eight pods that were still bound to `rpi-argon`/`rpi-retropie` had to be
+force-deleted (`--force --grace-period=0`); Kubernetes 1.22 did not garbage
+collect them after the Node objects were deleted. They were the MetalLB speaker,
+Longhorn manager/CSI/engine-image, Prometheus node-exporter, and two Longhorn
+instance-manager pods. Nothing was running on those hosts.
 
 ## Storage
 
 Longhorn reports all five volumes `attached`, `healthy`, `robustness=healthy`.
 All PVCs are `Bound`. 15 replicas: 5 on kube1, 3 on kube2, 3 on kube3, 4 on kube4.
-No replica is on `rpi-argon` or `rpi-retropie`. `default-replica-count=3`.
+All 15 are `running` on the four remaining nodes. `default-replica-count=3`.
 
 | PVC | Size | Mode | State |
 |---|---|---|---|
@@ -143,9 +157,8 @@ with a valid Let's Encrypt certificate (`issuer O=Let's Encrypt, CN=YR2`).
 
 ## Monitoring
 
-- Prometheus scrapes 30 targets; **7 are down**, all tied to the two dead nodes
-  (`kubernetes-nodes`, `kubernetes-nodes-cadvisor`, `kubernetes-pods` on
-  `:7472`, `kubernetes-service-endpoints` on `:9100`).
+- Prometheus scrapes **23 targets; 0 are down** after the node removal. Before
+  the removal it scraped 30 targets with 7 down, all tied to the two dead nodes.
 - Prometheus retention 15 days, data on the 8 GiB PVC.
 - Grafana has **0 dashboards**.
 - Grafana datasource `Prometheus` → `http://prometheus-server` is present,
@@ -158,9 +171,9 @@ with a valid Let's Encrypt certificate (`issuer O=Let's Encrypt, CN=YR2`).
 
 ## Security / hygiene observations
 
-- **78 of 79 containers have no resource limits.** Allocated requests are only
+- **63 of 64 containers have no resource limits.** Allocated requests are only
   ~24% CPU and 0–1% memory per node; on 4 GB Pis this is an OOM risk.
-- **42 of 73 long-running containers have no readiness or liveness probe.**
+- **37 of 64 long-running containers have no readiness or liveness probe.**
 - **No NetworkPolicies.**
 - Application PDBs: none. The only PDBs are Longhorn's auto-created
   `instance-manager` PDBs.
@@ -195,6 +208,5 @@ See [action-items.md](action-items.md). Immediate items:
 
 1. Rotate the k3s join token and dynamic-DNS password.
 2. Disable the stray `k3s.service` on kube2.
-3. Decide whether to repair or remove `rpi-argon` and `rpi-retropie`.
-4. Plan the k3s/component upgrade (1.22 is EOL).
-5. Add resource requests/limits and probes; import Grafana dashboards.
+3. Plan the k3s/component upgrade (1.22 is EOL).
+4. Add resource requests/limits and probes; import Grafana dashboards.

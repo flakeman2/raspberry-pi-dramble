@@ -141,11 +141,11 @@ git grep -nE 'REPLACE_WITH|\$2[aby]\$' -- cluster/secrets
 
 The only acceptable hits are placeholders such as `REPLACE_WITH_...`.
 
-## Git history caveat
+## Git history
 
-This repository preserves its full history. Old upstream commits may contain
-example credentials or test certificates from the original Ansible project,
-including the previously tracked `k8s-manifests/docker-registry/certs/` files.
-Those files are removed from the current tree but remain in history. If that is
-unacceptable, rewrite history (for example with `git filter-repo`) and force-push
-the fork.
+The live secrets were never committed. The only credential-like content in
+history is the upstream `example.config.yml` file, whose values (MySQL/Drupal
+passwords, hash salt, registry HTTP secret) were examples from the original
+Ansible project and were never used by this cluster. The previously tracked
+`k8s-manifests/docker-registry/certs/` directory only ever held a README and a
+`.gitignore`, not certificates or keys. No history rewrite is needed.

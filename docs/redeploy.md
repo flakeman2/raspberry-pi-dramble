@@ -79,8 +79,6 @@ Append the cluster mapping to `/etc/hosts` on every node:
 192.168.0.62 kube2 kube2.devinflake.com
 192.168.0.63 kube3 kube3.devinflake.com
 192.168.0.64 kube4 kube4.devinflake.com
-192.168.0.37 rpi-argon rpi-argon.devinflake.com
-192.168.0.7  rpi-retropie rpi-retropie.devinflake.com
 ```
 
 #### 1.2 Static IP
@@ -164,7 +162,8 @@ df -h /
 ```
 
 Repeat on `kube2`–`kube4` with their own hostnames/IPs. `rpi-argon` and
-`rpi-retropie` are optional; add them only if you intend to bring them back.
+`rpi-retropie` were removed from the cluster in November 2026 and are not part of
+the rebuild.
 
 ## 2. Install k3s
 
@@ -387,6 +386,7 @@ from step 3.
 - The Prometheus chart is installed with **default values**, matching the live
   cluster. It creates server, alertmanager, pushgateway, kube-state-metrics, and
   node-exporter.
-- If you bring `rpi-argon`/`rpi-retropie` back, join them as agents with
-  `install-agent.sh`. Do not wipe their Longhorn disks blindly: existing
-  replicas re-register from `/var/lib/longhorn` if the disk data is intact.
+- If you return `rpi-argon`/`rpi-retropie` to service, reimage them and join
+  them as agents with `install-agent.sh`. They will register as new nodes. Do not
+  wipe their Longhorn disks blindly: existing replicas re-register from
+  `/var/lib/longhorn` if the disk data is intact.

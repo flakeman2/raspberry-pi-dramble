@@ -1,6 +1,6 @@
 # Raspberry Pi Drumble
 
-A six-node Raspberry Pi 4 Kubernetes cluster running **k3s**, **Longhorn**
+A four-node Raspberry Pi 4 Kubernetes cluster running **k3s**, **Longhorn**
 storage, **MetalLB** load balancing, and **Traefik** ingress with Let's Encrypt
 TLS. This repository documents the cluster as it actually runs and contains the
 manifests needed to rebuild it from scratch.
@@ -16,7 +16,7 @@ see [docs/architecture.md](docs/architecture.md) for what is actually deployed.
 | | |
 |---|---|
 | Distribution | k3s `v1.22.5+k3s1` (single control plane, embedded SQLite) |
-| Nodes | 6 × Raspberry Pi 4 Model B, 4 cores / 4 GB RAM each |
+| Nodes | 4 × Raspberry Pi 4 Model B, 4 cores / 4 GB RAM each |
 | Storage | Longhorn `1.2.3`, `longhorn` default StorageClass, 3 replicas |
 | Load balancer | MetalLB `0.11.0`, L2 pool `192.168.0.201–192.168.0.250` |
 | Ingress | Traefik `2.5.6` (chart `10.9.1`) at `192.168.0.201` |
@@ -25,9 +25,9 @@ see [docs/architecture.md](docs/architecture.md) for what is actually deployed.
 | Metrics | metrics-server `0.5.0`, CoreDNS `1.8.4` |
 | DNS | Park-Your-Domain dynamic DNS via two CronJobs |
 
-> **Status:** the cluster is live on 4 of 6 nodes. `rpi-argon` and
-> `rpi-retropie` are powered off/unreachable. The full snapshot, including
-> faults and end-of-life warnings, is in
+> **Status:** all four nodes are `Ready`. `rpi-argon` and `rpi-retropie` were
+> removed from the cluster on 2026-11-14 after being unreachable. The full
+> snapshot, including faults and end-of-life warnings, is in
 > [docs/cluster-status.md](docs/cluster-status.md).
 
 ## Repository layout

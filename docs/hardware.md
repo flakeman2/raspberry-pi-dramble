@@ -1,8 +1,9 @@
 # Hardware
 
-Six identical Raspberry Pi 4 Model B boards, each booting from a USB SSD. Four
-are currently powered on and part of the cluster; `rpi-argon` and
-`rpi-retropie` are offline (see [cluster-status.md](cluster-status.md)).
+Four Raspberry Pi 4 Model B boards, each booting from a USB SSD, form the
+cluster. Two additional boards (`rpi-argon`, `rpi-retropie`) were removed from
+the cluster on 2026-11-14 after being unreachable for an extended period. See
+[cluster-status.md](cluster-status.md).
 
 ## Bill of materials
 
@@ -40,18 +41,18 @@ live on the USB SSD.
 | `kube2` | 192.168.0.62 | k3s agent | Ready (has a broken extra `k3s.service` unit) |
 | `kube3` | 192.168.0.63 | k3s agent | Ready |
 | `kube4` | 192.168.0.64 | k3s agent | Ready |
-| `rpi-argon` | 192.168.0.37 | k3s agent | NotReady, unreachable |
-| `rpi-retropie` | 192.168.0.7 | k3s agent | NotReady, unreachable |
 
-All six use the same `/etc/hosts` mapping:
+`rpi-argon` (192.168.0.37) and `rpi-retropie` (192.168.0.7) were removed from
+the cluster on 2026-11-14; the Node objects, stale pods, and Longhorn node
+records are gone.
+
+All four current nodes use the same `/etc/hosts` mapping:
 
 ```
 192.168.0.61 kube1 kube1.devinflake.com
 192.168.0.62 kube2 kube2.devinflake.com
 192.168.0.63 kube3 kube3.devinflake.com
 192.168.0.64 kube4 kube4.devinflake.com
-192.168.0.37 rpi-argon rpi-argon.devinflake.com
-192.168.0.7  rpi-retropie rpi-retropie.devinflake.com
 ```
 
 ## Boot configuration
