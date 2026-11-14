@@ -64,7 +64,8 @@ cluster/                     Manifests for everything the cluster runs
   dashboards/                IngressRoutes for Grafana/Longhorn UIs
   secrets/                   Secret requirements + example manifests (no values)
 scripts/                     Install scripts for k3s and the add-ons
-docs/                        Architecture, hardware, status, redeploy, secrets
+gitops/                      Argo CD desired state (planned; see docs/gitops.md)
+docs/                        Architecture, hardware, status, redeploy, secrets, GitOps
 ```
 
 ## Rebuild from bare Pis
@@ -113,10 +114,15 @@ gh pr create --base master --head dev --title "Release: <summary>"
 ```
 
 Repository settings back this up: `master` rejects direct pushes, force-pushes,
-and deletion; `dev` rejects force-pushes and deletion. A single maintainer cannot
-approve their own PR, so no approving review is required — the PR itself is the
-review record. Enable "required approvals" in the branch protection settings if
-another maintainer joins.
+and deletion, and requires **one approving review** with stale approvals
+dismissed on new commits; `dev` rejects force-pushes and deletion.
+
+GitHub does not let you approve your own pull request, so a second reviewer is
+needed for every merge. Until there is one, the repository admin can bypass the
+review requirement (`enforce_admins` is off) — that bypass is for emergencies,
+not routine merges. To close it, enable "Do not allow bypassing the above
+settings" in Settings → Branches, once a second reviewer or a bot account can
+approve.
 
 ## License
 

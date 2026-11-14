@@ -67,7 +67,8 @@ access. Only 80/443 should reach `192.168.0.201`.
 
 ### 5. Plan the upgrade off end-of-life versions
 
-The whole stack is from 2021:
+This is also the prerequisite for Argo CD — see [gitops.md](gitops.md). The whole
+stack is from 2021:
 
 | Component | Live | Notes |
 |---|---|---|
@@ -107,7 +108,7 @@ Do the upgrade after the rebuild is verified, not during it.
 
 ### 6. Add resource requests/limits and probes
 
-**78 of 79 containers have no limits; 42 of 73 have no probes.** The scheduler
+**63 of 64 containers have no limits; 37 of 64 have no probes.** The scheduler
 sees ~24% CPU and ~0–1% memory allocated per node, so a busy workload can OOM a
 4 GB Pi. Start with the application workloads and Traefik/Grafana:
 
