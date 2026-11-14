@@ -5,9 +5,29 @@ storage, **MetalLB** load balancing, and **Traefik** ingress with Let's Encrypt
 TLS. This repository documents the cluster as it actually runs and contains the
 manifests needed to rebuild it from scratch.
 
-This is a fork of [geerlingguy/raspberry-pi-dramble][upstream]. The upstream
-Ansible/kubeadm material has been removed because this cluster never used it;
-see [docs/architecture.md](docs/architecture.md) for what is actually deployed.
+## History
+
+This repository began as a fork of
+[geerlingguy/raspberry-pi-dramble][upstream] — Jeff Geerling's Pi Dramble, a
+Raspberry Pi cluster project first committed in February 2015 and originally
+built with Ansible and kubeadm.
+
+The fork tracked upstream through November 2021. The cluster documented here,
+however, was built independently on k3s and never used the upstream Ansible
+roles, kubeadm manifests, kube-vip plan, cert-manager setup, or `ghost-blog`
+workload. In November 2026 the repository was rewritten to match reality:
+
+| Date | Commit | Change |
+|---|---|---|
+| 2026-11-14 | `249f1ed` | Removed the upstream Ansible/kubeadm material; added k3s docs and sanitized manifests for the live cluster |
+| 2026-11-14 | `bb76502` | Documented removal of the two unreachable nodes, `rpi-argon` and `rpi-retropie` |
+| 2026-11-14 | — | Detached from the GitHub fork network; this is now a standalone repository |
+
+Upstream history is preserved in the commit graph, and
+[geerlingguy/raspberry-pi-dramble][upstream] remains the reference for the
+original project. This repository does not track or merge from upstream, and
+pull requests are no longer opened against it. See
+[docs/architecture.md](docs/architecture.md) for what is actually deployed.
 
 [upstream]: https://github.com/geerlingguy/raspberry-pi-dramble
 
