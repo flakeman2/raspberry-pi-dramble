@@ -1,4 +1,4 @@
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: traefik-dflake-dashboard
@@ -21,7 +21,7 @@ spec:
   tls:
     certResolver: letsencrypt
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: whoami-ingress
@@ -43,7 +43,7 @@ spec:
   tls:
     certResolver: letsencrypt
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: mysite-nginx-ingress-http
@@ -60,7 +60,7 @@ spec:
     - name: mysite-nginx-service
       port: 80
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: mysite-nginx-ingress-https
@@ -77,7 +77,7 @@ spec:
   tls:
     certResolver: letsencrypt
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: jekyll-ingress-http
@@ -94,7 +94,7 @@ spec:
     - name: jekyll-website
       port: 80
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: jekyll-ingressroute
@@ -111,7 +111,7 @@ spec:
   tls:
     certResolver: letsencrypt
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: pi-hole-http
@@ -129,7 +129,7 @@ spec:
       name: pi-hole-service
       port: 80
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: pi-hole-ingress

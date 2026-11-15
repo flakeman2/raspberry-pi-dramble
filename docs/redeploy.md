@@ -1,22 +1,21 @@
 # Full redeploy: from bare Pis to a running cluster
 
-This is the end-to-end procedure to rebuild the cluster after reimaging the
-Raspberry Pis. It reproduces the live stack:
+This is the end-to-end procedure to rebuild the cluster from bare Pis. It
+reproduces the stack pinned in this repository:
 
-- k3s `v1.22.5+k3s1`, single server
-- MetalLB `0.11.0`
-- Longhorn `1.2.3`
-- Traefik chart `10.9.1` (app `2.5.6`) with ACME
-- Prometheus chart `15.1.3` (app `2.31.1`)
-- Grafana chart `6.21.4` (app `8.3.5`)
+- k3s `v1.36.6+k3s1`, single server
+- MetalLB `0.16.2` (vendored native manifest + `IPAddressPool`/`L2Advertisement` CRs)
+- Longhorn `1.13.0`
+- Traefik chart `42.4.0` (app `v3.7.18`) with ACME
+- Prometheus chart `29.47.2` (app `3.16.0`)
+- Grafana chart `14.4.1` (app `13.3.1`), from the `grafana-community` Helm repo
 - Workloads in `cluster/workloads/`
 
-> **Version warning:** the live stack is pinned to 2021 releases because the
-> Traefik manifests use the `traefik.containo.us` API group (Traefik 2.x) and
-> the rest of the stack has not been upgraded. Reproduce the pinned versions
-> first, verify, then plan the upgrade described in
-> [upgrade.md](upgrade.md). Do not mix a current k3s/Traefik with
-> these manifests.
+> **Note:** these pins replaced the 2021 stack (k3s `v1.22.5+k3s1`, Traefik
+> `2.5.6`, …) on 2026-11-14, ahead of this reimage — see
+> [upgrade.md](upgrade.md). What was actually running until then is recorded in
+> [cluster-status.md](cluster-status.md). The manifests in this repository are
+> the current ones; there is no old-version path to reproduce any more.
 
 ## 0. Prerequisites
 
@@ -175,7 +174,7 @@ From the repository on `kube1`:
 sudo ./scripts/install-server.sh
 ```
 
-The script pins `v1.22.5+k3s1` and passes:
+The script pins `v1.36.6+k3s1` and passes:
 
 ```
 server --disable servicelb --disable local-storage --disable traefik
@@ -258,9 +257,9 @@ The script performs, in order:
 1. MetalLB namespace, manifest, and address pool
 2. Longhorn manifest, waits for the driver deployer and manager
 3. Helm repo setup
-4. Traefik chart `10.9.1` with `cluster/traefik/values.yaml`
-5. Prometheus chart `15.1.3` with chart defaults
-6. Grafana chart `6.21.4` with `cluster/monitoring/grafana-values.yaml`
+4. Traefik chart `42.4.0` with `cluster/traefik/values.yaml`
+5. Prometheus chart `29.47.2` with chart defaults
+6. Grafana chart `14.4.1` with `cluster/monitoring/grafana-values.yaml`
 7. Traefik `TLSOption`, `Middleware`, and `IngressRoute` objects
 8. Workloads (`cluster/workloads/`)
 9. Dashboard `IngressRoute`s
@@ -273,24 +272,28 @@ It fails fast if a required Secret is missing.
 If you prefer to run the steps yourself:
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.11.0/manifests/namespace.yaml
-kubectl apply -f cluster/metallb/metallb-v0.11.0.yaml
+kubectl apply -f cluster/metallb/metallb-v0.16.2.yaml
+kubectl -n metallb-system rollout status deploy/controller --timeout=5m
+kubectl wait --for condition=established --timeout=60s \
+  crd/ipaddresspools.metallb.io crd/l2advertisements.metallb.io
 kubectl apply -f cluster/metallb/config.yaml
 
-kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.2.3/deploy/longhorn.yaml
+kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.13.0/deploy/longhorn.yaml
 kubectl -n longhorn-system rollout status deploy/longhorn-driver-deployer --timeout=15m
 
-helm repo add traefik https://helm.traefik.io/traefik
+helm repo add traefik https://traefik.github.io/charts
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo add grafana https://grafana.github.io/helm-charts
+helm repo add grafana https://grafana-community.github.io/helm-charts
 helm repo update
 
-helm install traefik traefik/traefik -n traefik --version 10.9.1 \
+helm install traefik traefik/traefik -n traefik --version 42.4.0 \
   -f cluster/traefik/values.yaml
-helm install prometheus prometheus-community/prometheus -n monitoring --version 15.1.3
-helm install grafana grafana/grafana -n monitoring --version 6.21.4 \
+helm install prometheus prometheus-community/prometheus -n monitoring --version 29.47.2
+helm install grafana grafana/grafana -n monitoring --version 14.4.1 \
   -f cluster/monitoring/grafana-values.yaml
 
+kubectl wait --for condition=established --timeout=60s \
+  crd/ingressroutes.traefik.io crd/middlewares.traefik.io crd/tlsoptions.traefik.io
 kubectl apply -f cluster/traefik/tlsoption.yaml
 kubectl apply -f cluster/traefik/middlewares.yaml
 kubectl apply -f cluster/traefik/ingressroutes.yaml
@@ -343,7 +346,7 @@ kubectl get pvc -A
 kubectl get svc -A
 kubectl -n traefik get svc traefik
 kubectl get ingressroute -A
-kubectl -n metallb-system get cm config -o jsonpath='{.data.config}'
+kubectl -n metallb-system get ipaddresspool default -o jsonpath='{.spec.addresses}'
 kubectl -n longhorn-system get volumes.longhorn.io
 kubectl top nodes
 ```

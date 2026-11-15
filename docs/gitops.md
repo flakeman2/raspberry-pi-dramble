@@ -23,13 +23,14 @@ runs k3s **1.22.5**, EOL since 2022. Pinning a 2022-era Argo CD release to match
 k8s 1.22 would put an unmaintained controller in charge of reconciliation, so
 the upgrade comes first.
 
-The pinned add-ons also cap the k3s version:
+The add-ons that used to cap the k3s version have all been migrated in this
+repository (2026-11-14), so only the reimage itself is left:
 
-| Component | Live | Cap |
-|---|---|---|
-| Longhorn | 1.2.3 | Supports k8s only through ~1.24; step through minors |
-| MetalLB | 0.11.0 | ConfigMap address pool; 0.13+ requires `IPAddressPool` CRs |
-| Traefik | 2.5.6 | Manifests use `traefik.containo.us`; Traefik 3 dropped that group |
+| Component | Live until reimage | What capped it | Retargeted to |
+|---|---|---|---|
+| Longhorn | 1.2.3 | Supported k8s only through ~1.24; step through minors | `1.13.0` (tested 1.33–1.36) |
+| MetalLB | 0.11.0 | ConfigMap address pool; 0.13+ requires `IPAddressPool` CRs | `0.16.2` with `IPAddressPool` + `L2Advertisement` |
+| Traefik | 2.5.6 | Manifests used `traefik.containo.us`; Traefik 3 dropped that group | `3.7.18`, chart `42.4.0`, `traefik.io` CRs |
 
 The full component plan, including the in-place versus rebuild decision, is in
 [upgrade.md](upgrade.md). Do not install Argo CD until:

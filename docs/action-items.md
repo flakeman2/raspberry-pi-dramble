@@ -65,17 +65,24 @@ access. Only 80/443 should reach `192.168.0.201`.
 
 ## P1 — correctness and resilience
 
-### 5. Plan the upgrade off end-of-life versions
+### 5. Rebuild off end-of-life versions
 
-k3s 1.22 is EOL, and Longhorn 1.2.3, MetalLB 0.11.0, and Traefik 2.5.6 all cap
-which Kubernetes minor can follow. The full plan — target versions, the
-in-place-versus-rebuild decision, component migration notes, and verification
-gates — is in [upgrade.md](upgrade.md).
+k3s 1.22 is EOL, and the add-ons it caps — Longhorn 1.2.3, MetalLB 0.11.0,
+Traefik 2.5.6 — cannot follow it forward. The full plan, target versions,
+in-place-versus-rebuild decision, migration notes, and verification gates are in
+[upgrade.md](upgrade.md).
 
-Short version: rebuilding on k3s 1.36 / Longhorn 1.13 / MetalLB 0.16 /
-Traefik 3.7 is recommended over roughly 25 in-place upgrade hops. Only the
-1 GiB `mysite-content` volume is irreplaceable; back it up first, then rebuild.
-Do the upgrade before Argo CD ([gitops.md](gitops.md)), not during it.
+**Repository retargeted 2026-11-14:** the scripts and manifests now pin k3s
+`v1.36.6+k3s1`, Longhorn `1.13.0`, MetalLB `0.16.2` (CRD-based config), Traefik
+`3.7.18` / chart `42.4.0` (`traefik.io` CRs), Prometheus `3.16.0` / chart
+`29.47.2`, and Grafana `13.3.1` / chart `14.4.1`. It passes `pluto` (no APIs
+removed by 1.36) and `kubeconform`.
+
+**Still to do:** reimage the nodes and run [redeploy.md](redeploy.md) — the
+rebuild, not ~25 in-place hops. Only the 1 GiB `mysite-content` volume is
+irreplaceable, and it is byte-identical to
+`cluster/workloads/mysite/content/`. Do the upgrade before Argo CD
+([gitops.md](gitops.md)), not during it.
 
 ### 6. Add resource requests/limits and probes
 

@@ -31,19 +31,19 @@ controller and no Ansible.
 |---|---|
 | Server | `kube1` (192.168.0.61) only |
 | Datastore | embedded SQLite at `/var/lib/rancher/k3s/server/db/state.db` |
-| k3s version | `v1.22.5+k3s1` |
+| k3s version | `v1.36.6+k3s1` |
 | Server flags | `--disable servicelb --disable local-storage --disable traefik` |
 
 The three disabled components are replaced by explicit add-ons:
 
 | Disabled k3s component | Replacement |
 |---|---|
-| `servicelb` (Klipper) | MetalLB 0.11.0 |
-| `local-storage` | Longhorn 1.2.3 |
-| bundled `traefik` | Traefik Helm chart 10.9.1 |
+| `servicelb` (Klipper) | MetalLB 0.16.2 |
+| `local-storage` | Longhorn 1.13.0 |
+| bundled `traefik` | Traefik Helm chart 42.4.0 |
 
-k3s still manages these add-ons in `kube-system`: `ccm`, `coredns` (1.8.4),
-`metrics-server` (0.5.0), `resource-reader`, `aggregated-metrics-reader`,
+k3s still manages these add-ons in `kube-system`: `ccm`, `coredns` (k3s-bundled),
+`metrics-server` (k3s-bundled), `resource-reader`, `aggregated-metrics-reader`,
 `metrics-apiservice`, and the metrics-server RBAC/service objects.
 
 There is **no** kube-vip, no external etcd, no HA control plane, and no
@@ -70,14 +70,14 @@ on kube2.
 
 ### MetalLB (layer 2)
 
-- Version 0.11.0, installed from the upstream manifest.
+- Version 0.16.2, from the vendored native manifest; the address pool is an `IPAddressPool` CR, not a ConfigMap.
 - Address pool: `192.168.0.201–192.168.0.250`, protocol `layer2`.
 - The `speaker` DaemonSet answers ARP for allocated addresses.
 - Traefik is the only `LoadBalancer` Service and receives `192.168.0.201`.
 
 ### Traefik
 
-- Chart `traefik` 10.9.1, application 2.5.6, one replica.
+- Chart `traefik` 42.4.0, application v3.7.18, one replica.
 - Entry points: `web` (8000→80), `websecure` (8443→443), `metrics` (9100),
   `traefik` (9000, internal API).
 - Providers: `kubernetesCRD` (with `allowCrossNamespace`) and `kubernetesIngress`.
@@ -117,7 +117,7 @@ live jobs embed the password in the command; the manifests in this repo use the
 
 ## Storage
 
-Longhorn 1.2.3 provides the `longhorn` default StorageClass with 3 replicas.
+Longhorn 1.13.0 provides the `longhorn` default StorageClass with 3 replicas.
 
 | PVC | Namespace | Size | Mode | Consumer |
 |---|---|---|---|---|
@@ -133,17 +133,17 @@ and `nfs-common`.
 
 ## Monitoring
 
-The `prometheus-community/prometheus` chart 15.1.3 is installed with **default
+The `prometheus-community/prometheus` chart 29.47.2 is installed with **default
 values**. It creates:
 
-- Prometheus server 2.31.1 (15-day retention, 8 GiB Longhorn PVC)
+- Prometheus server 3.16.0 (15-day retention, 8 GiB Longhorn PVC)
 - Alertmanager 0.23.x (2 GiB PVC)
 - kube-state-metrics
 - node-exporter (DaemonSet)
 - pushgateway
 - configmap-reload sidecar
 
-Grafana chart 6.21.4 runs Grafana 8.3.5 with a 10 GiB Longhorn PVC, a ClusterIP
+Grafana chart 14.4.1 runs Grafana 13.3.1 with a 10 GiB Longhorn PVC, a ClusterIP
 Service on port 80, and one Prometheus datasource (`http://prometheus-server`).
 It is exposed at `grafana.devinflake.com` by an `IngressRoute` in `monitoring`.
 The live Grafana has **no dashboards** imported.

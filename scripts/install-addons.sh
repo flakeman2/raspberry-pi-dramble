@@ -15,11 +15,11 @@ cd "$(dirname "$0")/.."
 
 : "${KUBECONFIG:?set KUBECONFIG to the cluster kubeconfig}"
 
-TRAEFIK_CHART_VERSION=10.9.1
-PROMETHEUS_CHART_VERSION=15.1.3
-GRAFANA_CHART_VERSION=6.21.4
-LONGHORN_VERSION=1.2.3
-METALLB_VERSION=0.11.0
+TRAEFIK_CHART_VERSION=42.4.0
+PROMETHEUS_CHART_VERSION=29.47.2
+GRAFANA_CHART_VERSION=14.4.1
+LONGHORN_VERSION=1.13.0
+METALLB_VERSION=0.16.2
 
 if ! command -v helm >/dev/null; then
   echo "helm is required: https://helm.sh/docs/intro/install/" >&2
@@ -50,11 +50,15 @@ echo "==> namespaces"
 kubectl apply -f cluster/namespaces.yaml
 
 echo "==> MetalLB ${METALLB_VERSION}"
-kubectl apply -f "https://raw.githubusercontent.com/metallb/metallb/v${METALLB_VERSION}/manifests/namespace.yaml"
-kubectl apply -f cluster/metallb/metallb-v0.11.0.yaml
-kubectl apply -f cluster/metallb/config.yaml
+# The native manifest ships the namespace, CRDs, validation webhook,
+# controller and speaker; the address pool is a CR (metallb.io/v1beta1)
+# rather than the pre-0.13 ConfigMap.
+kubectl apply -f "cluster/metallb/metallb-v${METALLB_VERSION}.yaml"
 kubectl -n metallb-system rollout status deploy/controller --timeout=5m
 kubectl -n metallb-system rollout status ds/speaker --timeout=5m
+kubectl wait --for condition=established --timeout=60s \
+  crd/ipaddresspools.metallb.io crd/l2advertisements.metallb.io
+kubectl apply -f cluster/metallb/config.yaml
 
 echo "==> Longhorn ${LONGHORN_VERSION}"
 kubectl apply -f "https://raw.githubusercontent.com/longhorn/longhorn/v${LONGHORN_VERSION}/deploy/longhorn.yaml"
@@ -63,9 +67,11 @@ kubectl -n longhorn-system rollout status ds/longhorn-manager --timeout=15m
 kubectl get sc longhorn >/dev/null
 
 echo "==> Helm repositories"
-helm repo add traefik https://helm.traefik.io/traefik --force-update
+helm repo add traefik https://traefik.github.io/charts --force-update
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts --force-update
-helm repo add grafana https://grafana.github.io/helm-charts --force-update
+# The grafana chart moved to grafana-community after 2026-01-30; the old
+# grafana.github.io endpoint serves a frozen, deprecated 10.5.x line.
+helm repo add grafana https://grafana-community.github.io/helm-charts --force-update
 helm repo update
 
 echo "==> Traefik ${TRAEFIK_CHART_VERSION}"
@@ -84,6 +90,10 @@ helm upgrade --install grafana grafana/grafana \
   -f cluster/monitoring/grafana-values.yaml --wait --timeout 10m
 
 echo "==> Traefik CRs"
+# Helm installs the traefik.io CRDs from the chart; wait until the API server
+# serves them before applying our resources against a fresh cluster.
+kubectl wait --for condition=established --timeout=60s \
+  crd/ingressroutes.traefik.io crd/middlewares.traefik.io crd/tlsoptions.traefik.io
 kubectl apply -f cluster/traefik/tlsoption.yaml
 kubectl apply -f cluster/traefik/middlewares.yaml
 kubectl apply -f cluster/traefik/ingressroutes.yaml

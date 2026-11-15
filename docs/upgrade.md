@@ -1,8 +1,11 @@
 # Upgrade plan
 
-**Status:** planned. The cluster is still on the 2021 stack; nothing here has been
-executed. Version data was checked on 2026-11-14 — re-verify before starting,
-because patch releases move.
+**Status:** A1 is done — the repository's scripts and manifests were retargeted
+to the target versions on 2026-11-14 and validated with `pluto` and
+`kubeconform`. The cluster itself has not been touched: it still runs the 2021
+stack, so A0 (backups), A2 (rebuild) and A3 (restore) are all outstanding.
+Version data was checked on 2026-11-14 — re-verify patch levels before
+starting, because they move.
 
 This page covers every component, the order, the gates between steps, and the
 choice between upgrading in place and rebuilding. Argo CD adoption is sequenced
@@ -14,17 +17,18 @@ after this work; see [gitops.md](gitops.md).
 |---|---|---|---|
 | k3s / Kubernetes | `v1.22.5+k3s1` | `v1.36.6+k3s1` | Newest minor tested by both Longhorn 1.13 (`1.33–1.36`) and Argo CD 3.6 (`1.34–1.37`); `1.36.6` was current on 2026-11-14 |
 | Longhorn | `1.2.3` | `1.13.0` | Tested on k8s 1.33–1.36 |
-| MetalLB | `0.11.0` | `0.16.2` (chart `0.16.x`) | Requires k8s ≥ 1.19; CRD-based configuration |
-| Traefik | `2.5.6`, chart `10.9.1` | `3.7.x`, chart `42.x` | Chart requires k8s ≥ 1.30 |
-| Prometheus | `2.31.1`, chart `15.1.3` | current `prometheus` chart (Prometheus 3.x) | Chart requires a current k8s minor |
-| Grafana | `8.3.5`, chart `6.21.4` | `13.x`, chart `14.x` | Grafana 13 is current |
-| metrics-server | `0.5.0` | current `0.7`/`0.8` line | Check flags: `--kubelet-insecure-tls` still needed |
+| MetalLB | `0.11.0` | `0.16.2` (vendored native manifest) | CRD-based configuration since 0.13; no Helm chart needed |
+| Traefik | `2.5.6`, chart `10.9.1` | `3.7.18`, chart `42.4.0` | Chart requires k8s ≥ 1.30; its values schema rejects unknown keys |
+| Prometheus | `2.31.1`, chart `15.1.3` | `3.16.0`, chart `29.47.2` | Chart requires a current k8s minor |
+| Grafana | `8.3.5`, chart `6.21.4` | `13.3.1`, chart `14.4.1` | Chart moved to the `grafana-community` Helm repo after 2026-01-30; `grafana.github.io` serves a frozen, deprecated 10.5.x line |
+| metrics-server | `0.5.0` | k3s-bundled | Nothing to install; confirm `kubectl top` afterwards |
 | CoreDNS | `1.8.4` | k3s bundled | Do not manage separately |
 | Argo CD | — | `3.6.x` | Install after k8s reaches ≥ 1.34 |
 
-Confirm the exact patch with `helm search repo` / the k3s releases page at
-execution time; pin whatever you find in the manifests and scripts so the next
-rebuild is reproducible.
+These are the exact versions pinned in `scripts/install-server.sh` and
+`scripts/install-addons.sh`; bump them together, re-running `pluto` and
+`kubeconform` and re-rendering the charts, so the next rebuild stays
+reproducible.
 
 ## Decision: in place or rebuild
 
@@ -84,20 +88,27 @@ Also record: the live DDNS cron command (the password is inline there), DHCP
 reservations, `/etc/hosts`, and any Longhorn settings changed through the UI.
 Nothing here goes into the repository.
 
-### A1. Prepare the target state in git
+### A1. Prepare the target state in git — **done, 2026-11-14**
 
-On a topic branch into `dev`:
+All five items landed on `dev` and were validated with
+`pluto detect-files -d cluster/ --target-versions k8s=v1.36.0` (no deprecated
+APIs) and `kubeconform` (0 invalid, 0 errors, on both the manifests and the
+`helm template` output for all three charts):
 
-1. Bump `K3S_VERSION` in `scripts/install-server.sh` and the default in
+1. `K3S_VERSION` → `v1.36.6+k3s1` in `scripts/install-server.sh` and
    `scripts/install-agent.sh`.
-2. Replace `cluster/metallb/metallb-v0.11.0.yaml` with the 0.16 manifests and
-   convert `cluster/metallb/config.yaml` from the `ConfigMap` to
+2. `cluster/metallb/metallb-v0.11.0.yaml` replaced by `metallb-v0.16.2.yaml`;
+   `cluster/metallb/config.yaml` converted from the `ConfigMap` to
    `IPAddressPool` + `L2Advertisement` (see below).
-3. Rewrite `cluster/traefik/values.yaml` for chart `42.x` and change the CRs
-   from `traefik.containo.us/v1alpha1` to `traefik.io/v1alpha1`.
-4. Update the Grafana values for chart `14.x`, the Prometheus chart version, and
-   the metrics-server manifest.
-5. Run `pluto detect-files -d cluster/` and `kubeconform` before merging.
+3. `cluster/traefik/values.yaml` rewritten for chart `42.4.0` — the chart's
+   `values.schema.json` sets `additionalProperties: false`, so `logs:` became
+   `log:`/`accessLog:` and `service.type` became `service.spec.type` — and the
+   CRs changed from `traefik.containo.us/v1alpha1` to `traefik.io/v1alpha1`.
+4. Grafana values updated for chart `14.4.1` (app `13.3.1`) from the
+   `grafana-community` repo, and the Prometheus chart to `29.47.2`. There is no
+   metrics-server manifest: k3s bundles it.
+5. `pluto` and `kubeconform` run over `cluster/` and over the rendered Helm
+   output.
 
 ### A2. Rebuild the nodes
 
