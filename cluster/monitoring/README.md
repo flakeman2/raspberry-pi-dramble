@@ -4,7 +4,7 @@ Two Helm releases in the `monitoring` namespace:
 
 | Release | Chart | App | Values |
 |---|---|---|---|
-| `prometheus` | `prometheus-community/prometheus` `29.47.2` | `3.16.0` | chart defaults |
+| `prometheus` | `prometheus-community/prometheus` `29.47.2` | `3.16.0` | `prometheus-values.yaml` |
 | `grafana` | `grafana/grafana` `14.4.1` | `13.3.1` | `grafana-values.yaml` |
 
 ```bash
@@ -14,15 +14,20 @@ helm repo add grafana https://grafana-community.github.io/helm-charts
 helm repo update
 
 helm upgrade --install prometheus prometheus-community/prometheus \
-  --namespace monitoring --version 29.47.2
+  --namespace monitoring --version 29.47.2 \
+  -f prometheus-values.yaml
 
 helm upgrade --install grafana grafana/grafana \
   --namespace monitoring --version 14.4.1 \
   -f grafana-values.yaml
 ```
 
-Prometheus defaults create the server (15-day retention, 8 GiB Longhorn PVC),
-Alertmanager (2 GiB PVC), kube-state-metrics, node-exporter, and pushgateway.
+Chart defaults create the server (15-day retention, 8 GiB Longhorn PVC),
+Alertmanager (2 GiB PVC), kube-state-metrics, node-exporter, and pushgateway;
+`prometheus-values.yaml` only adds a resource budget for the server, which is
+the biggest memory consumer on a 4 GB node. Every workload in this directory
+now has requests/limits, and Grafana's probes come from the chart
+(`GET /api/health`).
 
 ## Grafana secret
 

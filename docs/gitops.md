@@ -140,9 +140,7 @@ Argo CD will surface these immediately; fix them before turning on auto-sync:
 
 - Grafana's Prometheus datasource and missing dashboards (UI state today);
 - the inline dynamic-DNS password in the live CronJobs;
-- `pi-hole`'s unreachable `ExternalName` service and its two IngressRoutes;
-- floating image tags (`nginx:latest`, `traefik/whoami`, `curlimages/curl`) and
-  missing resource limits/probes;
+- floating image tags (`nginx:latest`, `traefik/whoami`, `curlimages/curl`);
 - the stray `k3s.service` on kube2 — host configuration, not Kubernetes state,
   so it stays in [redeploy.md](redeploy.md), not in GitOps.
 

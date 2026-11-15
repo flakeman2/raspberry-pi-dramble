@@ -24,6 +24,23 @@ The live cluster has no `cert-manager`, no image-pull registry Secret, and no
 Sealed Secrets/SOPS/External Secrets controller. Everything is a plain
 Kubernetes Secret.
 
+### Rotation decisions (2026-11-14)
+
+- **`authsecret` and `grafana` are rotated, not restored.** Fresh values were
+  generated on 2026-11-14 (bcrypt for `authsecret`) and written only to an
+  off-repo directory at mode `0600`. The values on the live cluster die with it;
+  do not export them.
+- **Park-Your-Domain password rotates *after* the reimage** (decision,
+  2026-11-14). It was read during the investigation and sits in the live
+  CronJobs' container command and `last-applied-configuration`, so until it
+  changes the exported copies in the off-repo export directory are the only
+  other copies. Sequence: bring the new cluster up → rotate at the provider →
+  create `dyn-dns-credentials` → apply the CronJobs. The two domains currently
+  use **different** passwords while `cluster/dns/cronjobs.yaml` reads a single
+  key `password` for both; the decision (2026-11-14) is to **set one password
+  for both domains** during that rotation, so no manifest change is needed.
+- **k3s join token and kubeconfig** regenerate during the rebuild; no action.
+
 ## Create the required Secrets
 
 Apply the namespaces first:

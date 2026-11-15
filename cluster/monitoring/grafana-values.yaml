@@ -34,6 +34,15 @@ service:
   type: ClusterIP
   port: 80
 
+# Probes come from the chart's defaults (GET /api/health).
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
 adminUser: admin
 admin:
   existingSecret: grafana

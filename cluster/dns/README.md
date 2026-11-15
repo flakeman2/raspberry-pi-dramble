@@ -10,6 +10,15 @@ Two CronJobs update Park-Your-Domain A records every 30 minutes:
 They run `curlimages/curl:7.81.0` and read the password from Secret
 `default/dyn-dns-credentials` key `password`.
 
+> **Two domains, one key — resolved by decision (2026-11-14).** The live
+> passwords for `devinflake.com` and `flakeman2.com` differ, but both CronJobs
+> read the same `password` key. The plan is to rotate immediately after the
+> reimage and set **one password for both domains**, so this single key then
+> matches and no manifest change is needed. Until that rotation, creating the
+> Secret from either of the two exported values would serve only one domain —
+> so rotate *before* creating `dyn-dns-credentials`, as sequenced in
+> [../../docs/secrets.md](../../docs/secrets.md#rotation-decisions-2026-11-14).
+
 ```bash
 kubectl -n default create secret generic dyn-dns-credentials \
   --from-literal=password='PARK-YOUR-DOMAIN-PASSWORD'

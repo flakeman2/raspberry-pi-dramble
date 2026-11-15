@@ -70,7 +70,7 @@ cluster/                     Manifests for everything the cluster runs
   traefik/                   Helm values + IngressRoutes/Middlewares/TLSOption
   monitoring/                Grafana Helm values (Prometheus uses chart defaults)
   dns/                       Dynamic DNS CronJobs
-  workloads/                 mysite, jekyll, whoami, pi-hole
+  workloads/                 mysite, jekyll, whoami
   dashboards/                IngressRoutes for Grafana/Longhorn UIs
   secrets/                   Secret requirements + example manifests (no values)
 scripts/                     Install scripts for k3s and the add-ons

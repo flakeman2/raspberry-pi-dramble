@@ -45,13 +45,3 @@ spec:
   redirectScheme:
     permanent: true
     scheme: https
----
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: redirect-to-https
-  namespace: pi-hole
-spec:
-  redirectScheme:
-    permanent: true
-    scheme: https

@@ -51,10 +51,6 @@ additionalArguments:
 providers:
   kubernetesCRD:
     allowCrossNamespace: true
-    # Required by the pi-hole IngressRoutes, which target an ExternalName Service.
-    allowExternalNameServices: true
-  kubernetesIngress:
-    allowExternalNameServices: true
 
 log:
   level: ERROR
@@ -68,3 +64,11 @@ accessLog:
 metrics:
   prometheus:
     entryPoint: metrics
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi

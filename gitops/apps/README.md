@@ -11,8 +11,8 @@ Kustomize. **Not yet applied.**
 | `dns/` | two DynDNS CronJobs | `default` | Password must come from a sealed `dyn-dns-credentials` |
 | `dashboards/` | IngressRoutes for Grafana/Longhorn | `traefik` | Basic auth via `authsecret` |
 
-`pi-hole` is deliberately absent: its `ExternalName` points at an unreachable
-host. Fix or delete it in the cluster first, then add it here if it survives.
+`pi-hole` is gone: its `ExternalName` pointed at an unreachable host, and the
+whole workload was deleted from the manifests on 2026-11-14.
 
 Conventions:
 

@@ -67,26 +67,43 @@ way; the rebuild is Path A because it is the recommendation.
 export KUBECONFIG=~/.kube/config-dramble-k3s
 umask 077
 
-# Website content. > 0 bytes or stop.
+# Website content — the only irreplaceable data. It is already byte-identical
+# to cluster/workloads/mysite/content/, but keep a tarball anyway.
 kubectl -n mysite-nginx exec deploy/mysite-nginx -- \
   tar czf - -C /usr/share/nginx/html . > "mysite-content-$(date +%F).tgz"
 ls -lh mysite-content-*.tgz
+diff <(kubectl -n mysite-nginx exec deploy/mysite-nginx -- ls -1 /usr/share/nginx/html | sort) \
+     <(ls -1 cluster/workloads/mysite/content | sort)
 
 # ACME state (optional; re-issuing 6 certificates is within Let's Encrypt limits)
 kubectl -n traefik exec deploy/traefik -- cat /data/acme.json > acme.json
-
-# Secret values — recreate or rotate, keep off-repo at 0600, delete after use
-kubectl -n default get secret authsecret -o yaml > authsecret.yaml
-kubectl -n monitoring get secret grafana -o yaml > grafana-secret.yaml
-# dyn-dns-credentials does not exist live yet; the password is inline in the CronJob
-
-# Host state that is not in git
-ssh pi@192.168.0.61 'sudo cat /var/lib/rancher/k3s/server/node-token' > k3s-token.txt
 ```
 
-Also record: the live DDNS cron command (the password is inline there), DHCP
-reservations, `/etc/hosts`, and any Longhorn settings changed through the UI.
-Nothing here goes into the repository.
+**Secrets — rotated, not restored.** `authsecret` and `grafana` were
+regenerated on 2026-11-14; the new values exist only in the off-repo export
+directory (`0600`), alongside `acme.json`. The Park-Your-Domain password still
+has to be rotated at the provider — it was read during the investigation and
+lives inline in the two live CronJobs. The k3s join token and the kubeconfig
+regenerate themselves during the rebuild.
+
+**Gate: there is no rollback.** All four disks are wiped, so the moment A2
+starts the old cluster is gone for good. Do not start it until every one of
+these is true:
+
+- the `mysite-content` tarball exists, is over 0 bytes, and its file list
+  matches `cluster/workloads/mysite/content/`
+- the rotated `authsecret` and `grafana` values are recorded somewhere you can
+  read them afterwards — they exist nowhere else
+- the DDNS rotation is sequenced: rotate at Park-Your-Domain **immediately
+  after the reimage**, before `dyn-dns-credentials` is created, using one
+  password for both domains (otherwise the two CronJobs need two Secret keys) —
+  see [secrets.md](secrets.md#rotation-decisions-2026-11-14)
+- `acme.json` is saved, or you have accepted re-issuing all six certificates
+- host state is written down in [hardware.md](hardware.md): node addresses,
+  `/etc/hosts`, and the router's reserved `192.168.0.201–.250` range
+- `kubectl`, `helm`, `kubeconform` and `pluto` are installed on this workstation
+
+Nothing in that list goes into the repository.
 
 ### A1. Prepare the target state in git — **done, 2026-11-14**
 
@@ -139,8 +156,9 @@ Do not reuse Longhorn disks written by `1.2.3`; a fresh install with a clean
 
 - Prefer letting Traefik re-issue certificates over restoring `acme.json`; keep
   the file as a fallback until HTTPS is confirmed.
-- Keep the old SD cards untouched until the new cluster has served traffic for a
-  few days. That is the rollback.
+- **There is no rollback.** The four disks were wiped in A2, so if the new
+  cluster fails you fix forward from the A0 artifacts — there is no old cluster
+  to boot back into.
 
 ### A4. Exit criteria
 
