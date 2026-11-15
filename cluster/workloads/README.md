@@ -28,7 +28,12 @@ kubectl -n mysite-nginx cp mysite/content/. \
 ## jekyll
 
 `flakeman2/jekyll:1.0.4`, 3 replicas, ClusterIP port 80, TCP readiness and
-liveness probes. No PVC.
+liveness probes. No PVC — the blog content is baked into the image.
+
+The image, all four posts, and their history rebuild from
+[`flakeman2/Ephesus`](https://github.com/flakeman2/Ephesus). Procedure,
+the exact deployed commit, and verification:
+[../../docs/blog-rebuild.md](../../docs/blog-rebuild.md).
 
 ## whoami
 
