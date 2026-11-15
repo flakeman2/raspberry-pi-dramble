@@ -35,15 +35,21 @@ pull requests are no longer opened against it. See
 
 | | |
 |---|---|
-| Distribution | k3s `v1.22.5+k3s1` (single control plane, embedded SQLite) |
+| Distribution | k3s `v1.36.6+k3s1` (single control plane, embedded SQLite) |
 | Nodes | 4 × Raspberry Pi 4 Model B, 4 cores / 4 GB RAM each |
-| Storage | Longhorn `1.2.3`, `longhorn` default StorageClass, 3 replicas |
-| Load balancer | MetalLB `0.11.0`, L2 pool `192.168.0.201–192.168.0.250` |
-| Ingress | Traefik `2.5.6` (chart `10.9.1`) at `192.168.0.201` |
+| Storage | Longhorn `1.13.0`, `longhorn` default StorageClass, 3 replicas |
+| Load balancer | MetalLB `0.16.2`, L2 pool `192.168.0.201–192.168.0.250` |
+| Ingress | Traefik `3.7.18` (chart `42.4.0`) at `192.168.0.201` |
 | TLS | Traefik built-in ACME (TLS-ALPN), Let's Encrypt production |
-| Monitoring | Prometheus `2.31.1`, Grafana `8.3.5`, Alertmanager, kube-state-metrics, node-exporter |
-| Metrics | metrics-server `0.5.0`, CoreDNS `1.8.4` |
+| Monitoring | Prometheus `3.16.0` (chart `29.47.2`), Grafana `13.3.1` (chart `14.4.1`), Alertmanager, kube-state-metrics, node-exporter |
+| Metrics | metrics-server and CoreDNS, both bundled with k3s |
 | DNS | Park-Your-Domain dynamic DNS via two CronJobs |
+
+> **These are the versions the repository pins, not yet what is running.** The
+> scripts and manifests were retargeted on 2026-11-14 ahead of the reimage;
+> the live cluster is still on the 2021 stack (k3s `v1.22.5+k3s1`, Traefik
+> `2.5.6`, and so on). See [docs/upgrade.md](docs/upgrade.md) for the plan and
+> [docs/cluster-status.md](docs/cluster-status.md) for today's snapshot.
 
 > **Status:** all four nodes are `Ready`. `rpi-argon` and `rpi-retropie` were
 > removed from the cluster on 2026-11-14 after being unreachable. The full

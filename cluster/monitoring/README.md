@@ -4,19 +4,20 @@ Two Helm releases in the `monitoring` namespace:
 
 | Release | Chart | App | Values |
 |---|---|---|---|
-| `prometheus` | `prometheus-community/prometheus` `15.1.3` | `2.31.1` | chart defaults |
-| `grafana` | `grafana/grafana` `6.21.4` | `8.3.5` | `grafana-values.yaml` |
+| `prometheus` | `prometheus-community/prometheus` `29.47.2` | `3.16.0` | chart defaults |
+| `grafana` | `grafana/grafana` `14.4.1` | `13.3.1` | `grafana-values.yaml` |
 
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo add grafana https://grafana.github.io/helm-charts
+# the grafana chart moved here after 2026-01-30; grafana.github.io is frozen
+helm repo add grafana https://grafana-community.github.io/helm-charts
 helm repo update
 
-helm install prometheus prometheus-community/prometheus \
-  --namespace monitoring --version 15.1.3
+helm upgrade --install prometheus prometheus-community/prometheus \
+  --namespace monitoring --version 29.47.2
 
-helm install grafana grafana/grafana \
-  --namespace monitoring --version 6.21.4 \
+helm upgrade --install grafana grafana/grafana \
+  --namespace monitoring --version 14.4.1 \
   -f grafana-values.yaml
 ```
 

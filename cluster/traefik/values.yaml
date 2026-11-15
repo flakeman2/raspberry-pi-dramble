@@ -1,22 +1,24 @@
-# Traefik values for chart `traefik` 10.9.1 (app 2.5.6).
+# Traefik values for chart `traefik` 42.4.0 (app v3.7.18).
 #
-#   helm install traefik traefik/traefik \
-#     --namespace traefik --version 10.9.1 -f cluster/traefik/values.yaml
+#   helm upgrade --install traefik traefik/traefik \
+#     --namespace traefik --version 42.4.0 \
+#     -f cluster/traefik/values.yaml
 #
-# The LoadBalancer Service receives 192.168.0.201 from the MetalLB pool.
+# The chart's values schema sets `additionalProperties: false` at the top
+# level: every key below must exist in chart 42, so do not copy keys from an
+# older chart version. `image` is omitted — the chart pins its own appVersion.
+#
+# The LoadBalancer Service is pinned to 192.168.0.201 (the MetalLB pool is
+# .201-.250) so public DNS keeps pointing at a known address; MetalLB 0.16
+# still honours the `metallb.universe.tf/loadBalancerIPs` annotation.
 # Certificates are issued by Traefik's built-in ACME (TLS-ALPN challenge) and
 # stored in /data/acme.json on the `traefik` Longhorn PVC.
-
-image:
-  name: traefik
-  # Empty means "use the chart appVersion" (2.5.6 for chart 10.9.1).
-  tag: ""
 
 deployment:
   replicas: 1
   initContainers:
   - name: volume-permissions
-    image: busybox:1.31.1
+    image: busybox:1.37.0
     command:
     - sh
     - -c
@@ -31,7 +33,10 @@ persistence:
   size: 128Mi
 
 service:
-  type: LoadBalancer
+  spec:
+    type: LoadBalancer
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: "192.168.0.201"
 
 ingressRoute:
   dashboard:
@@ -42,25 +47,24 @@ additionalArguments:
 - "--certificatesresolvers.letsencrypt.acme.email=devinflake@gmail.com"
 - "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json"
 - "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
-- "--providers.kubernetesingress.allowexternalnameservices"
-- "--providers.kubernetescrd.allowexternalnameservices"
 
 providers:
   kubernetesCRD:
     allowCrossNamespace: true
+    # Required by the pi-hole IngressRoutes, which target an ExternalName Service.
+    allowExternalNameServices: true
+  kubernetesIngress:
+    allowExternalNameServices: true
 
-logs:
-  general:
-    level: ERROR
-  access:
-    enabled: true
-    fields:
-      headers:
-        defaultmode: drop
+log:
+  level: ERROR
+
+accessLog:
+  enabled: true
+  fields:
+    headers:
+      defaultMode: drop
 
 metrics:
   prometheus:
     entryPoint: metrics
-
-pilot:
-  enabled: false

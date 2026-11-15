@@ -12,7 +12,7 @@
 # This script installs only the agent.
 set -euo pipefail
 
-K3S_VERSION="${K3S_VERSION:-v1.22.5+k3s1}"
+K3S_VERSION="${K3S_VERSION:-v1.36.6+k3s1}"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "run as root (sudo $0)" >&2

@@ -1,24 +1,32 @@
-# Grafana values for chart `grafana` 6.21.4 (app 8.3.5).
+# Grafana values for chart `grafana` 14.4.1 (app 13.3.1).
+#
+# The chart moved to the grafana-community repository after 2026-01-30; the
+# old grafana.github.io endpoint still serves it but is frozen at the
+# deprecated 10.5.x line.
 #
 #   kubectl -n monitoring create secret generic grafana \
 #     --from-literal=admin-user=admin \
 #     --from-literal=admin-password='...'
 #
-#   helm install grafana grafana/grafana \
-#     --namespace monitoring --version 6.21.4 \
+#   helm upgrade --install grafana grafana/grafana \
+#     --namespace monitoring --version 14.4.1 \
 #     -f cluster/monitoring/grafana-values.yaml
+#
+# `image.tag` is omitted so the chart pins its own appVersion (13.3.1).
+# `persistence.storageClassName` is honoured by the chart's PVC template even
+# though it is not listed in the chart's default values.
 #
 # The Prometheus datasource is codified here because on the live cluster it was
 # added through the UI and is not present in the stored Helm values.
 
 image:
   repository: grafana/grafana
-  tag: 8.3.5
 
 replicas: 1
 
 persistence:
   enabled: true
+  type: pvc
   storageClassName: longhorn
   size: 10Gi
 

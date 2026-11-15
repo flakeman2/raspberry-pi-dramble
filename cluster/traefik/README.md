@@ -1,17 +1,22 @@
 # Traefik
 
-Traefik chart `10.9.1` (application `2.5.6`), one replica, exposed as a
+Traefik chart `42.4.0` (application `v3.7.18`), one replica, exposed as a
 `LoadBalancer` at `192.168.0.201` by MetalLB.
 
 ```bash
-helm install traefik traefik/traefik \
-  --namespace traefik --version 10.9.1 \
+helm repo add traefik https://traefik.github.io/charts
+helm upgrade --install traefik traefik/traefik \
+  --namespace traefik --version 42.4.0 \
   -f values.yaml
 
 kubectl apply -f tlsoption.yaml
 kubectl apply -f middlewares.yaml
 kubectl apply -f ingressroutes.yaml
 ```
+
+The chart installs its own `traefik.io` CRDs from `crds/`; wait for them to be
+established before applying the three files above on a fresh cluster
+(`kubectl wait --for condition=established crd/ingressroutes.traefik.io`).
 
 | File | Contents |
 |---|---|
@@ -49,5 +54,10 @@ See [../../docs/secrets.md](../../docs/secrets.md).
   objects. The `kubernetesIngress` provider remains enabled.
 - Metrics are exposed on the `metrics` entry point but not published by the
   Service; Prometheus scrapes the pod IP directly.
-- The CRDs use the Traefik 2.x API group `traefik.containo.us`. A Traefik v3
-  upgrade requires rewriting these objects to `traefik.io`.
+- The CRs use the Traefik 3.x API group `traefik.io/v1alpha1`; they were
+  rewritten from `traefik.containo.us` in the 2026-11-14 retarget.
+- Chart 42's `values.schema.json` sets `additionalProperties: false`, so keys
+  cannot be carried over from chart 10 blindly: `logs:` is now `log:` +
+  `accessLog:`, `service.type` is now `service.spec.type`, `image.name` is now
+  `image.repository` (omitted entirely, so the chart pins its appVersion), and
+  the two `allowexternalnameservices` CLI flags became provider settings.

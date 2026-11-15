@@ -1,11 +1,11 @@
 # Longhorn
 
-Longhorn `1.2.3` provides the default `longhorn` StorageClass with **3
+Longhorn `1.13.0` provides the default `longhorn` StorageClass with **3
 replicas**. It was installed from the upstream manifest, not Helm (there is no
 Helm release Secret in `longhorn-system`).
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.2.3/deploy/longhorn.yaml
+kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.13.0/deploy/longhorn.yaml
 ```
 
 The manifest creates the `longhorn-system` namespace, the `longhorn`
