@@ -15,7 +15,7 @@ Raspberry Pis. It reproduces the live stack:
 > Traefik manifests use the `traefik.containo.us` API group (Traefik 2.x) and
 > the rest of the stack has not been upgraded. Reproduce the pinned versions
 > first, verify, then plan the upgrade described in
-> [action-items.md](action-items.md). Do not mix a current k3s/Traefik with
+> [upgrade.md](upgrade.md). Do not mix a current k3s/Traefik with
 > these manifests.
 
 ## 0. Prerequisites

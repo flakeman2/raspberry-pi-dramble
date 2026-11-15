@@ -49,6 +49,10 @@ pull requests are no longer opened against it. See
 > removed from the cluster on 2026-11-14 after being unreachable. The full
 > snapshot, including faults and end-of-life warnings, is in
 > [docs/cluster-status.md](docs/cluster-status.md).
+>
+> **Next:** the stack is end-of-life. The component upgrade plan is in
+> [docs/upgrade.md](docs/upgrade.md); the planned Argo CD rollout is in
+> [docs/gitops.md](docs/gitops.md).
 
 ## Repository layout
 
@@ -64,7 +68,9 @@ cluster/                     Manifests for everything the cluster runs
   dashboards/                IngressRoutes for Grafana/Longhorn UIs
   secrets/                   Secret requirements + example manifests (no values)
 scripts/                     Install scripts for k3s and the add-ons
-docs/                        Architecture, hardware, status, redeploy, secrets
+docs/                        Architecture, hardware, status, redeploy, secrets,
+                             upgrade plan, GitOps plan
+gitops/                      Argo CD scaffold (not yet applied)
 ```
 
 ## Rebuild from bare Pis
