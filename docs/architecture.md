@@ -153,7 +153,7 @@ The live Grafana has **no dashboards** imported.
 | Workload | Namespace | Image | Replicas | Service |
 |---|---|---|---|---|
 | `mysite-nginx` | mysite-nginx | `nginx:latest` | 1 | ClusterIP 80/443 |
-| `jekyll-website` | jekyll | `flakeman2/jekyll:1.0.4` | 3 | ClusterIP 80 |
+| `jekyll-website` | jekyll | `flakeman2/jekyll:1.0.5` | 3 | ClusterIP 80 |
 | `whoami` | whoami | `traefik/whoami` | 2 | ClusterIP 80 |
 | `pi-hole-service` | pi-hole | ExternalName → `192.168.0.46` | — | ExternalName 80 |
 

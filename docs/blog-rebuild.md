@@ -9,7 +9,7 @@ repository, which is the main thing to know about.
 
 | Site | Served by | Source | Rebuildable? |
 |---|---|---|---|
-| `blog.devinflake.com` | `flakeman2/jekyll:1.0.4`, content baked into the image (no volume) | [`flakeman2/Ephesus`](https://github.com/flakeman2/Ephesus) | Yes — Dockerfile, all 4 posts, full history |
+| `blog.devinflake.com` | `flakeman2/jekyll:1.0.5`, content baked into the image (no volume) | [`flakeman2/Ephesus`](https://github.com/flakeman2/Ephesus) | Yes — Dockerfile, all 5 posts, full history |
 | `devinflake.com` / `flakeman2.com` | `nginx:latest` + the `mysite-content` PVC | this repo, `cluster/workloads/mysite/content/` | Yes — no build step at all |
 
 ## Blog source
@@ -18,13 +18,14 @@ repository, which is the main thing to know about.
 [`onepase/Ephesus`](https://github.com/onepase/Ephesus) (the theme, still
 maintained). It is the site source, not just the theme:
 
-- `_posts/` — all four posts, as markdown, with their front matter:
+- `_posts/` — all five posts, as markdown, with their front matter:
   `2022-01-22-Hello-devinflake_com.md`, `2022-01-23-raspberry-pi.md`,
-  `2022-01-24-taking_the_cka.md`, `2022-02-04-passing_the_cka.md`
+  `2022-01-24-taking_the_cka.md`, `2022-02-04-passing_the_cka.md`,
+  `2026-11-14-dramble-cleanup-and-plan.md`
 - `_config.yml`, `_layouts/`, `_includes/`, `assets/` — theme and configuration
   (Google Analytics, Disqus, `url: https://blog.devinflake.com`)
 - `Dockerfile`, `Gemfile`, `Gemfile.lock` — the build
-- 25 commits, 2021-09-23 → 2022-02-04, including the upstream theme history.
+- 27 commits, 2021-09-23 → 2026-11-14, including the upstream theme history.
   Nothing is unpushed (`git log origin/master..master` is empty).
 
 `_site/` is deliberately absent — it is gitignored, and build output is
@@ -33,19 +34,23 @@ they are history, not a source of truth.
 
 ### Which commit is deployed
 
-**The running image was built from `df1dbaa` ("version 1.0.4 - minor
-formatting improves", 2022-02-04), not from the branch head.**
+**The running image, `1.0.5`, was built from `8a49a1f` — the branch head — on
+2026-11-14. Source and cluster agree.**
 
-| Commit | When | Shipped? |
+| Commit | When | Shipped in |
 |---|---|---|
-| `df1dbaa` | 2022-02-04 | **Yes** — image `1.0.4` built 2022-02-05T02:06:19Z |
-| `a5fe7fa` (head) | 2022-02-05T05:37Z | No — one cosmetic commit, 3.5 hours after the image |
+| `df1dbaa` | 2022-02-04 | `1.0.4`, built 2022-02-05T02:06:19Z |
+| `a5fe7fa` | 2022-02-05T05:37Z | `1.0.5` — sat unshipped for four years |
+| `91e0560` | 2026-11-14 | `1.0.5` — the "Dramble: cleanup and a plan" post |
+| `8a49a1f` (head) | 2026-11-14 | `1.0.5` — the Dockerfile `--platform` fix |
 
-Building from head produces a visibly different site (extra header row in
-`index.html`, different `style.css` layout rules, `Hobbies and Interests`
-instead of `Hobbies and interests`). Rebuilding `df1dbaa` reproduces the live
-site exactly — see [Verification](#verification) below. Decide deliberately
-whether to ship the outstanding commit or pin the deployed one.
+They did not always match: `1.0.4` was built from `df1dbaa` while the branch had
+already moved to `a5fe7fa`, so for four years the deployed site lagged the
+source, and building from head produced a visibly different site (extra header
+row in `index.html`, different `style.css` layout rules, `Hobbies and Interests`
+instead of `Hobbies and interests`). Rebuilding `df1dbaa` reproduces `1.0.4`
+exactly — see [Verification](#verification) below. Since `1.0.5`, building from
+`master` ships exactly what is deployed.
 
 ### Docker image history
 
@@ -55,10 +60,14 @@ whether to ship the outstanding commit or pin the deployed one.
 |---|---|---|
 | `1.0.2` | 2022-01-25 | amd64 + arm64 |
 | `1.0.3` | 2022-01-25 | amd64 + arm64 |
-| `1.0.4` (deployed) | 2022-02-05 | **arm64 only** |
+| `1.0.4` | 2022-02-05 | **arm64 only** |
+| `1.0.5` (deployed) | 2026-11-14 | **arm64 only** |
 
 Deployed digest:
-`sha256:c90560d61ec5a617aa899502454af06a1efaee69f375c949c355ccd33ade2ef0`.
+`sha256:9d3e6c1d27ce8e0bd892559e760fcb308e2e0ac05fc60101e55e6bb3a477ce0d`.
+`1.0.5` is an OCI image index — one arm64 manifest plus buildx's provenance
+attestation as `unknown/unknown`; the arm64 entry inside it is
+`sha256:eeaeb90d77923eac37e07a05fe86bc389fdd3064cd25a51624dbead1a19dd052`.
 The Deployment in `cluster/workloads/jekyll/deployment.yaml` pins the tag, not
 the digest.
 
@@ -93,7 +102,7 @@ served content comes from the nginx base image, not from Jekyll.
 ```bash
 git clone https://github.com/flakeman2/Ephesus.git
 cd Ephesus
-git checkout df1dbaa        # what is deployed; see "Which commit is deployed"
+git checkout master         # head == deployed; see "Which commit is deployed"
 
 docker buildx build --platform linux/arm64 \
   -t flakeman2/jekyll:1.0.5 --push .
@@ -101,10 +110,12 @@ docker buildx build --platform linux/arm64 \
 
 Three things to get right:
 
-- **`--platform linux/arm64`.** `1.0.4` is a single-arch arm64 manifest, so a
-  plain `docker build` on an amd64 workstation produces an image the cluster
-  cannot schedule (the nodes are aarch64). Cross-build as above, or build on a
-  Pi.
+- **`--platform linux/arm64`.** Every published tag is arm64-only, so a plain
+  `docker build` on an amd64 workstation produces an image the cluster cannot
+  schedule (the nodes are aarch64). Cross-build as above, or build on a Pi. The
+  Dockerfile pins the *build* stage to `$BUILDPLATFORM`, so only the final
+  `COPY` runs emulated — native gem compilation takes seconds where the emulated
+  attempt spent 10+ minutes compiling libsass.
 - **Keep the `rouge` pin.** `Gemfile.lock` pins Jekyll `4.2.1` and
   `rouge 3.26.1`. Rouge 4.x changes syntax-highlight markup and breaks
   byte-for-byte output in `feed.json` and the post pages. `bundle install`
@@ -138,7 +149,12 @@ Expected differences on a faithful rebuild, and nothing else:
 
 Verified 2026-11-14: all CSS, JS, images, `feed.json`, `sitemap.xml`,
 `robots.txt`, `package*.json` and the post bodies were byte-identical between
-`df1dbaa` + rouge 3.26.1 and the live image.
+`df1dbaa` + rouge 3.26.1 and image `1.0.4`.
+
+After `1.0.5` rolled out the same day, the deployed site was checked end to
+end: 3/3 pods on `1.0.5`, 8 sitemap URLs, 5 feed entries, and the new post at
+`/dramble_cleanup_and_plan/` returning 200 with the AI disclosure rendered and
+no IP addresses in the served HTML.
 
 ## Publishing a post
 
