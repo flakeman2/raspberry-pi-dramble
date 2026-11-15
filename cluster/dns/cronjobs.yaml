@@ -23,6 +23,13 @@ spec:
           containers:
           - name: dyn-dns
             image: curlimages/curl:7.81.0
+            resources:
+              requests:
+                cpu: 5m
+                memory: 16Mi
+              limits:
+                cpu: 100m
+                memory: 64Mi
             env:
             - name: DDNS_PASSWORD
               valueFrom:
@@ -57,6 +64,13 @@ spec:
           containers:
           - name: dyn-dns
             image: curlimages/curl:7.81.0
+            resources:
+              requests:
+                cpu: 5m
+                memory: 16Mi
+              limits:
+                cpu: 100m
+                memory: 64Mi
             env:
             - name: DDNS_PASSWORD
               valueFrom:

@@ -5,7 +5,6 @@
 | `mysite/` | `mysite-nginx` | Static site for `devinflake.com` / `flakeman2.com` |
 | `jekyll/` | `jekyll` | Blog for `blog.devinflake.com` |
 | `whoami/` | `whoami` | Traefik whoami demo at `/whoami` |
-| `pi-hole/` | `pi-hole` | ExternalName stub to `192.168.0.46` (currently unreachable) |
 
 ```bash
 kubectl apply -R -f cluster/workloads
@@ -40,8 +39,11 @@ the exact deployed commit, and verification:
 `traefik/whoami`, 2 replicas, ClusterIP port 80. Routed at
 `PathPrefix(/whoami)` on the apex domains.
 
-## pi-hole
+## pi-hole — removed 2026-11-14
 
-`pi-hole-service` is an `ExternalName` Service to `192.168.0.46` (port 80). That
-host is not reachable, so `pi-hole.devinflake.com` returns an error. Restore the
-host or remove the namespace and its IngressRoutes.
+The `ExternalName` stub to `192.168.0.46:80` never worked (that host is
+unreachable), so the namespace, Service, `redirect-to-https` middleware, and
+both IngressRoutes were deleted before the reimage. The
+`pi-hole.devinflake.com` DNS record and its certificate are no longer served;
+delete the record at the provider if it still exists. Traefik's
+`allowExternalNameServices` flags went with it.

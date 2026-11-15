@@ -79,9 +79,10 @@ helm upgrade --install traefik traefik/traefik \
   --namespace traefik --version "${TRAEFIK_CHART_VERSION}" \
   -f cluster/traefik/values.yaml --wait --timeout 10m
 
-echo "==> Prometheus ${PROMETHEUS_CHART_VERSION} (chart defaults)"
+echo "==> Prometheus ${PROMETHEUS_CHART_VERSION}"
 helm upgrade --install prometheus prometheus-community/prometheus \
   --namespace monitoring --version "${PROMETHEUS_CHART_VERSION}" \
+  -f cluster/monitoring/prometheus-values.yaml \
   --wait --timeout 15m
 
 echo "==> Grafana ${GRAFANA_CHART_VERSION}"

@@ -84,23 +84,27 @@ irreplaceable, and it is byte-identical to
 `cluster/workloads/mysite/content/`. Do the upgrade before Argo CD
 ([gitops.md](gitops.md)), not during it.
 
-### 6. Add resource requests/limits and probes
+### 6. Add resource requests/limits and probes — done in git, 2026-11-14
 
-**63 of 64 containers have no limits; 37 of 64 have no probes.** The scheduler
-sees ~24% CPU and ~0–1% memory allocated per node, so a busy workload can OOM a
-4 GB Pi. Start with the application workloads and Traefik/Grafana:
+**63 of 64 containers had no limits; 37 of 64 had no probes** — on a 4 GB node
+a busy workload could OOM it. The manifests now carry budgets and probes; they
+take effect when the cluster is rebuilt (the live cluster is untouched):
 
-```yaml
-resources:
-  requests:
-    cpu: 50m
-    memory: 64Mi
-  limits:
-    cpu: 500m
-    memory: 256Mi
-```
+| Workload | requests | limits | probes |
+|---|---|---|---|
+| `mysite-nginx` | 25m / 32Mi | 500m / 128Mi | readiness `GET /`, liveness TCP 80 |
+| `jekyll-website` ×3 | 25m / 32Mi | 500m / 128Mi | TCP 80 (already present) |
+| `whoami` ×2 | 10m / 16Mi | 200m / 64Mi | readiness + liveness `GET /` |
+| Traefik | 50m / 64Mi | 500m / 256Mi | the chart's `/ping` probes |
+| Grafana | 100m / 128Mi | 500m / 512Mi | the chart's `GET /api/health` |
+| Prometheus server | 200m / 512Mi | memory only (1Gi) | chart defaults |
+| DNS CronJobs ×2 | 5m / 16Mi | 100m / 64Mi | n/a (Jobs) |
 
-Do not set a CPU limit on Prometheus/Longhorn managers without measuring first.
+Grafana's probes come from the chart, so only the budget was added there; the
+same is true of Traefik's `/ping` probes (the chart passes `--ping=true`). The
+numbers are starting points — tune them from metrics after the rebuild, and do
+not add a CPU limit to Prometheus or the Longhorn managers without measuring
+first.
 
 ### 7. Finish the Grafana setup
 
@@ -112,11 +116,13 @@ Do not set a CPU limit on Prometheus/Longhorn managers without measuring first.
   hosts it returns `404` on port 80.
 - Set a Grafana root URL and disable anonymous access if not already default.
 
-### 8. Fix or remove pi-hole
+### 8. Remove pi-hole — done 2026-11-14
 
-`pi-hole-service` is an `ExternalName` to `192.168.0.46:80`, which is
-unreachable. Either restore that host or remove the namespace, Service, and two
-IngressRoutes so the ingress stops advertising a broken endpoint.
+`pi-hole-service` was an `ExternalName` to `192.168.0.46:80`, which never
+answered. The namespace, Service, `redirect-to-https` middleware, both
+IngressRoutes, and Traefik's `allowExternalNameServices` flags are now gone
+from the manifests. **Remaining:** delete the `pi-hole.devinflake.com` DNS
+record and its certificate entry at the provider.
 
 ## P2 — hygiene
 
@@ -128,9 +134,15 @@ other two after choosing versions.
 
 ### 10. Backups
 
-Longhorn has no backup target, no recurring jobs, and no off-cluster copy. The
-cluster can lose all five volumes with the Pis. Add an S3/NFS backup target and
-a recurring snapshot/backup job, then test a restore.
+Longhorn has no backup target, no recurring jobs, and no off-cluster copy — and
+since the 2026-11-14 decision to wipe all four disks without keeping the old
+ones, **there is no rollback at all**. Today's mitigation is that the only
+irreplaceable data is `mysite-content`, which is byte-identical to
+`cluster/workloads/mysite/content/` in git, plus the off-repo secret export.
+
+Before the reimage: verify the A0 gate in [upgrade.md](upgrade.md). After it:
+add an S3/NFS backup target with a recurring snapshot job and test a restore,
+so the next failure does not depend on git alone.
 
 ### 11. Pod disruption budgets and NetworkPolicies
 

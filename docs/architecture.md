@@ -21,8 +21,6 @@ controller and no Ansible.
               │           │         │          │            │
         mysite-nginx    jekyll    whoami   monitoring   longhorn-system
         (nginx)        (blog)     (/whoami) (grafana)    (Longhorn UI)
-                                                            pi-hole
-                                                          (ExternalName)
 ```
 
 ## Control plane
@@ -63,7 +61,6 @@ on kube2.
 | `mysite-nginx` | Static site (`devinflake.com`, `flakeman2.com`) |
 | `jekyll` | Blog (`blog.devinflake.com`) |
 | `whoami` | Traefik whoami demo at `/whoami` |
-| `pi-hole` | ExternalName stub to a Pi-hole at 192.168.0.46 (currently down) |
 | `default` | HTTP basic-auth Secret, Traefik middlewares, DynDNS CronJobs |
 
 ## Networking
@@ -103,7 +100,6 @@ on kube2.
 | `grafana.devinflake.com`, `grafana.flakeman2.com` | `monitoring/grafana:80` | ACME | none |
 | `traefik.devinflake.com`, `traefik.flakeman2.com` | `api@internal` | ACME | basic-auth + redirect |
 | `longhorn.devinflake.com`, `longhorn.flakeman2.com` | `longhorn-system/longhorn-frontend:80` | ACME | basic-auth + redirect |
-| `pi-hole.devinflake.com` | `pi-hole/pi-hole-service:80` → `192.168.0.46` | ACME | redirect (backend down) |
 
 Traefik's chart also creates `traefik/traefik-dashboard` on `PathPrefix(/dashboard)`
 and `PathPrefix(/api)`. It is not exposed through the LoadBalancer by hostname.
@@ -155,7 +151,6 @@ The live Grafana has **no dashboards** imported.
 | `mysite-nginx` | mysite-nginx | `nginx:latest` | 1 | ClusterIP 80/443 |
 | `jekyll-website` | jekyll | `flakeman2/jekyll:1.0.5` | 3 | ClusterIP 80 |
 | `whoami` | whoami | `traefik/whoami` | 2 | ClusterIP 80 |
-| `pi-hole-service` | pi-hole | ExternalName → `192.168.0.46` | — | ExternalName 80 |
 
 `mysite-nginx` mounts the `mysite-content` RWX PVC at `/usr/share/nginx/html`
 and a `nginx-conf` ConfigMap at `/etc/nginx/conf.d/default.conf`. A copy of the

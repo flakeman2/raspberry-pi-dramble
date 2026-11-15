@@ -23,7 +23,7 @@ established before applying the three files above on a fresh cluster
 | `values.yaml` | Helm values (ACME, persistence, dashboard, logging, metrics) |
 | `tlsoption.yaml` | `TLSOption/default`, minimum TLS 1.2 |
 | `middlewares.yaml` | `basic-auth`, `redirect-to-https`, `ssl-redirect` |
-| `ingressroutes.yaml` | Host routes for mysite, jekyll, whoami, pi-hole, Traefik UI |
+| `ingressroutes.yaml` | Host routes for mysite, jekyll, whoami, Traefik UI |
 
 ## TLS
 

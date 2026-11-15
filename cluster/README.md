@@ -11,7 +11,7 @@ Everything the cluster runs, minus secrets. Apply order is handled by
 | `traefik/` | Helm values, TLSOption, Middlewares, IngressRoutes |
 | `monitoring/` | Grafana Helm values; Prometheus uses chart defaults |
 | `dns/` | Dynamic DNS CronJobs |
-| `workloads/` | mysite, jekyll, whoami, pi-hole |
+| `workloads/` | mysite, jekyll, whoami |
 | `dashboards/` | Grafana/Longhorn UI IngressRoutes |
 | `secrets/` | Required Secrets and placeholder examples |
 
