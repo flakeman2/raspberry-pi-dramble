@@ -64,10 +64,12 @@ the digest.
 
 ## The Dockerfile
 
-`Ephesus/Dockerfile`, unchanged since 2022-01-23:
+`Ephesus/Dockerfile`. The only change since 2022-01-23 is the `--platform`
+flag on the first line, added 2026-11-14 so that an arm64 build does not have
+to compile the gems under qemu emulation:
 
 ```dockerfile
-FROM ruby:3.1.0-buster AS build
+FROM --platform=$BUILDPLATFORM ruby:3.1.0-buster AS build
 COPY . /Ephesus
 WORKDIR /Ephesus
 RUN bundle install \
@@ -76,6 +78,11 @@ RUN bundle install \
 FROM nginx:1.21.5-alpine AS final
 COPY --from=build /Ephesus/_site /usr/share/nginx/html
 ```
+
+Jekyll's output is architecture-independent, so the build stage now runs
+natively on whatever host does the build while only the final `COPY` stage
+targets arm64. The rendered HTML is unaffected — an amd64 build was verified
+byte-identical to the arm64 image running in the cluster.
 
 This matches the image config history of `1.0.4`: the last layer is
 `COPY /Ephesus/_site /usr/share/nginx/html # buildkit`. `50x.html` in the
