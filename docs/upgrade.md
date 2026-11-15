@@ -94,9 +94,13 @@ these is true:
   matches `cluster/workloads/mysite/content/`
 - the rotated `authsecret` and `grafana` values are recorded somewhere you can
   read them afterwards — they exist nowhere else
-- the DDNS password has been rotated at the provider and the new value recorded
+- the DDNS rotation is sequenced: rotate at Park-Your-Domain **immediately
+  after the reimage**, before `dyn-dns-credentials` is created, using one
+  password for both domains (otherwise the two CronJobs need two Secret keys) —
+  see [secrets.md](secrets.md#rotation-decisions-2026-11-14)
 - `acme.json` is saved, or you have accepted re-issuing all six certificates
-- DHCP reservations, `/etc/hosts`, and any Longhorn UI settings are written down
+- host state is written down in [hardware.md](hardware.md): node addresses,
+  `/etc/hosts`, and the router's reserved `192.168.0.201–.250` range
 - `kubectl`, `helm`, `kubeconform` and `pluto` are installed on this workstation
 
 Nothing in that list goes into the repository.

@@ -104,7 +104,9 @@ static domain_name_servers=208.67.220.220 208.67.222.222
 
 - Router: `192.168.0.1`
 - Upstream DNS: OpenDNS (`208.67.220.220`, `208.67.222.222`)
-- The MetalLB pool (`192.168.0.201–250`) is **outside** the static node range.
+- The MetalLB pool (`192.168.0.201–250`) is **outside** the static node range
+  and is reserved in the router's DHCP configuration (confirmed 2026-11-14), so
+  DHCP cannot hand MetalLB's VIP to a client.
 - Nodes are dual-homed in name only; only `eth0` is active.
 
 ## Installed packages

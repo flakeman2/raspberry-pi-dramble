@@ -30,13 +30,15 @@ Kubernetes Secret.
   generated on 2026-11-14 (bcrypt for `authsecret`) and written only to an
   off-repo directory at mode `0600`. The values on the live cluster die with it;
   do not export them.
-- **Park-Your-Domain password** still has to be rotated at the provider. It was
-  read during the investigation and sits in the live CronJobs' container command
-  and `last-applied-configuration`. After rotating, create
-  `dyn-dns-credentials` — but note the two domains use **different** passwords
-  while `cluster/dns/cronjobs.yaml` reads a single key `password` for both, so
-  either give the two CronJobs their own keys or set one password for both
-  domains. Fix this before the rebuild.
+- **Park-Your-Domain password rotates *after* the reimage** (decision,
+  2026-11-14). It was read during the investigation and sits in the live
+  CronJobs' container command and `last-applied-configuration`, so until it
+  changes the exported copies in the off-repo export directory are the only
+  other copies. Sequence: bring the new cluster up → rotate at the provider →
+  create `dyn-dns-credentials` → apply the CronJobs. The two domains currently
+  use **different** passwords while `cluster/dns/cronjobs.yaml` reads a single
+  key `password` for both, so either set one password for both domains during
+  that rotation or split the Secret into two keys first.
 - **k3s join token and kubeconfig** regenerate during the rebuild; no action.
 
 ## Create the required Secrets
