@@ -125,10 +125,13 @@ gh pr create --base master --head dev --title "Release: <summary>"
 ```
 
 Repository settings back this up: `master` rejects direct pushes, force-pushes,
-and deletion; `dev` rejects force-pushes and deletion. A single maintainer cannot
-approve their own PR, so no approving review is required — the PR itself is the
-review record. Enable "required approvals" in the branch protection settings if
-another maintainer joins.
+and deletion; `dev` rejects force-pushes and deletion. Head branches are
+deleted automatically when a pull request merges (`delete_branch_on_merge`,
+enabled 2026-11-14), so topic branches do not accumulate — the merged ones that
+already had were pruned at the same time, leaving only `dev` and `master`. A
+single maintainer cannot approve their own PR, so no approving review is
+required — the PR itself is the review record. Enable "required approvals" in
+the branch protection settings if another maintainer joins.
 
 ## License
 
