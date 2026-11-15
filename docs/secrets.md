@@ -37,8 +37,8 @@ Kubernetes Secret.
   other copies. Sequence: bring the new cluster up → rotate at the provider →
   create `dyn-dns-credentials` → apply the CronJobs. The two domains currently
   use **different** passwords while `cluster/dns/cronjobs.yaml` reads a single
-  key `password` for both, so either set one password for both domains during
-  that rotation or split the Secret into two keys first.
+  key `password` for both; the decision (2026-11-14) is to **set one password
+  for both domains** during that rotation, so no manifest change is needed.
 - **k3s join token and kubeconfig** regenerate during the rebuild; no action.
 
 ## Create the required Secrets
