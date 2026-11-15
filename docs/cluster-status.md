@@ -1,7 +1,8 @@
 # Cluster status snapshot
 
 **Captured:** 2026-11-14 via `~/.kube/config-dramble-k3s` and SSH to each node.
-**Updated:** 2026-11-14, after removing `rpi-argon` and `rpi-retropie`.
+**Updated:** 2026-11-14 — after removing `rpi-argon` and `rpi-retropie`, and
+after rolling the blog to image `1.0.5`.
 **Scope:** read-only inspection followed by the node removal described below.
 
 This is a point-in-time snapshot of the live cluster. For what *should* be
@@ -104,7 +105,7 @@ sudo systemctl disable --now k3s     # on kube2
 | monitoring | `prometheus-node-exporter` (DaemonSet) | 4/4 | `quay.io/prometheus/node-exporter:v1.3.0` |
 | monitoring | `grafana` | 1/1 | `grafana/grafana:8.3.5` |
 | mysite-nginx | `mysite-nginx` | 1/1 | `nginx:latest` |
-| jekyll | `jekyll-website` | 3/3 | `flakeman2/jekyll:1.0.4` |
+| jekyll | `jekyll-website` | 3/3 | `flakeman2/jekyll:1.0.5` |
 | whoami | `whoami` | 2/2 | `traefik/whoami` |
 | default | `dyn-dns-*` CronJobs | completed | `curlimages/curl` (untagged) |
 
