@@ -288,7 +288,8 @@ helm repo update
 
 helm install traefik traefik/traefik -n traefik --version 42.4.0 \
   -f cluster/traefik/values.yaml
-helm install prometheus prometheus-community/prometheus -n monitoring --version 29.47.2
+helm install prometheus prometheus-community/prometheus -n monitoring --version 29.47.2 \
+  -f cluster/monitoring/prometheus-values.yaml
 helm install grafana grafana/grafana -n monitoring --version 14.4.1 \
   -f cluster/monitoring/grafana-values.yaml
 
@@ -381,14 +382,14 @@ from step 3.
 
 ## 8. Post-install notes
 
-- `pi-hole.devinflake.com` points at `192.168.0.46:80`, which is currently
-  unreachable. Either restore that host or remove the `pi-hole` namespace and
-  its IngressRoutes.
+- `pi-hole` was removed from the manifests on 2026-11-14 (its `ExternalName`
+  target never answered). Delete the `pi-hole.devinflake.com` DNS record at the
+  provider if it is still there.
 - The Grafana datasource is provisioned from `cluster/monitoring/grafana-values.yaml`.
   Grafana has no dashboards; import them after the rebuild if desired.
-- The Prometheus chart is installed with **default values**, matching the live
-  cluster. It creates server, alertmanager, pushgateway, kube-state-metrics, and
-  node-exporter.
+- The Prometheus chart runs with `cluster/monitoring/prometheus-values.yaml`
+  (chart defaults plus a resource budget for the server). It creates server,
+  alertmanager, pushgateway, kube-state-metrics, and node-exporter.
 - If you return `rpi-argon`/`rpi-retropie` to service, reimage them and join
   them as agents with `install-agent.sh`. They will register as new nodes. Do not
   wipe their Longhorn disks blindly: existing replicas re-register from

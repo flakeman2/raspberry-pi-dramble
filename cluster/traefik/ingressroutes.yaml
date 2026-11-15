@@ -110,39 +110,3 @@ spec:
       port: 80
   tls:
     certResolver: letsencrypt
----
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: pi-hole-http
-  namespace: pi-hole
-spec:
-  entryPoints:
-  - web
-  routes:
-  - kind: Rule
-    match: Host(`pi-hole.devinflake.com`)
-    middlewares:
-    - name: redirect-to-https
-    services:
-    - kind: Service
-      name: pi-hole-service
-      port: 80
----
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: pi-hole-ingress
-  namespace: pi-hole
-spec:
-  entryPoints:
-  - websecure
-  routes:
-  - kind: Rule
-    match: Host(`pi-hole.devinflake.com`)
-    services:
-    - kind: Service
-      name: pi-hole-service
-      port: 80
-  tls:
-    certResolver: letsencrypt
