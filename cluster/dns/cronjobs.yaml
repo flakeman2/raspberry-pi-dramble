@@ -1,10 +1,20 @@
-# Dynamic DNS updater for the two domains served by Park-Your-Domain.
+# Dynamic DNS updater for the two domains served through Namecheap's
+# Park-Your-Domain endpoint (dynamicdns.park-your-domain.com).
 #
-# The password comes from the `dyn-dns-credentials` Secret (see
-# cluster/secrets/examples/dyn-dns-credentials.yaml). The live cluster still has
-# the password inline in the container command; these manifests replace that.
+# Each CronJob reads its own key from the `dyn-dns-credentials` Secret
+# (see cluster/secrets/examples/dyn-dns-credentials.yaml):
 #
-# `image` is pinned; the live cluster runs the floating `curlimages/curl` tag.
+#   dyn-dns-devinflake.com  -> key password-devinflake.com
+#   dyn-dns-flakeman2.com   -> key password-flakeman2.com
+#
+# Namecheap requires a UNIQUE DDNS password per domain, so one shared key
+# cannot serve both (the single `password` key was retired 2026-11-16).
+#
+# Verify success by the response's <ErrCount>, never by job status: the API
+# answers HTTP 200 with <ErrCount>1</ErrCount> for a wrong password, so the
+# Job still reports Complete.
+#
+# `image` is pinned; keep it in step with cluster/dns/README.md.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -35,7 +45,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: dyn-dns-credentials
-                  key: password
+                  key: password-devinflake.com
             command:
             - /bin/sh
             - -c
@@ -76,7 +86,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: dyn-dns-credentials
-                  key: password
+                  key: password-flakeman2.com
             command:
             - /bin/sh
             - -c

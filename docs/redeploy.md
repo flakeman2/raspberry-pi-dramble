@@ -224,9 +224,10 @@ rotation notes.
 kubectl -n default create secret generic authsecret \
   --from-literal=users="$(htpasswd -nbB admin 'CHOOSE-A-PASSWORD')"
 
-# Park-Your-Domain dynamic DNS
+# Park-Your-Domain (Namecheap) dynamic DNS — a unique password per domain
 kubectl -n default create secret generic dyn-dns-credentials \
-  --from-literal=password='CHOOSE-A-PASSWORD'
+  --from-literal=password-devinflake.com='CHOOSE-A-PASSWORD' \
+  --from-literal=password-flakeman2.com='CHOOSE-A-SECOND-PASSWORD'
 
 # Grafana admin
 kubectl -n monitoring create secret generic grafana \

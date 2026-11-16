@@ -15,19 +15,22 @@ Status snapshot: [cluster-status.md](cluster-status.md). Rebuild procedure:
   generated a new token and the old one died with the old cluster.
 - ~~**Grafana admin password and `authsecret`**~~ — rotated *before* the wipe;
   the new values live only in the off-repo export directory (`0600`).
-- **Park-Your-Domain password — still open.** It is still the value exposed
-  during the investigation, and the live Secret currently holds the *old*
-  `devinflake.com` password as an interim. Rotate it at the provider using
-  **one password for both domains**, then recreate `dyn-dns-credentials` —
-  exact sequencing in
-  [secrets.md](secrets.md#rotation-decisions-2026-11-14).
+- **Park-Your-Domain (Namecheap) passwords — rotation in progress (2026-11-16).**
+  The live Secret still holds the exposed interim `devinflake.com` value, and
+  **Namecheap requires a unique password per domain** — so rotate *both* values
+  and load them into the two-key Secret (`password-devinflake.com`,
+  `password-flakeman2.com`) that `cluster/dns/cronjobs.yaml` now reads.
+  Sequencing: [secrets.md](secrets.md#rotation-decisions-2026-11-14).
 
-Caveat when verifying: the CronJobs report `Complete` **even when the password
+Caveat when verifying: the CronJobs report `Complete` **even when a password
 is wrong**, because the API answers HTTP 200 with `<ErrCount>` in the body:
 
 ```bash
-kubectl -n default logs job/$(kubectl -n default get jobs -o name | grep flakeman2 | tail -1) | grep ErrCount
-# today: <ErrCount>1</ErrCount>  ← wrong; devinflake returns <ErrCount>0</ErrCount>
+for j in $(kubectl -n default get jobs -o name --sort-by=.metadata.creationTimestamp | tail -2); do
+  printf '%s  ' "$j"; kubectl -n default logs "$j" | grep -o '<ErrCount>[0-9]*</ErrCount>' | tail -1
+done
+# want <ErrCount>0</ErrCount> from BOTH jobs
+# (flakeman2 showed 1 on 2026-11-16 under the interim single-key Secret)
 ```
 
 ### 2. ~~Stop kube2's broken `k3s.service`~~ — moot after the rebuild (2026-11-15)
