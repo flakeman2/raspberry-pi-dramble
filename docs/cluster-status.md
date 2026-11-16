@@ -210,16 +210,16 @@ longhorn/traefik `401` (basic auth), `/whoami` answering behind
 
 Both CronJobs ran and report `Complete`, **but job status lies here**: the
 Park-Your-Domain API returns HTTP 200 with `<ErrCount>` in the body, so a wrong
-password still exits 0. Current state with the interim password:
+password still exits 0. State on 2026-11-16:
 
-- `dyn-dns-devinflake.com` → `<ErrCount>0</ErrCount>` ✅ (working)
-- `dyn-dns-flakeman2.com` → `<ErrCount>1</ErrCount>` ❌ (expected — Namecheap
-  requires a unique password per domain, and the interim Secret held a single
-  shared `password` key)
+- after the interim single-key Secret: `devinflake` `<ErrCount>0</ErrCount>` ✅,
+  `flakeman2` `<ErrCount>1</ErrCount>` ❌ (one shared key, two different
+  provider passwords);
+- **after the rotation** (two-key Secret, unique password per domain): both
+  jobs return **`<ErrCount>0</ErrCount>` on all three records** ✅.
 
-Check `kubectl logs job/<name>` for `ErrCount`, not the job status. The
-two-key manifests (`password-devinflake.com` + `password-flakeman2.com`) landed
-2026-11-16; loading the rotated values into that Secret is the pending item —
+Check `kubectl logs job/<name>` for `ErrCount`, never the job status. The
+rotation history and the two-key design are in
 [secrets.md](secrets.md#rotation-decisions-2026-11-14).
 
 ## Security / hygiene observations

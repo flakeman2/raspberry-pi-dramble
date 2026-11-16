@@ -30,17 +30,14 @@ Kubernetes Secret.
   generated on 2026-11-14 (bcrypt for `authsecret`) and written only to an
   off-repo directory at mode `0600`. The values on the live cluster die with it;
   do not export them.
-- **Park-Your-Domain (Namecheap) passwords rotate *after* the reimage**
-  (decision 2026-11-14, **revised 2026-11-16**). They were read during the
-  investigation, so before the rotation the exported copies in the off-repo
-  directory were the only other copies. Sequence: bring the new cluster up →
-  rotate at Namecheap → create `dyn-dns-credentials` → apply the CronJobs →
-  verify `<ErrCount>0</ErrCount>` from **both** jobs.
-  **Revision (2026-11-16):** Namecheap requires a *unique* password per
-  domain, which makes the original plan ("one password for both domains, one
-  shared key") impossible. The Secret now carries `password-devinflake.com`
-  and `password-flakeman2.com` — one key per CronJob — and both values must be
-  rotated together.
+- **Park-Your-Domain (Namecheap) passwords — rotated 2026-11-16.** Two unique
+  values (one per domain — the provider enforces this), loaded into the
+  two-key Secret at `04:56Z` and verified: manual jobs returned
+  `<ErrCount>0</ErrCount>` on all three records for **both** domains. The
+  interim value that had been exposed during the investigation was deleted
+  along with its exported copy. Sequence used: bring the cluster up → rotate at
+  Namecheap → write both values to a `0600` file → create the two-key Secret →
+  apply `cluster/dns/cronjobs.yaml` → run both jobs and read `ErrCount`.
 - **k3s join token and kubeconfig** regenerate during the rebuild; no action.
 
 ## Create the required Secrets
