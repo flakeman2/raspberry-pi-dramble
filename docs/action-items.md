@@ -121,31 +121,28 @@ first.
   hosts it returns `404` on port 80.
 - Set a Grafana root URL and disable anonymous access if not already default.
 
-### 8. Remove pi-hole — mostly done (2026-11-14/16)
+### 8. ~~Remove pi-hole~~ — done (2026-11-14 → 11-16)
 
 `pi-hole-service` was an `ExternalName` to `192.168.0.46:80`, which never
-answered. The namespace, Service, `redirect-to-https` middleware, both
-IngressRoutes, and Traefik's `allowExternalNameServices` flags are gone from
-the manifests, and the `pi-hole.devinflake.com` DNS record was deleted at the
-provider on 2026-11-16.
+answered. Cleared in three passes:
 
-**TODO — parked on purpose:** the landing page still links to it.
-`cluster/workloads/mysite/content/index.html` (~line 116):
+- **Manifests (2026-11-14):** namespace, Service, `redirect-to-https`
+  middleware, both IngressRoutes, and Traefik's `allowExternalNameServices`
+  flags removed from the repo.
+- **DNS (2026-11-16):** the `pi-hole.devinflake.com` record deleted at the
+  provider.
+- **Landing page (2026-11-16):** the dead link removed from
+  `cluster/workloads/mysite/content/index.html` and the content redeployed
+  (git is the source of truth for that PVC — copy with a **pod** name, not
+  `deploy/…`):
 
-```html
-<a href="https://pi-hole.devinflake.com/admin">Pi-hole</a>
-```
+  ```bash
+  POD=$(kubectl -n mysite-nginx get pod -l app=mysite-nginx -o jsonpath='{.items[0].metadata.name}')
+  kubectl -n mysite-nginx cp cluster/workloads/mysite/content/. "$POD":/usr/share/nginx/html/
+  ```
 
-That link is dead now (no DNS record, no route). Remove it — or repoint it
-wherever you like — then redeploy the content, since git is the source of
-truth for that PVC:
-
-```bash
-POD=$(kubectl -n mysite-nginx get pod -l app=mysite-nginx -o jsonpath='{.items[0].metadata.name}')
-kubectl -n mysite-nginx cp cluster/workloads/mysite/content/. "$POD":/usr/share/nginx/html/
-```
-
-(`kubectl cp` needs a **pod** name here — `deploy/mysite-nginx` is rejected.)
+  Verified live: zero `pi-hole` references in the served page, page and images
+  all `200`, pod bytes identical to git.
 
 ## P2 — hygiene
 
