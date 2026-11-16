@@ -213,11 +213,13 @@ Park-Your-Domain API returns HTTP 200 with `<ErrCount>` in the body, so a wrong
 password still exits 0. Current state with the interim password:
 
 - `dyn-dns-devinflake.com` → `<ErrCount>0</ErrCount>` ✅ (working)
-- `dyn-dns-flakeman2.com` → `<ErrCount>1</ErrCount>` ❌ (expected — the two
-  domains have different passwords and the Secret holds one value)
+- `dyn-dns-flakeman2.com` → `<ErrCount>1</ErrCount>` ❌ (expected — Namecheap
+  requires a unique password per domain, and the interim Secret held a single
+  shared `password` key)
 
-Check `kubectl logs job/<name>` for `ErrCount`, not the job status. Rotation
-(then one password for both domains) is the pending item —
+Check `kubectl logs job/<name>` for `ErrCount`, not the job status. The
+two-key manifests (`password-devinflake.com` + `password-flakeman2.com`) landed
+2026-11-16; loading the rotated values into that Secret is the pending item —
 [secrets.md](secrets.md#rotation-decisions-2026-11-14).
 
 ## Security / hygiene observations

@@ -104,9 +104,10 @@ these is true:
 - the rotated `authsecret` and `grafana` values are recorded somewhere you can
   read them afterwards — they exist nowhere else
 - the DDNS rotation is sequenced: rotate at Park-Your-Domain **immediately
-  after the reimage**, before `dyn-dns-credentials` is created, using one
-  password for both domains (otherwise the two CronJobs need two Secret keys) —
-  see [secrets.md](secrets.md#rotation-decisions-2026-11-14)
+  after the reimage**, before `dyn-dns-credentials` is created — with **one
+  password per domain** (Namecheap enforces unique passwords, so the Secret
+  carries two keys) — see
+  [secrets.md](secrets.md#rotation-decisions-2026-11-14)
 - `acme.json` is saved, or you have accepted re-issuing all six certificates
 - host state is written down in [hardware.md](hardware.md): node addresses,
   `/etc/hosts`, and the router's reserved `192.168.0.201–.250` range

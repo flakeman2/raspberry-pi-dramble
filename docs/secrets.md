@@ -9,7 +9,7 @@ cluster needs, how to create it, and how to rotate it.
 |---|---|---|---|
 | `authsecret` | `default` | `users` | Traefik `basic-auth` Middleware (Traefik + Longhorn dashboards) |
 | `grafana` | `monitoring` | `admin-user`, `admin-password`, `ldap-toml` | Grafana deployment |
-| `dyn-dns-credentials` | `default` | `password` | Both dynamic-DNS CronJobs (**not yet applied live**) |
+| `dyn-dns-credentials` | `default` | `password-devinflake.com`, `password-flakeman2.com` | One key per dynamic-DNS CronJob — Namecheap requires a unique password per domain |
 | k3s join token | node filesystem | `/var/lib/rancher/k3s/server/node-token`, `k3s-agent.service.env` | k3s agents |
 | kubeconfig | workstation | client cert/key | `kubectl` / Helm |
 | ACME account + certs | `traefik` PVC | `/data/acme.json` | Traefik |
@@ -30,15 +30,17 @@ Kubernetes Secret.
   generated on 2026-11-14 (bcrypt for `authsecret`) and written only to an
   off-repo directory at mode `0600`. The values on the live cluster die with it;
   do not export them.
-- **Park-Your-Domain password rotates *after* the reimage** (decision,
-  2026-11-14). It was read during the investigation and sits in the live
-  CronJobs' container command and `last-applied-configuration`, so until it
-  changes the exported copies in the off-repo export directory are the only
-  other copies. Sequence: bring the new cluster up → rotate at the provider →
-  create `dyn-dns-credentials` → apply the CronJobs. The two domains currently
-  use **different** passwords while `cluster/dns/cronjobs.yaml` reads a single
-  key `password` for both; the decision (2026-11-14) is to **set one password
-  for both domains** during that rotation, so no manifest change is needed.
+- **Park-Your-Domain (Namecheap) passwords rotate *after* the reimage**
+  (decision 2026-11-14, **revised 2026-11-16**). They were read during the
+  investigation, so before the rotation the exported copies in the off-repo
+  directory were the only other copies. Sequence: bring the new cluster up →
+  rotate at Namecheap → create `dyn-dns-credentials` → apply the CronJobs →
+  verify `<ErrCount>0</ErrCount>` from **both** jobs.
+  **Revision (2026-11-16):** Namecheap requires a *unique* password per
+  domain, which makes the original plan ("one password for both domains, one
+  shared key") impossible. The Secret now carries `password-devinflake.com`
+  and `password-flakeman2.com` — one key per CronJob — and both values must be
+  rotated together.
 - **k3s join token and kubeconfig** regenerate during the rebuild; no action.
 
 ## Create the required Secrets
@@ -82,14 +84,18 @@ has an empty `ldap-toml` key; it is optional because LDAP is disabled.
 
 ### `dyn-dns-credentials`
 
+Namecheap requires a **unique DDNS password per domain**, so the Secret holds
+one key per CronJob:
+
 ```bash
 kubectl -n default create secret generic dyn-dns-credentials \
-  --from-literal=password='PARK-YOUR-DOMAIN-PASSWORD'
+  --from-literal=password-devinflake.com='DEVINFLAKE_COM_DDNS_PASSWORD' \
+  --from-literal=password-flakeman2.com='FLAKEMAN2_COM_DDNS_PASSWORD'
 ```
 
-The live CronJobs still embed this password in the container command. After
-creating the Secret, re-apply `cluster/dns/cronjobs.yaml` so the jobs reference
-the Secret instead, then delete the old Jobs:
+Each CronJob reads its own key (`cluster/dns/cronjobs.yaml`). Create **both**
+keys first — a CronJob whose key is missing sits in `ContainerCreating` — then
+apply the CronJobs and clean up any old Jobs:
 
 ```bash
 kubectl apply -f cluster/dns/cronjobs.yaml
