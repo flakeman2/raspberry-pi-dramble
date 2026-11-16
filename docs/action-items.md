@@ -183,3 +183,47 @@ from `master`. Rollout phases and conventions: [gitops.md](gitops.md) and
 [../gitops/README.md](../gitops/README.md). Do not start until k3s is on 1.36,
 Longhorn is healthy, and the manifests have been re-targeted to the new
 component versions.
+
+### 16. Restore host tuning: Wi-Fi, Bluetooth, and the overclock
+
+The Ubuntu 26.04 image the cluster was rebuilt from on 2026-11-15 came up with
+`wlan0` and Bluetooth **enabled** and **no overclock**, unlike the pre-reimage
+nodes. Restore what was there before — `dtoverlay=disable-wifi`,
+`dtoverlay=disable-bt`, `over_voltage=6`, `arm_freq=2000`, `gpu_mem=16`.
+
+Each edit needs a reboot, so do one node at a time, cordoning it first:
+
+```bash
+export KUBECONFIG=~/.kube/config-dramble-k3s
+kubectl drain kube2 --ignore-daemonsets --delete-emptydir-data --timeout=10m
+
+ssh pi@192.168.0.62
+sudo tee -a /boot/firmware/config.txt <<'EOF'
+
+# host tuning, restored after the 2026-11-15 reimage
+dtoverlay=disable-wifi
+dtoverlay=disable-bt
+over_voltage=6
+arm_freq=2000
+gpu_mem=16
+EOF
+sudo reboot
+```
+
+Before moving on to the next node, verify:
+
+```bash
+kubectl uncordon kube2
+kubectl get nodes                                     # this node Ready
+kubectl -n longhorn-system get volumes.longhorn.io    # healthy again
+ip link show wlan0                                    # fails: no such device
+sudo vcgencmd measure_clock arm                       # ≈ 2000000000
+sudo vcgencmd get_throttled                           # 0x0
+```
+
+Active cooling is assumed: if temperature climbs or `get_throttled` is
+non-zero, drop `over_voltage`/`arm_freq` first rather than the cooling.
+
+Afterwards, update [hardware.md](hardware.md) — its bill of materials currently
+records Wi-Fi as present-but-down and Bluetooth as not disabled, and the boot
+config section says no overclock is set — and re-measure the health baseline.
