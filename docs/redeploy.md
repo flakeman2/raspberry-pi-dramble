@@ -39,13 +39,12 @@ Pi.
 
 ### Image
 
-Use **Raspberry Pi OS Lite (Legacy) 64-bit, Debian 11 bullseye**, or an
-equivalent Debian 11 arm64 image with the Raspberry Pi `5.10` kernel. The live
-nodes report:
+Use **Ubuntu Server 26.04 LTS for Raspberry Pi** (64-bit). The nodes as
+reimaged on 2026-11-15 report:
 
 ```
-Debian GNU/Linux 11 (bullseye)
-Linux 5.10.92-v8+
+Ubuntu 26.04.1 LTS
+7.0.0-1023-raspi
 ```
 
 Write the image directly to the **USB SSD** (not an SD card). Raspberry Pi
@@ -68,79 +67,72 @@ node-specific steps below **before** installing k3s.
 
 ```bash
 sudo hostnamectl set-hostname kube1
-sudo sed -i 's/^127\.0\.1\.1.*/127.0.1.1\tkube1/' /etc/hosts
-```
 
-Append the cluster mapping to `/etc/hosts` on every node:
-
-```
+# drop cloud-init's loopback entry, then install the cluster mapping
+sudo sed -i '/^127\.0\.1\.1[[:space:]]/d' /etc/hosts
+cat >> /etc/hosts <<'EOF'
 192.168.0.61 kube1 kube1.devinflake.com
 192.168.0.62 kube2 kube2.devinflake.com
 192.168.0.63 kube3 kube3.devinflake.com
 192.168.0.64 kube4 kube4.devinflake.com
+EOF
 ```
+
+The same four lines go on every node. Verify with `getent hosts kube2`.
 
 #### 1.2 Static IP
 
-Edit `/etc/dhcpcd.conf` (adjust the address per node):
+Edit `/etc/netplan/50-cloud-init.yaml` (adjust the address per node):
 
+```yaml
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4: false
+      addresses:
+        - 192.168.0.61/24
+      routes:
+        - to: default
+          via: 192.168.0.1
 ```
-interface eth0
-static ip_address=192.168.0.61/24
-static routers=192.168.0.1
-static domain_name_servers=208.67.220.220 208.67.222.222
 
-interface wlan0
-static ip_address=192.168.0.61/24
-static routers=192.168.0.1
-static domain_name_servers=208.67.220.220 208.67.222.222
-```
-
-The `wlan0` block is present on the live nodes but inert because Wi-Fi is
-disabled.
+Check with `sudo netplan generate`, apply with `sudo netplan apply`. DNS comes
+from the router, so no `nameservers:` block is needed. The image also ships
+`dhcpcd`, but nothing is configured there — ignore it.
 
 #### 1.3 Boot configuration
 
-Append to `/boot/config.txt`:
+Boot files live under `/boot/firmware/`, with the active kernel and command
+line in `/boot/firmware/current/`. Ubuntu already sets `arm_64bit=1`,
+`arm_boost=1` and `dtoverlay=vc4-kms-v3d` in `/boot/firmware/config.txt`, so
+**no boot changes are required**.
 
-```ini
-arm_64bit=1
-arm_boost=1
-dtoverlay=vc4-kms-v3d
-dtoverlay=disable-wifi
-dtoverlay=disable-bt
-over_voltage=6
-arm_freq=2000
-gpu_mem=16
-```
+Do **not** carry over the old Debian cgroup arguments
+(`cgroup_enable=cpuset cgroup_enable=memory cgroup_memory=1 swapaccount=1`):
+this kernel is cgroup v2 by default, which Kubernetes prefers. Check with
+`stat -fc %T /sys/fs/cgroup` → `cgroup2fs`.
 
-`over_voltage=6` / `arm_freq=2000` are the 2.0 GHz overclock used live. Omit
-them if you do not have adequate cooling; everything else is required or part
-of the headless baseline.
-
-Append to the **single line** in `/boot/cmdline.txt`:
-
-```
-cgroup_enable=cpuset cgroup_enable=memory cgroup_memory=1 swapaccount=1
-```
-
-These cgroup arguments are required for Kubernetes.
+The previous install also overclocked to 2.0 GHz (`over_voltage=6`,
+`arm_freq=2000`); that is not set on this image. Add it back only with adequate
+cooling.
 
 #### 1.4 Disable swap and install prerequisites
 
 ```bash
-sudo systemctl disable --now dphys-swapfile 2>/dev/null || true
 sudo swapoff -a
 sudo apt-get update
-sudo apt-get install -y curl ca-certificates jq open-iscsi nfs-common
+sudo apt-get install -y curl ca-certificates jq open-iscsi
 sudo systemctl enable --now iscsid
 ```
 
-`open-iscsi` and `nfs-common` are Longhorn prerequisites. Verify:
+`open-iscsi` is the Longhorn prerequisite; `nfs-common` is **not** needed,
+because Longhorn serves `mysite-content` RWX itself. Verify:
 
 ```bash
 systemctl is-active iscsid          # active
 swapon --show                       # empty
+stat -fc %T /sys/fs/cgroup          # cgroup2fs
 ```
 
 #### 1.5 Reboot
@@ -149,13 +141,13 @@ swapon --show                       # empty
 sudo reboot
 ```
 
-After reboot, verify the node:
+After reboot, verify the node (`vcgencmd` needs `sudo` on this image):
 
 ```bash
 hostname
 ip -4 addr show eth0
-vcgencmd measure_temp
-vcgencmd get_throttled               # 0x0
+sudo vcgencmd measure_temp
+sudo vcgencmd get_throttled         # 0x0
 free -m
 df -h /
 ```
