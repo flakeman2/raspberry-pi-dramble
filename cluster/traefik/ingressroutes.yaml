@@ -9,7 +9,7 @@ spec:
   - websecure
   routes:
   - kind: Rule
-    match: Host(`traefik.devinflake.com`, `traefik.flakeman2.com`)
+    match: Host(`traefik.devinflake.com`) || Host(`traefik.flakeman2.com`)
     middlewares:
     - name: basic-auth
       namespace: default
@@ -32,7 +32,7 @@ spec:
   - websecure
   routes:
   - kind: Rule
-    match: Host(`devinflake.com`, `www.devinflake.com`, `flakeman2.com`, `www.flakeman2.com`)
+    match: (Host(`devinflake.com`) || Host(`www.devinflake.com`) || Host(`flakeman2.com`) || Host(`www.flakeman2.com`))
       && PathPrefix(`/whoami`)
     middlewares:
     - name: redirect-to-https
@@ -53,7 +53,7 @@ spec:
   - web
   routes:
   - kind: Rule
-    match: Host(`devinflake.com`, `www.devinflake.com`, `flakeman2.com`, `www.flakeman2.com`)
+    match: Host(`devinflake.com`) || Host(`www.devinflake.com`) || Host(`flakeman2.com`) || Host(`www.flakeman2.com`)
     middlewares:
     - name: redirect-to-https
     services:
@@ -70,7 +70,7 @@ spec:
   - websecure
   routes:
   - kind: Rule
-    match: Host(`devinflake.com`, `www.devinflake.com`, `flakeman2.com`, `www.flakeman2.com`)
+    match: Host(`devinflake.com`) || Host(`www.devinflake.com`) || Host(`flakeman2.com`) || Host(`www.flakeman2.com`)
     services:
     - name: mysite-nginx-service
       port: 80

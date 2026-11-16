@@ -9,7 +9,7 @@ spec:
   - websecure
   routes:
   - kind: Rule
-    match: Host(`longhorn.devinflake.com`, `longhorn.flakeman2.com`)
+    match: Host(`longhorn.devinflake.com`) || Host(`longhorn.flakeman2.com`)
     middlewares:
     - name: basic-auth
       namespace: default
@@ -31,7 +31,7 @@ spec:
   - websecure
   routes:
   - kind: Rule
-    match: Host(`grafana.devinflake.com`, `grafana.flakeman2.com`)
+    match: Host(`grafana.devinflake.com`) || Host(`grafana.flakeman2.com`)
     services:
     - name: grafana
       port: 80
