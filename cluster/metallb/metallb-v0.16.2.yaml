@@ -2200,9 +2200,12 @@ spec:
       component: controller
   template:
     metadata:
-      annotations:
-        prometheus.io/port: "9120"
-        prometheus.io/scrape: "true"
+      # No prometheus.io/* scrape annotations: since v0.16 MetalLB serves
+      # /metrics over HTTPS with bearer-token auth, which annotation-based
+      # discovery cannot express (it would scrape plain HTTP and send no
+      # Authorization header). Scraping is defined explicitly in
+      # cluster/monitoring/prometheus-values.yaml (job "metallb-metrics"),
+      # with the RBAC it needs in cluster/metallb/metrics-rbac.yaml.
       labels:
         app: metallb
         component: controller
@@ -2285,9 +2288,9 @@ spec:
       component: speaker
   template:
     metadata:
-      annotations:
-        prometheus.io/port: "9120"
-        prometheus.io/scrape: "true"
+      # No prometheus.io/* scrape annotations: see the controller Deployment —
+      # v0.16 metrics are HTTPS + bearer-token, discovered explicitly by the
+      # "metallb-metrics" job in cluster/monitoring/prometheus-values.yaml.
       labels:
         app: metallb
         component: speaker

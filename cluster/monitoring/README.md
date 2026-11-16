@@ -24,10 +24,11 @@ helm upgrade --install grafana grafana/grafana \
 
 Chart defaults create the server (15-day retention, 8 GiB Longhorn PVC),
 Alertmanager (2 GiB PVC), kube-state-metrics, node-exporter, and pushgateway;
-`prometheus-values.yaml` only adds a resource budget for the server, which is
-the biggest memory consumer on a 4 GB node. Every workload in this directory
-now has requests/limits, and Grafana's probes come from the chart
-(`GET /api/health`).
+`prometheus-values.yaml` adds a resource budget for the server plus an explicit
+**`metallb-metrics`** scrape job — MetalLB v0.16 serves metrics over HTTPS with
+bearer-token auth, which the chart's annotation-driven job cannot do (see
+`../metallb/README.md`). Every workload in this directory now has
+requests/limits, and Grafana's probes come from the chart (`GET /api/health`).
 
 ## Grafana secret
 

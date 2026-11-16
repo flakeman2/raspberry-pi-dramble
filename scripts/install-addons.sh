@@ -54,6 +54,9 @@ echo "==> MetalLB ${METALLB_VERSION}"
 # controller and speaker; the address pool is a CR (metallb.io/v1beta1)
 # rather than the pre-0.13 ConfigMap.
 kubectl apply -f "cluster/metallb/metallb-v${METALLB_VERSION}.yaml"
+# v0.16 metrics authenticate via TokenReview/SAR — permissions the native
+# manifest does not include; without them every scrape returns 500
+kubectl apply -f cluster/metallb/metrics-rbac.yaml
 kubectl -n metallb-system rollout status deploy/controller --timeout=5m
 kubectl -n metallb-system rollout status ds/speaker --timeout=5m
 kubectl wait --for condition=established --timeout=60s \
