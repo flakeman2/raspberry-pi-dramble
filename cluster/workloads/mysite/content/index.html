@@ -83,6 +83,20 @@
       color: #2d8653;
       border-bottom: 1px solid #2d8653;
     }
+    .hero-images {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 32px;
+        margin: 10px 0;
+    }
+    .hero-images img {
+        max-height: 320px;
+        max-width: 100%;
+        width: auto;
+        height: auto;
+    }
 	</style>
 
     <!-- Global site tag (gtag.js) - Google Analytics -->
@@ -113,12 +127,11 @@
             <br>
             <a href="https://grafana.devinflake.com/whoami">Grafana</a>
             <br>
-            <a href="https://pi-hole.devinflake.com/admin">Pi-hole</a>
             <br>
-            <br>
-            <br>
-            <img src="rpi1.jpeg" alt="Raspberry Pi logo">
-            <br>
+            <span class="hero-images">
+                <img src="rpi1.jpeg" alt="Raspberry Pi logo">
+                <img src="raspberry-pi-dramble-hero-2019.jpg" alt="The Dramble: four Raspberry Pi 4 boards in an acrylic and brass rack on a PoE switch, 2019" loading="lazy">
+            </span>
             <br>
             <br>
             <a href="https://longhorn.devinflake.com/#/dashboard">Longhorn UI</a>
