@@ -45,20 +45,22 @@ pull requests are no longer opened against it. See
 | Metrics | metrics-server and CoreDNS, both bundled with k3s |
 | DNS | Park-Your-Domain dynamic DNS via two CronJobs |
 
-> **These are the versions the repository pins, not yet what is running.** The
-> scripts and manifests were retargeted on 2026-11-14 ahead of the reimage;
-> the live cluster is still on the 2021 stack (k3s `v1.22.5+k3s1`, Traefik
-> `2.5.6`, and so on). See [docs/upgrade.md](docs/upgrade.md) for the plan and
-> [docs/cluster-status.md](docs/cluster-status.md) for today's snapshot.
+> **Live since 2026-11-16 — these are the versions the cluster runs, not just
+> what the repository pins.** The rebuild landed every one of them; the
+> snapshot, the phase-by-phase rebuild history, and the defects it surfaced are
+> in [docs/cluster-status.md](docs/cluster-status.md), and the plan they came
+> from is [docs/upgrade.md](docs/upgrade.md).
 
-> **Status:** all four nodes are `Ready`. `rpi-argon` and `rpi-retropie` were
-> removed from the cluster on 2026-11-14 after being unreachable. The full
-> snapshot, including faults and end-of-life warnings, is in
+> **Status:** all four nodes `Ready` on k3s `v1.36.6+k3s1` (Ubuntu 26.04.1),
+> all five volumes `healthy` with 15 replicas, **all eight public hostnames
+> serving valid Let's Encrypt certificates**, Prometheus **24 targets / 0
+> down**. The frozen 2021 stack was retired by a full rebuild on 2026-11-15/16
+> — before-and-after is recorded in
 > [docs/cluster-status.md](docs/cluster-status.md).
 >
-> **Next:** the stack is end-of-life. The component upgrade plan is in
-> [docs/upgrade.md](docs/upgrade.md); the planned Argo CD rollout is in
-> [docs/gitops.md](docs/gitops.md).
+> **Next:** bootstrap Argo CD per [docs/gitops.md](docs/gitops.md), then the
+> open items in [docs/action-items.md](docs/action-items.md) — rotate the DDNS
+> password, host tuning (item 16), Grafana dashboards, NetworkPolicies.
 
 ## Repository layout
 
@@ -68,14 +70,14 @@ cluster/                     Manifests for everything the cluster runs
   metallb/                   MetalLB install manifest + address pool
   longhorn/                  Longhorn install notes (upstream manifest)
   traefik/                   Helm values + IngressRoutes/Middlewares/TLSOption
-  monitoring/                Grafana Helm values (Prometheus uses chart defaults)
+  monitoring/                Prometheus + Grafana Helm values
   dns/                       Dynamic DNS CronJobs
   workloads/                 mysite, jekyll, whoami
   dashboards/                IngressRoutes for Grafana/Longhorn UIs
   secrets/                   Secret requirements + example manifests (no values)
 scripts/                     Install scripts for k3s and the add-ons
 docs/                        Architecture, hardware, status, redeploy, secrets,
-                             upgrade plan, GitOps plan
+                             upgrade plan, GitOps plan, blog rebuild
 gitops/                      Argo CD scaffold (not yet applied)
 ```
 

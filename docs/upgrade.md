@@ -1,14 +1,20 @@
 # Upgrade plan
 
-**Status (2026-11-15):** A0 (preserve) and A1 (retarget the repo) are complete,
-and the four nodes have been **reimaged to Ubuntu Server 26.04.1 LTS** — the old
-cluster is gone, so the public sites are down until A2 and A3 finish. Everything
-in the A0 gate was verified before the wipe: mysite tarball matching git,
-rotated `authsecret`/`grafana`, `acme.json`, host state in `hardware.md`, and
-the workstation tools. The Park-Your-Domain rotation is scheduled for
-immediately after the cluster is back, as recorded below. Version data was
-checked on 2026-11-14 — re-verify patch levels before starting, because they
-move.
+**Status (2026-11-16): DONE — the rebuild path was executed and A4 met.**
+
+| Phase | When | Result |
+|---|---|---|
+| **A0** preserve + gate | 2026-11-14 | mysite tarball byte-identical to git, `acme.json`, rotated `authsecret`/`grafana` off-repo at `0600`, host state, tools — gate passed **before** the wipe, which mattered because there was no rollback |
+| **A1** retarget the repo | 2026-11-14 | PRs #8/#9/#12; `pluto` (no APIs removed by 1.36) and `kubeconform` clean |
+| **A2** reimage + rebuild | 2026-11-15 | all four disks wiped → Ubuntu Server 26.04.1 LTS, then k3s `v1.36.6+k3s1`, MetalLB `0.16.2`, Longhorn `1.13.0`, Traefik `42.4.0`, Prometheus `29.47.2`, Grafana `14.4.1` |
+| **A3** restore + verify | 2026-11-16 | content restored byte-identical; certificates re-issued for all 8 hostnames once the router returned to `.201` |
+| **A4** exit criteria | 2026-11-16 | all six criteria met — see [cluster-status.md](cluster-status.md) for the post-rebuild snapshot **and the rebuild history**, including the five defects the rebuild surfaced |
+
+Version data was checked on 2026-11-14; the pins above are what is now running.
+Still open after the rebuild: the Park-Your-Domain rotation
+([secrets.md](secrets.md#rotation-decisions-2026-11-14)), host tuning
+([action-items.md](action-items.md) item 16), and Argo CD
+([gitops.md](gitops.md)).
 
 This page covers every component, the order, the gates between steps, and the
 choice between upgrading in place and rebuilding. Argo CD adoption is sequenced
@@ -130,7 +136,7 @@ APIs) and `kubeconform` (0 invalid, 0 errors, on both the manifests and the
 5. `pluto` and `kubeconform` run over `cluster/` and over the rendered Helm
    output.
 
-### A2. Rebuild the nodes
+### A2. Rebuild the nodes — done, 2026-11-15
 
 Follow [redeploy.md](redeploy.md). The additions specific to this upgrade:
 
@@ -146,7 +152,7 @@ sudo rm -rf /var/lib/longhorn
 Do not reuse Longhorn disks written by `1.2.3`; a fresh install with a clean
 `/var/lib/longhorn` avoids mixing volume formats.
 
-### A3. Restore and verify
+### A3. Restore and verify — done, 2026-11-16
 
 - Create namespaces, Secrets (rotated), Longhorn, MetalLB, Traefik, monitoring.
 - Restore the website content once the `mysite-content` PVC is bound and the pod
@@ -163,7 +169,7 @@ Do not reuse Longhorn disks written by `1.2.3`; a fresh install with a clean
   cluster fails you fix forward from the A0 artifacts — there is no old cluster
   to boot back into.
 
-### A4. Exit criteria
+### A4. Exit criteria — met, 2026-11-16
 
 - 4/4 nodes `Ready`; the server reports `v1.36.6+k3s1` and your `kubectl` is
   within one minor of it.
@@ -315,6 +321,6 @@ change. This alone can force a reimage, which is another argument for Path A.
    above.
 2. Update `docs/cluster-status.md`, `docs/hardware.md`, `README.md`, and the
    component READMEs with the new versions.
-3. Re-run the verification from
-   [cluster-status.md](cluster-status.md#verification-commands).
+3. Re-run the verification steps and compare against the current snapshot in
+   [cluster-status.md](cluster-status.md).
 4. Then start the Argo CD rollout in [gitops.md](gitops.md), phase 1.

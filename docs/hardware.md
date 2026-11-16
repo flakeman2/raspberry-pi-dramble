@@ -43,10 +43,10 @@ rebuild; see [upgrade.md](upgrade.md).
 
 | Hostname | IP | Role | State |
 |---|---|---|---|
-| `kube1` | 192.168.0.61 | k3s server (control plane) | Reimaged 2026-11-15; k3s pending |
-| `kube2` | 192.168.0.62 | k3s agent | Reimaged 2026-11-15; k3s pending |
-| `kube3` | 192.168.0.63 | k3s agent | Reimaged 2026-11-15; k3s pending |
-| `kube4` | 192.168.0.64 | k3s agent | Reimaged 2026-11-15; k3s pending |
+| `kube1` | 192.168.0.61 | k3s server (control plane) | **Ready**, `v1.36.6+k3s1` |
+| `kube2` | 192.168.0.62 | k3s agent | **Ready**, `v1.36.6+k3s1` (only `k3s-agent.service` exists now) |
+| `kube3` | 192.168.0.63 | k3s agent | **Ready**, `v1.36.6+k3s1` |
+| `kube4` | 192.168.0.64 | k3s agent | **Ready**, `v1.36.6+k3s1` |
 
 `rpi-argon` (192.168.0.37) and `rpi-retropie` (192.168.0.7) were removed from
 the cluster on 2026-11-14 and are not part of the rebuild.
@@ -158,8 +158,18 @@ sudo systemctl enable --now iscsid    # active and enabled on all four, 2026-11-
 
 ## Health baseline
 
-Measured 2026-11-14 on the **previous** install, with all workloads running.
-Re-measure after the rebuild; on this image `vcgencmd` needs `sudo`.
+**Live — measured 2026-11-16** with the rebuilt cluster fully running (~3.5 h
+after first boot; `vcgencmd` needs `sudo` on this image):
+
+| Node | Uptime | Load (1/5/15) | Memory used | Rootfs used | Temp | `get_throttled` |
+|---|---|---|---|---|---|---|
+| kube1 | 3h 28m | 1.43 / 1.09 / 1.02 | 1836 / 3777 MB | 8.4 G / 458 G | 42.8 °C | `0x0` |
+| kube2 | 3h 28m | 2.44 / 1.27 / 0.76 | 1128 / 3777 MB | 8.3 G / 458 G | 50.6 °C | `0x0` |
+| kube3 | 3h 17m | 0.49 / 0.56 / 0.61 | 1355 / 3777 MB | 9.9 G / 458 G | 55.5 °C | `0x0` |
+| kube4 | 3h 28m | 0.46 / 0.54 / 0.59 | 1474 / 3777 MB | 8.0 G / 458 G | 51.6 °C | `0x0` |
+
+Historical — measured 2026-11-14 on the **previous** install (31 weeks of
+uptime, all workloads running):
 
 | Node | Uptime | Load (1/5/15) | Memory used | Rootfs used | Temp | `get_throttled` |
 |---|---|---|---|---|---|---|
@@ -168,8 +178,9 @@ Re-measure after the rebuild; on this image `vcgencmd` needs `sudo`.
 | kube3 | 31w 2d | 0.22 / 0.28 / 0.27 | 596 / 3844 MB | 8.8 G / 459 G | 52.5 °C | `0x0` |
 | kube4 | 31w 2d | — | — | — | 54.5 °C | `0x0` |
 
-Immediately after the 2026-11-15 reimage the nodes were idle at 33–44 minutes
-uptime, load under 0.25, ~470 MB used, 3.5 G of 458 G rootfs, 39.4 °C and
-`throttled=0x0`.
+In between, immediately after the 2026-11-15 reimage and before anything was
+installed: 33–44 min uptime, load under 0.25, ~470 MB used, 3.5 G of 458 G,
+39.4 °C.
 
-No under-voltage or thermal throttling has occurred on any node.
+No under-voltage or thermal throttling has occurred on any node, on either
+install.
