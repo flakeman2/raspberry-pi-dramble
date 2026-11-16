@@ -1,15 +1,15 @@
 # Rebuilding the blog and the landing page
 
-**Status:** verified 2026-11-14 against the live cluster. Nothing on this page
-has been executed against the cluster; the rebuild was reproduced in a scratch
-directory and diffed against the running image.
+**Status:** verified 2026-11-14, then **rebuilt and re-verified 2026-11-15** as
+image `1.0.6`. This page records both: how the source was recovered, and what
+the currently deployed image was built from.
 
 Both sites are rebuildable from source. The blog source lives in a *different*
 repository, which is the main thing to know about.
 
 | Site | Served by | Source | Rebuildable? |
 |---|---|---|---|
-| `blog.devinflake.com` | `flakeman2/jekyll:1.0.5`, content baked into the image (no volume) | [`flakeman2/Ephesus`](https://github.com/flakeman2/Ephesus) | Yes — Dockerfile, all 5 posts, full history |
+| `blog.devinflake.com` | `flakeman2/jekyll:1.0.6`, content baked into the image (no volume) | [`flakeman2/Ephesus`](https://github.com/flakeman2/Ephesus) | Yes — Dockerfile, all 6 posts, full history |
 | `devinflake.com` / `flakeman2.com` | `nginx:latest` + the `mysite-content` PVC | this repo, `cluster/workloads/mysite/content/` | Yes — no build step at all |
 
 ## Blog source
@@ -18,14 +18,15 @@ repository, which is the main thing to know about.
 [`onepase/Ephesus`](https://github.com/onepase/Ephesus) (the theme, still
 maintained). It is the site source, not just the theme:
 
-- `_posts/` — all five posts, as markdown, with their front matter:
+- `_posts/` — all six posts, as markdown, with their front matter:
   `2022-01-22-Hello-devinflake_com.md`, `2022-01-23-raspberry-pi.md`,
   `2022-01-24-taking_the_cka.md`, `2022-02-04-passing_the_cka.md`,
-  `2026-11-14-dramble-cleanup-and-plan.md`
+  `2026-11-14-dramble-cleanup-and-plan.md`,
+  `2026-11-15-dramble-wiped-and-rebuilt.md`
 - `_config.yml`, `_layouts/`, `_includes/`, `assets/` — theme and configuration
   (Google Analytics, Disqus, `url: https://blog.devinflake.com`)
 - `Dockerfile`, `Gemfile`, `Gemfile.lock` — the build
-- 27 commits, 2021-09-23 → 2026-11-14, including the upstream theme history.
+- 28 commits, 2021-09-23 → 2026-11-15, including the upstream theme history.
   Nothing is unpushed (`git log origin/master..master` is empty).
 
 `_site/` is deliberately absent — it is gitignored, and build output is
@@ -34,15 +35,16 @@ they are history, not a source of truth.
 
 ### Which commit is deployed
 
-**The running image, `1.0.5`, was built from `8a49a1f` — the branch head — on
-2026-11-14. Source and cluster agree.**
+**The running image, `1.0.6`, was built from `f8650e8` — the branch head — and
+pushed 2026-11-16T06:10Z. Source and cluster agree.**
 
 | Commit | When | Shipped in |
 |---|---|---|
 | `df1dbaa` | 2022-02-04 | `1.0.4`, built 2022-02-05T02:06:19Z |
 | `a5fe7fa` | 2022-02-05T05:37Z | `1.0.5` — sat unshipped for four years |
 | `91e0560` | 2026-11-14 | `1.0.5` — the "Dramble: cleanup and a plan" post |
-| `8a49a1f` (head) | 2026-11-14 | `1.0.5` — the Dockerfile `--platform` fix |
+| `8a49a1f` | 2026-11-14 | `1.0.5` — the Dockerfile `--platform` fix |
+| `f8650e8` (head) | 2026-11-15 | `1.0.6` — "Dramble: wiped and rebuilt" + three photos |
 
 They did not always match: `1.0.4` was built from `df1dbaa` while the branch had
 already moved to `a5fe7fa`, so for four years the deployed site lagged the
@@ -50,7 +52,7 @@ source, and building from head produced a visibly different site (extra header
 row in `index.html`, different `style.css` layout rules, `Hobbies and Interests`
 instead of `Hobbies and interests`). Rebuilding `df1dbaa` reproduces `1.0.4`
 exactly — see [Verification](#verification) below. Since `1.0.5`, building from
-`master` ships exactly what is deployed.
+`master` ships exactly what is deployed, and `1.0.6` keeps that rule.
 
 ### Docker image history
 
@@ -61,13 +63,15 @@ exactly — see [Verification](#verification) below. Since `1.0.5`, building fro
 | `1.0.2` | 2022-01-25 | amd64 + arm64 |
 | `1.0.3` | 2022-01-25 | amd64 + arm64 |
 | `1.0.4` | 2022-02-05 | **arm64 only** |
-| `1.0.5` (deployed) | 2026-11-14 | **arm64 only** |
+| `1.0.5` | 2026-11-14 | **arm64 only** |
+| `1.0.6` (deployed) | 2026-11-15 | **arm64 only** |
 
-Deployed digest:
-`sha256:9d3e6c1d27ce8e0bd892559e760fcb308e2e0ac05fc60101e55e6bb3a477ce0d`.
-`1.0.5` is an OCI image index — one arm64 manifest plus buildx's provenance
-attestation as `unknown/unknown`; the arm64 entry inside it is
-`sha256:eeaeb90d77923eac37e07a05fe86bc389fdd3064cd25a51624dbead1a19dd052`.
+Deployed digest (`1.0.6`, 15.5 MB):
+`sha256:e334741bbc912c4928096161bae95d35512db069cdaf1f868f7fa092f9690bb5`
+— an OCI image index holding one arm64 manifest
+(`sha256:e25847c0814eae2482159ce82649fa4723ea66c6794663eb5db37f550e0b5be7`)
+plus buildx's provenance attestation as `unknown/unknown`. `1.0.5` had the same
+shape (`9d3e6c1d…` / `eeaeb90d…`).
 The Deployment in `cluster/workloads/jekyll/deployment.yaml` pins the tag, not
 the digest.
 
@@ -105,7 +109,7 @@ cd Ephesus
 git checkout master         # head == deployed; see "Which commit is deployed"
 
 docker buildx build --platform linux/arm64 \
-  -t flakeman2/jekyll:1.0.5 --push .
+  -t flakeman2/jekyll:1.0.6 --push .
 ```
 
 Three things to get right:
@@ -155,6 +159,11 @@ After `1.0.5` rolled out the same day, the deployed site was checked end to
 end: 3/3 pods on `1.0.5`, 8 sitemap URLs, 5 feed entries, and the new post at
 `/dramble_cleanup_and_plan/` returning 200 with the AI disclosure rendered and
 no IP addresses in the served HTML.
+
+After `1.0.6` (2026-11-15) the same checks were repeated with one more page:
+3/3 pods on `1.0.6`, **9 sitemap URLs**, 6 feed entries,
+`/dramble_wiped_and_rebuilt/` → 200 with all three photos fetching, and the
+landing page's hero image → 200.
 
 ## Publishing a post
 

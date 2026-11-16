@@ -6,7 +6,7 @@ Kustomize. **Not yet applied.**
 | Directory | Workload | Namespace | Notes |
 |---|---|---|---|
 | `mysite-nginx/` | `mysite-nginx` | `mysite-nginx` | Pin the image tag; currently `nginx:latest` |
-| `jekyll/` | `jekyll-website` (3 replicas) | `jekyll` | Pin `flakeman2/jekyll`; built ARM64 in CI |
+| `jekyll/` | `jekyll-website` (3 replicas) | `jekyll` | Pin `flakeman2/jekyll`; built by hand with `buildx --platform linux/arm64` (no CI yet) |
 | `whoami/` | `whoami` (2 replicas) | `whoami` | Pilot app for phase 1; currently floating tag |
 | `dns/` | two DynDNS CronJobs | `default` | Password must come from a sealed `dyn-dns-credentials` |
 | `dashboards/` | IngressRoutes for Grafana/Longhorn | `traefik` | Basic auth via `authsecret` |
