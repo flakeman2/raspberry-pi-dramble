@@ -78,3 +78,44 @@ prometheus-pushgateway:
     limits:
       cpu: 100m
       memory: 64Mi
+
+# MetalLB metrics. Since v0.16 these are HTTPS on 9120 with bearer-token auth,
+# so the chart's annotation-driven `kubernetes-pods` job cannot scrape them: it
+# would use plain HTTP and send no Authorization header. MetalLB's pod
+# annotations were removed from the vendored manifest for that reason, and the
+# pods are discovered by label here instead.
+#
+# Requires cluster/metallb/metrics-rbac.yaml (TokenReview/SAR for MetalLB,
+# `get` on /metrics for the Prometheus ServiceAccount) — both applied by
+# scripts/install-addons.sh.
+scrapeConfigs:
+  metallb-metrics:
+    enabled: true
+    job_name: metallb-metrics
+    kubernetes_sd_configs:
+    - role: pod
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true   # MetalLB auto-generates a self-signed cert
+    authorization:
+      type: Bearer
+      credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+    # role: pod emits one target per declared container port — keep only the
+    # metrics port (the controller also declares webhook 9443, which 404s).
+    - source_labels: [__meta_kubernetes_pod_container_port_number]
+      action: keep
+      regex: "9120"
+    # Prometheus relabel fields are snake_case (source_labels/target_label),
+    # unlike Kubernetes CRD fields — camelCase is rejected as
+    # "field sourceLabels not found in type relabel.plain".
+    - source_labels: [__meta_kubernetes_namespace]
+      action: keep
+      regex: metallb-system
+    - source_labels: [__meta_kubernetes_pod_label_component]
+      action: keep
+      regex: controller|speaker
+    - source_labels: [__meta_kubernetes_pod_name]
+      target_label: pod
+    - source_labels: [__meta_kubernetes_pod_ip]
+      target_label: instance

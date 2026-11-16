@@ -1,0 +1,68 @@
+# RBAC for MetalLB v0.16 metrics scraping.
+#
+# Since v0.16 (metallb/metallb#2979) the controller and speaker serve
+# /metrics over HTTPS on port 9120 with bearer-token authentication
+# (controller-runtime filters.WithAuthenticationAndAuthorization) instead of
+# plain HTTP on 7472 behind kube-rbac-proxy. The native manifest carries
+# none of the RBAC that implies, so without this file every scrape fails:
+#
+#   - MetalLB itself must be able to create TokenReviews and
+#     SubjectAccessReports, or authentication fails with HTTP 500
+#     "Authentication failed" — for valid *and* invalid tokens alike.
+#     The apiGroup matters: tokenreviews lives in authentication.k8s.io.
+#   - the scraping identity needs `get` on the /metrics non-resource URL,
+#     or it gets HTTP 403
+#     "Authorization denied for user system:serviceaccount:<ns>:<sa>".
+#
+# Both were reproduced on 2026-11-15 during the rebuild. The scrape job that
+# consumes this is "metallb-metrics" in cluster/monitoring/prometheus-values.yaml.
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: metallb-metrics-auth
+rules:
+- apiGroups: ["authentication.k8s.io"]
+  resources: ["tokenreviews"]
+  verbs: ["create"]
+- apiGroups: ["authorization.k8s.io"]
+  resources: ["subjectaccessreviews"]
+  verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: metallb-metrics-auth
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: metallb-metrics-auth
+subjects:
+- kind: ServiceAccount
+  name: controller
+  namespace: metallb-system
+- kind: ServiceAccount
+  name: speaker
+  namespace: metallb-system
+---
+# Read side: the Prometheus server's ServiceAccount, which does the scraping.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-metrics-reader
+rules:
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-metrics-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-metrics-reader
+subjects:
+- kind: ServiceAccount
+  name: prometheus-server
+  namespace: monitoring

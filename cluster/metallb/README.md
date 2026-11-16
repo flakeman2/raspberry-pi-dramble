@@ -37,3 +37,20 @@ kubectl -n metallb-system get l2advertisement
 kubectl -n traefik get svc traefik \
   -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
 ```
+
+### Metrics (v0.16: HTTPS + bearer token)
+
+MetalLB moved metrics from plain HTTP `7472` to **HTTPS `9120`** in v0.16,
+authenticated with bearer tokens (metallb/metallb#2979 — kube-rbac-proxy was
+removed). Two consequences, both handled here:
+
+- `metrics-rbac.yaml` grants MetalLB `tokenreviews`/`subjectaccessreviews` and
+  grants the Prometheus ServiceAccount `get` on `/metrics`. Without the first
+  every scrape returns `500 Authentication failed`; without the second, `403`.
+- the upstream manifest's `prometheus.io/scrape`/`port` annotations are
+  **removed** in our vendored copy: annotation discovery sends plain HTTP with
+  no `Authorization` header, which cannot work. The explicit job lives in
+  `../monitoring/prometheus-values.yaml` (`metallb-metrics`: `scheme: https`,
+  `insecureSkipVerify`, bearer token, discovered by label).
+
+Both are applied by `scripts/install-addons.sh`.
