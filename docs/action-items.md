@@ -121,13 +121,31 @@ first.
   hosts it returns `404` on port 80.
 - Set a Grafana root URL and disable anonymous access if not already default.
 
-### 8. Remove pi-hole — done 2026-11-14
+### 8. Remove pi-hole — mostly done (2026-11-14/16)
 
 `pi-hole-service` was an `ExternalName` to `192.168.0.46:80`, which never
 answered. The namespace, Service, `redirect-to-https` middleware, both
-IngressRoutes, and Traefik's `allowExternalNameServices` flags are now gone
-from the manifests. **Remaining:** delete the `pi-hole.devinflake.com` DNS
-record and its certificate entry at the provider.
+IngressRoutes, and Traefik's `allowExternalNameServices` flags are gone from
+the manifests, and the `pi-hole.devinflake.com` DNS record was deleted at the
+provider on 2026-11-16.
+
+**TODO — parked on purpose:** the landing page still links to it.
+`cluster/workloads/mysite/content/index.html` (~line 116):
+
+```html
+<a href="https://pi-hole.devinflake.com/admin">Pi-hole</a>
+```
+
+That link is dead now (no DNS record, no route). Remove it — or repoint it
+wherever you like — then redeploy the content, since git is the source of
+truth for that PVC:
+
+```bash
+POD=$(kubectl -n mysite-nginx get pod -l app=mysite-nginx -o jsonpath='{.items[0].metadata.name}')
+kubectl -n mysite-nginx cp cluster/workloads/mysite/content/. "$POD":/usr/share/nginx/html/
+```
+
+(`kubectl cp` needs a **pod** name here — `deploy/mysite-nginx` is rejected.)
 
 ## P2 — hygiene
 
@@ -189,14 +207,31 @@ from `master`. Rollout phases and conventions: [gitops.md](gitops.md) and
 Longhorn is healthy, and the manifests have been re-targeted to the new
 component versions.
 
-### 16. Restore host tuning: Wi-Fi, Bluetooth, and the overclock
+### 16. ~~Restore host tuning: Wi-Fi, Bluetooth, and the overclock~~ — done 2026-11-16
 
-The Ubuntu 26.04 image the cluster was rebuilt from on 2026-11-15 came up with
-`wlan0` and Bluetooth **enabled** and **no overclock**, unlike the pre-reimage
-nodes. Restore what was there before — `dtoverlay=disable-wifi`,
-`dtoverlay=disable-bt`, `over_voltage=6`, `arm_freq=2000`, `gpu_mem=16`.
+The Ubuntu 26.04 image came up with `wlan0` and Bluetooth **enabled** and **no
+overclock**. All five lines were appended to `/boot/firmware/config.txt` on
+every node — one node at a time, drained first — and verified after each
+reboot:
 
-Each edit needs a reboot, so do one node at a time, cordoning it first:
+| Node | `wlan0` | Bluetooth | `scaling_max_freq` | `get_throttled` | Temp (settled) |
+|---|---|---|---|---|---|
+| kube1 | gone | 0 entries | 2000000 | `0x0` | 47.2 °C |
+| kube2 | gone | 0 entries | 2000000 | `0x0` | 54.0 °C |
+| kube3 | gone | 0 entries | 2000000 | `0x0` | 53.5 °C |
+| kube4 | gone | 0 entries | 2000000 | `0x0` | 51.6 °C |
+
+Also done on all four: **`sudo systemctl disable --now wpa_supplicant`** — the
+image had left it `enabled` and `active` with a live process despite there
+being no `wlan0` to manage. `NetworkManager` is inactive and `systemd-networkd`
+drives `eth0`, so nothing legitimate needs it. Verified afterwards:
+`enabled=disabled active=inactive procs=0`, default route and DNS intact,
+cluster 4/4 `Ready`, Prometheus **24 up / 0 down**.
+
+kube1 went **last** on purpose: as the only server its reboot takes the API
+down with it (single-server topology — see item 12). SSH returned after 110 s
+and the API about 15 s after that; volumes re-attached `healthy` within 80 s of
+uncordoning. The procedure is kept below for the next reimage.
 
 ```bash
 export KUBECONFIG=~/.kube/config-dramble-k3s
@@ -224,6 +259,15 @@ kubectl -n longhorn-system get volumes.longhorn.io    # healthy again
 ip link show wlan0                                    # fails: no such device
 sudo vcgencmd measure_clock arm                       # ≈ 2000000000
 sudo vcgencmd get_throttled                           # 0x0
+```
+
+After the last node, stop the Wi-Fi supplicant the image enables by default —
+it has no `wlan0` to manage:
+
+```bash
+sudo systemctl disable --now wpa_supplicant    # on each of the four nodes
+systemctl is-enabled wpa_supplicant            # expect: disabled
+systemctl is-active wpa_supplicant             # expect: inactive
 ```
 
 Active cooling is assumed: if temperature climbs or `get_throttled` is
