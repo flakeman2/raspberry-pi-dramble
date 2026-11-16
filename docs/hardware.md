@@ -15,9 +15,9 @@ the cluster on 2026-11-14 after being unreachable for an extended period. See
 | Boot disk | PNY CS900 500 GB SSD over USB |
 | Partitioning | `sda1` 512 MB vfat `/boot/firmware`, `sda2` ~465 GB ext4 `/` |
 | Network | On-board Gigabit Ethernet (`eth0`), static addressing |
-| Wi-Fi | Present as `wlan0`, left down (wired only) |
-| Bluetooth | Not disabled in the current boot config |
-| Cooling | Active cooling assumed |
+| Wi-Fi | Disabled at firmware level (`dtoverlay=disable-wifi` — no `wlan0` exists), and `wpa_supplicant.service` disabled too |
+| Bluetooth | Disabled at firmware level (`dtoverlay=disable-bt` — `/sys/class/bluetooth` empty) |
+| Cooling | Heatsinks + active cooling on every node (confirmed by owner 2026-11-16) — idle 45–57 °C with the 2.0 GHz overclock |
 | Power | Official 5 V / 3 A USB-C supply per node |
 
 There is no SD card in any node: the firmware, `/boot/firmware`, and root
@@ -77,12 +77,27 @@ initramfs initrd.img followkernel
 arm_64bit=1
 arm_boost=1
 dtoverlay=vc4-kms-v3d
+
+# host tuning, restored per action item 16 (2026-11-16)
+dtoverlay=disable-wifi
+dtoverlay=disable-bt
+over_voltage=6
+arm_freq=2000
+gpu_mem=16
 ```
 
 - `arm_64bit=1` and `arm_boost=1` select the 64-bit kernel and the boost clock.
-- The Debian-era additions — `over_voltage=6` / `arm_freq=2000` overclock and
-  the `disable-wifi` / `disable-bt` overlays — are **not** present on this
-  image; `wlan0` exists but is left down.
+- The five tuning lines were **added back on 2026-11-16** (action item 16),
+  restoring what the pre-reimage nodes had: radios off at firmware level, 2.0 GHz
+  with `over_voltage=6`, GPU memory pinned to 16 MB. Verified on every node —
+  no `wlan0`, empty `/sys/class/bluetooth`, `scaling_max_freq=2000000`,
+  `get_throttled=0x0`, idle 46–54 °C.
+- Because Wi-Fi is gone, **`wpa_supplicant.service` was disabled on all four**
+  (`systemctl disable --now wpa_supplicant`) — the image had left it enabled and
+  running. Nothing legitimate used it: `NetworkManager` is inactive and
+  `systemd-networkd` drives `eth0`.
+- Reapply both after any reimage. If Wi-Fi is ever wanted again: delete the two
+  `dtoverlay` lines and `systemctl enable --now wpa_supplicant`.
 
 `/boot/firmware/current/cmdline.txt` (single line):
 
@@ -158,15 +173,23 @@ sudo systemctl enable --now iscsid    # active and enabled on all four, 2026-11-
 
 ## Health baseline
 
-**Live — measured 2026-11-16** with the rebuilt cluster fully running (~3.5 h
-after first boot; `vcgencmd` needs `sudo` on this image):
+**Live — measured 2026-11-16 after the host tuning of action item 16** (nodes
+had rebooted minutes earlier, so uptime is short and kube1's load is still
+settling; `vcgencmd` needs `sudo` on this image):
 
 | Node | Uptime | Load (1/5/15) | Memory used | Rootfs used | Temp | `get_throttled` |
 |---|---|---|---|---|---|---|
-| kube1 | 3h 28m | 1.43 / 1.09 / 1.02 | 1836 / 3777 MB | 8.4 G / 458 G | 42.8 °C | `0x0` |
-| kube2 | 3h 28m | 2.44 / 1.27 / 0.76 | 1128 / 3777 MB | 8.3 G / 458 G | 50.6 °C | `0x0` |
-| kube3 | 3h 17m | 0.49 / 0.56 / 0.61 | 1355 / 3777 MB | 9.9 G / 458 G | 55.5 °C | `0x0` |
-| kube4 | 3h 28m | 0.46 / 0.54 / 0.59 | 1474 / 3777 MB | 8.0 G / 458 G | 51.6 °C | `0x0` |
+| kube1 | 6m | 1.83 / 1.42 / 0.68 | 1367 / 3828 MB | 8.9 G / 458 G | 44.8 °C | `0x0` |
+| kube2 | 27m | 0.67 / 0.77 / 0.77 | 1410 / 3828 MB | 11 G / 458 G | 53.0 °C | `0x0` |
+| kube3 | 17m | 0.75 / 0.82 / 0.74 | 1484 / 3828 MB | 11 G / 458 G | 56.9 °C | `0x0` |
+| kube4 | 13m | 0.63 / 0.76 / 0.54 | 1180 / 3828 MB | 8.8 G / 458 G | 53.5 °C | `0x0` |
+
+For scale: immediately **before** tuning the same nodes idled at 42.8–50.6 °C.
+Settled after the 2.0 GHz + `over_voltage=6` overclock they run 44.8–56.9 °C
+(about +1–3 °C, with brief ~60 °C peaks while Longhorn rebuilt replicas right
+after each reboot) and `get_throttled` stays `0x0` — no under-voltage, no
+thermal throttling. Comfortable margin given heatsinks and active cooling, with
+80 °C as the throttle point.
 
 Historical — measured 2026-11-14 on the **previous** install (31 weeks of
 uptime, all workloads running):
