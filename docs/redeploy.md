@@ -122,15 +122,18 @@ cooling.
 ```bash
 sudo swapoff -a
 sudo apt-get update
-sudo apt-get install -y curl ca-certificates jq open-iscsi
+sudo apt-get install -y curl ca-certificates jq open-iscsi nfs-common
 sudo systemctl enable --now iscsid
 ```
 
-`open-iscsi` is the Longhorn prerequisite; `nfs-common` is **not** needed,
-because Longhorn serves `mysite-content` RWX itself. Verify:
+`open-iscsi` and `nfs-common` are the Longhorn prerequisites. `nfs-common`
+supplies the NFS client the node uses to mount RWX volumes — Longhorn's
+share-manager serves NFS from inside the cluster, but the mount happens on the
+node. Verify:
 
 ```bash
 systemctl is-active iscsid          # active
+command -v mount.nfs                # present (nfs-common)
 swapon --show                       # empty
 stat -fc %T /sys/fs/cgroup          # cgroup2fs
 ```
