@@ -79,7 +79,8 @@ it — `mysite-content` is RWX.
 - The stack is **fully supported** and matches the repository pins exactly.
 - **60 pods**, all `Running` or `Completed` — nothing pending, nothing crash-looping.
 - Public HTTPS works on all eight hostnames; the landing page content is
-  byte-identical to git; the blog serves image `flakeman2/jekyll:1.0.5`.
+  byte-identical to git; the blog serves image `flakeman2/jekyll:1.0.6` with
+  the post `/dramble_wiped_and_rebuilt/` live.
 
 ## Versions
 
@@ -138,7 +139,7 @@ No under-voltage or thermal throttling on any node.
 | monitoring | `prometheus-prometheus-node-exporter` (DaemonSet) | 4/4 | chart defaults |
 | monitoring | `grafana` | 1/1 | `docker.io/grafana/grafana:13.3.1-distroless` |
 | mysite-nginx | `mysite-nginx` | 1/1 | `nginx:latest` |
-| jekyll | `jekyll-website` | 3/3 | `flakeman2/jekyll:1.0.5` |
+| jekyll | `jekyll-website` | 3/3 | `flakeman2/jekyll:1.0.6` |
 | whoami | `whoami` | 2/2 | `traefik/whoami` |
 | default | `dyn-dns-*` CronJobs | Complete | `curlimages/curl:7.81.0` |
 
