@@ -100,8 +100,12 @@ kubectl -n default delete job -l job-name=dyn-dns-flakeman2.com --ignore-not-fou
 ## k3s join token
 
 The server stores it at `/var/lib/rancher/k3s/server/node-token`; agents receive
-it through `/etc/systemd/system/k3s-agent.service.env` (`K3S_TOKEN=...`). It was
-exposed during the 2026-11-14 investigation and should be rotated.
+it through `/etc/systemd/system/k3s-agent.service.env` (`K3S_TOKEN=...`).
+
+**Rotated by the rebuild (2026-11-15).** The token exposed during the
+2026-11-14 investigation died with the old cluster — `install-server.sh`
+generated a fresh one for the new server, which is precisely the rotation this
+section asked for. Keep the procedure below for any future in-place rotation.
 
 The least disruptive rotation is during the planned rebuild: a fresh
 `install-server.sh` generates a new token, and each `install-agent.sh` receives
@@ -123,7 +127,9 @@ sed -i 's/127\.0\.0\.1/192.168.0.61/' ~/.kube/config-dramble-k3s
 chmod 600 ~/.kube/config-dramble-k3s
 ```
 
-The server certificate is valid until 2027-03-05.
+Re-download after any rebuild — this one was captured on 2026-11-15 for the
+new cluster, whose cluster CA is valid until **2036-11-13**. (The pre-reimage
+cluster's certificate, valid until 2027-03-05, died with it.)
 
 ## ACME state
 

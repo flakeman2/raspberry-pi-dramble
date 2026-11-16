@@ -4,6 +4,10 @@ The cluster is a single-control-plane k3s cluster on four Raspberry Pi 4 nodes.
 Kubernetes objects are applied directly with `kubectl` and Helm; there is no GitOps
 controller and no Ansible.
 
+**Verified against the live cluster: 2026-11-16**, immediately after the
+rebuild (snapshot and rebuild history:
+[cluster-status.md](cluster-status.md)).
+
 ```
                            LAN 192.168.0.0/24
                                     │

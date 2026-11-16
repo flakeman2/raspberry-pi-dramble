@@ -9,37 +9,33 @@ Status snapshot: [cluster-status.md](cluster-status.md). Rebuild procedure:
 
 ## P0 — do first
 
-### 1. Rotate exposed credentials
+### 1. Rotate exposed credentials — partially done (2026-11-14/16)
 
-- **k3s join token** was printed from kube2 during the investigation.
-- **Park-Your-Domain password** is inline in both live CronJobs and was read
-  during the investigation.
-- Treat the Grafana admin password as sensitive too; it was used read-only via
-  the API.
+- ~~**k3s join token**~~ — done automatically by the rebuild: a fresh server
+  generated a new token and the old one died with the old cluster.
+- ~~**Grafana admin password and `authsecret`**~~ — rotated *before* the wipe;
+  the new values live only in the off-repo export directory (`0600`).
+- **Park-Your-Domain password — still open.** It is still the value exposed
+  during the investigation, and the live Secret currently holds the *old*
+  `devinflake.com` password as an interim. Rotate it at the provider using
+  **one password for both domains**, then recreate `dyn-dns-credentials` —
+  exact sequencing in
+  [secrets.md](secrets.md#rotation-decisions-2026-11-14).
 
-Rotate the token (see [secrets.md](secrets.md#k3s-join-token)) and the DDNS
-password, then re-apply `cluster/dns/cronjobs.yaml` so the password moves into
-the `dyn-dns-credentials` Secret.
-
-```bash
-kubectl -n default get cronjob dyn-dns-devinflake.com \
-  -o jsonpath='{.spec.jobTemplate.spec.template.spec.containers[0].command}'
-# should contain ${DDNS_PASSWORD}, not a literal password
-```
-
-### 2. Stop kube2's broken `k3s.service`
-
-Both `k3s.service` and `k3s-agent.service` are enabled. The server unit points at
-the dead kube-vip VIP `192.168.0.200` and has restarted ~1.58 million times.
+Caveat when verifying: the CronJobs report `Complete` **even when the password
+is wrong**, because the API answers HTTP 200 with `<ErrCount>` in the body:
 
 ```bash
-ssh pi@192.168.0.62
-sudo systemctl disable --now k3s
-systemctl is-enabled k3s k3s-agent     # disabled, enabled
-sudo journalctl -u k3s --since '5 min ago' --no-pager | tail
+kubectl -n default logs job/$(kubectl -n default get jobs -o name | grep flakeman2 | tail -1) | grep ErrCount
+# today: <ErrCount>1</ErrCount>  ← wrong; devinflake returns <ErrCount>0</ErrCount>
 ```
 
-No workloads are affected; `k3s-agent` continues to serve the node.
+### 2. ~~Stop kube2's broken `k3s.service`~~ — moot after the rebuild (2026-11-15)
+
+The unit no longer exists: kube2 was reimaged, and `install-agent.sh` now
+disables any stray `k3s` unit before enabling `k3s-agent.service`, so the
+failure mode cannot recur. Verified 2026-11-16: `k3s` → `not-found`,
+`k3s-agent` → `enabled`, 0 restarts.
 
 ### 3. ~~Decide the fate of `rpi-argon` and `rpi-retropie`~~ — done 2026-11-14
 
@@ -65,24 +61,22 @@ access. Only 80/443 should reach `192.168.0.201`.
 
 ## P1 — correctness and resilience
 
-### 5. Rebuild off end-of-life versions
+### 5. ~~Rebuild off end-of-life versions~~ — done 2026-11-15/16
 
-k3s 1.22 is EOL, and the add-ons it caps — Longhorn 1.2.3, MetalLB 0.11.0,
-Traefik 2.5.6 — cannot follow it forward. The full plan, target versions,
-in-place-versus-rebuild decision, migration notes, and verification gates are in
-[upgrade.md](upgrade.md).
+The rebuild replaced the frozen 2021 stack (k3s 1.22 EOL, Longhorn 1.2.3,
+MetalLB 0.11.0, Traefik 2.5.6) with k3s `v1.36.6+k3s1`, Longhorn `1.13.0`,
+MetalLB `0.16.2` (CRD pool), Traefik `v3.7.18` / chart `42.4.0`, Prometheus
+`3.16.0` / chart `29.47.2`, and Grafana `13.3.1` / chart `14.4.1` — all live,
+all verified against A4.
 
-**Repository retargeted 2026-11-14:** the scripts and manifests now pin k3s
-`v1.36.6+k3s1`, Longhorn `1.13.0`, MetalLB `0.16.2` (CRD-based config), Traefik
-`3.7.18` / chart `42.4.0` (`traefik.io` CRs), Prometheus `3.16.0` / chart
-`29.47.2`, and Grafana `13.3.1` / chart `14.4.1`. It passes `pluto` (no APIs
-removed by 1.36) and `kubeconform`.
+- Plan, gates and the in-place alternative: [upgrade.md](upgrade.md)
+- Post-rebuild snapshot **and the rebuild history**: [cluster-status.md](cluster-status.md)
+- The procedure that was actually followed: [redeploy.md](redeploy.md)
+- The irreplaceable `mysite-content` was restored byte-identical from
+  `cluster/workloads/mysite/content/`.
 
-**Still to do:** reimage the nodes and run [redeploy.md](redeploy.md) — the
-rebuild, not ~25 in-place hops. Only the 1 GiB `mysite-content` volume is
-irreplaceable, and it is byte-identical to
-`cluster/workloads/mysite/content/`. Do the upgrade before Argo CD
-([gitops.md](gitops.md)), not during it.
+What is left in this area is follow-through rather than upgrade: Argo CD
+([gitops.md](gitops.md)) plus the P1/P2 items below.
 
 ### 6. Add resource requests/limits and probes — done in git, 2026-11-14
 
