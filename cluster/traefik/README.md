@@ -46,6 +46,15 @@ See [../../docs/secrets.md](../../docs/secrets.md).
 
 ## Notes
 
+- The Deployment runs with strategy **`Recreate`**, patched in
+  `scripts/install-addons.sh` right after the Helm install. Chart 42 has no
+  `deployment.strategy` value (its `values.schema.json` rejects unknown keys),
+  and the default `RollingUpdate` deadlocks against the `acme.json` PVC: the
+  new pod waits for a volume detach the old pod never makes while
+  `maxUnavailable: 0` keeps it alive. It happened twice during the 2026-11-15
+  rebuild and each time needed `kubectl delete pod` on the old one. `Recreate`
+  costs a ~45 s gap on upgrade for a single replica, which is the honest cost
+  of an `ReadWriteOnce` volume.
 - The chart creates its own `traefik/traefik-dashboard` IngressRoute on
   `PathPrefix(/dashboard)` and `PathPrefix(/api)`.
 - `traefik-dflake-dashboard` exposes the API on the hostnames
