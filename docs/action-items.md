@@ -56,11 +56,19 @@ with **0 down** (was 30 targets / 7 down).
 If the hardware is ever returned to service, reimage it and join with
 `scripts/install-agent.sh`; it will register as a new node.
 
-### 4. Control access to the cluster API
+### 4. ~~Control access to the cluster API~~ — verified clean 2026-11-16
 
-The k3s API is reachable on `192.168.0.61:6443` from the LAN. If the router
-forwards 6443, stop that immediately; nothing in this design requires remote API
-access. Only 80/443 should reach `192.168.0.201`.
+The k3s API is reachable on `192.168.0.61:6443` **from the LAN only**. Verified
+after the rebuild: the public IP does not answer on `6443` (the router forwards
+only 80/443), `.201` does not answer on `6443`, and the only `LoadBalancer`
+Service in the cluster is `traefik/traefik` → `192.168.0.201`. Re-check after
+any router change:
+
+```bash
+PUB=$(curl -s https://api.ipify.org)
+timeout 6 bash -c "exec 3<>/dev/tcp/$PUB/6443" && echo "EXPOSED" || echo "closed ✓"
+kubectl get svc -A --no-headers | awk '$3=="LoadBalancer" {print $1"/"$2, $5}'
+```
 
 ## P1 — correctness and resilience
 
