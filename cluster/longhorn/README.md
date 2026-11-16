@@ -15,12 +15,15 @@ the `default-replica-count=3` setting.
 Prerequisites on every node (see [../../docs/hardware.md](../../docs/hardware.md)):
 
 ```bash
-sudo apt-get install -y open-iscsi
+sudo apt-get install -y open-iscsi nfs-common
 sudo systemctl enable --now iscsid
 ```
 
-`nfs-common` is not required: RWX volumes go through Longhorn's share-manager,
-which serves NFS from inside the cluster.
+`nfs-common` supplies the NFS **client** that the node needs to mount RWX
+volumes: the share-manager serves NFS from inside the cluster, but the mount
+itself happens on the node. Without `mount.nfs`, an RWX pod stalls in
+`ContainerCreating` with `MountVolume.MountDevice failed … exit status 32`
+(observed on 2026-11-15 during the rebuild).
 
 Volumes used by this cluster:
 

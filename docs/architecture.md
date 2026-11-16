@@ -123,10 +123,11 @@ Longhorn 1.13.0 provides the `longhorn` default StorageClass with 3 replicas.
 | `prometheus-server` | monitoring | 8 GiB | RWO | Prometheus TSDB |
 | `grafana` | monitoring | 10 GiB | RWO | Grafana database |
 
-Each volume has three healthy replicas spread over the four nodes. RWX is
-served by Longhorn's share-manager, which runs its own NFS server inside the
-cluster — nodes do **not** need an NFS client. Every node runs
-`open-iscsi`/`iscsid`, enabled explicitly.
+Each volume has three healthy replicas spread over the four nodes. RWX
+(`mysite-content`) is served by Longhorn's share-manager over NFS from inside
+the cluster — and the *node* still needs an NFS client to mount it, which is
+what `nfs-common` provides. Every node runs `open-iscsi`/`iscsid` (explicitly
+enabled) and `nfs-common`.
 
 ## Monitoring
 

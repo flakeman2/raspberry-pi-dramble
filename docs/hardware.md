@@ -139,11 +139,18 @@ open-iscsi          # Longhorn block devices
 openssh-server
 ```
 
-`nfs-common` is **not** installed and is **not** required: `mysite-content` is
-RWX through Longhorn itself, not through an NFS backend.
+`nfs-common` is **not** in the base image and had to be installed on
+2026-11-15. Longhorn serves `mysite-content` (RWX) from its share-manager over
+NFS, and the *node* needs an NFS client to perform the mount — without it the
+pod stalls in `ContainerCreating` with
+`MountVolume.MountDevice failed … exit status 32`.
 
-`open-iscsi` is the only Longhorn prerequisite beyond `curl`, and its daemon has
-to be running (it ships disabled):
+```bash
+sudo apt-get install -y nfs-common   # installed on all four, 2026-11-15
+```
+
+`open-iscsi` and `nfs-common` are the Longhorn prerequisites; the iSCSI daemon
+ships disabled and has to be started:
 
 ```bash
 sudo systemctl enable --now iscsid    # active and enabled on all four, 2026-11-15
