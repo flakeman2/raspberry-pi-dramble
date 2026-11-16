@@ -15,9 +15,12 @@ the `default-replica-count=3` setting.
 Prerequisites on every node (see [../../docs/hardware.md](../../docs/hardware.md)):
 
 ```bash
-sudo apt-get install -y open-iscsi nfs-common
+sudo apt-get install -y open-iscsi
 sudo systemctl enable --now iscsid
 ```
+
+`nfs-common` is not required: RWX volumes go through Longhorn's share-manager,
+which serves NFS from inside the cluster.
 
 Volumes used by this cluster:
 

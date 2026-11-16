@@ -5,6 +5,11 @@
 after rolling the blog to image `1.0.5`.
 **Scope:** read-only inspection followed by the node removal described below.
 
+> **Superseded:** the cluster described here was destroyed during the
+> 2026-11-15 reimage — all four nodes were wiped and reinstalled with Ubuntu
+> Server 26.04 LTS, and k3s is being rebuilt at the target versions. Keep this
+> page as the pre-reimage record; the post-rebuild snapshot replaces it.
+
 This is a point-in-time snapshot of the live cluster. For what *should* be
 running, see [architecture.md](architecture.md). For the rebuild procedure, see
 [redeploy.md](redeploy.md).

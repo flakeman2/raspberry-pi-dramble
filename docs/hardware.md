@@ -11,42 +11,49 @@ the cluster on 2026-11-14 after being unreachable for an extended period. See
 |---|---|
 | Board | Raspberry Pi 4 Model B Rev 1.2 |
 | SoC | Broadcom BCM2711, 4 × Cortex-A72 |
-| RAM | 4 GB per node (`3,937,188–3,937,196 Ki` allocatable) |
+| RAM | 4 GB per node (~3,777 MiB visible on Ubuntu 26.04) |
 | Boot disk | PNY CS900 500 GB SSD over USB |
-| Partitioning | `sda1` 256 MB vfat `/boot`, `sda2` ~465 GB ext4 `/` |
-| Network | On-board Gigabit Ethernet (`eth0`) |
-| Wi-Fi | Disabled via `dtoverlay=disable-wifi` |
-| Bluetooth | Disabled via `dtoverlay=disable-bt` |
-| Cooling | Active cooling assumed (all live nodes idle at 52–55 °C) |
+| Partitioning | `sda1` 512 MB vfat `/boot/firmware`, `sda2` ~465 GB ext4 `/` |
+| Network | On-board Gigabit Ethernet (`eth0`), static addressing |
+| Wi-Fi | Present as `wlan0`, left down (wired only) |
+| Bluetooth | Not disabled in the current boot config |
+| Cooling | Active cooling assumed |
 | Power | Official 5 V / 3 A USB-C supply per node |
 
-There is no SD card in any node: the firmware, `/boot`, and root filesystem all
-live on the USB SSD.
+There is no SD card in any node: the firmware, `/boot/firmware`, and root
+filesystem all live on the USB SSD.
 
 ## Operating system
 
 | | |
 |---|---|
-| Distribution | Debian GNU/Linux 11 (bullseye), 64-bit |
-| Kernel | `5.10.92-v8+` (Raspberry Pi kernel) |
+| Distribution | Ubuntu Server 26.04.1 LTS (raspi), 64-bit |
+| Kernel | `7.0.0-1023-raspi` |
 | Init | systemd |
 | Swap | Disabled (`swapon --show` empty) |
-| Container runtime | containerd `1.5.8-k3s1` (bundled with k3s) |
+| Firewall | ufw installed, inactive |
+| cgroup | v2 (`cgroup2fs`) — no kernel arguments required |
+| Container runtime | containerd, bundled with k3s |
+
+All four nodes were **reimaged on 2026-11-15**. The previous install (Debian 11,
+kernel `5.10.92-v8+`, dhcpcd, cgroup v1 kernel arguments) was retired with the
+rebuild; see [upgrade.md](upgrade.md).
 
 ## Nodes
 
 | Hostname | IP | Role | State |
 |---|---|---|---|
-| `kube1` | 192.168.0.61 | k3s server (control plane) | Ready |
-| `kube2` | 192.168.0.62 | k3s agent | Ready (has a broken extra `k3s.service` unit) |
-| `kube3` | 192.168.0.63 | k3s agent | Ready |
-| `kube4` | 192.168.0.64 | k3s agent | Ready |
+| `kube1` | 192.168.0.61 | k3s server (control plane) | Reimaged 2026-11-15; k3s pending |
+| `kube2` | 192.168.0.62 | k3s agent | Reimaged 2026-11-15; k3s pending |
+| `kube3` | 192.168.0.63 | k3s agent | Reimaged 2026-11-15; k3s pending |
+| `kube4` | 192.168.0.64 | k3s agent | Reimaged 2026-11-15; k3s pending |
 
 `rpi-argon` (192.168.0.37) and `rpi-retropie` (192.168.0.7) were removed from
-the cluster on 2026-11-14; the Node objects, stale pods, and Longhorn node
-records are gone.
+the cluster on 2026-11-14 and are not part of the rebuild.
 
-All four current nodes use the same `/etc/hosts` mapping:
+All four current nodes use the same `/etc/hosts` mapping. It was recreated on
+2026-11-15, replacing cloud-init's `127.0.1.1 <hostname>` line so that nodes
+resolve each other by name:
 
 ```
 192.168.0.61 kube1 kube1.devinflake.com
@@ -57,77 +64,95 @@ All four current nodes use the same `/etc/hosts` mapping:
 
 ## Boot configuration
 
-`/boot/config.txt` (relevant lines):
+Ubuntu keeps the firmware files under `/boot/firmware/`. The active kernel and
+command line live in `/boot/firmware/current/` (selected by `autoboot.txt`);
+the previous slot is kept in `/boot/firmware/old/`.
+
+`/boot/firmware/config.txt` (relevant lines):
 
 ```ini
+kernel=vmlinuz
+cmdline=cmdline.txt
+initramfs initrd.img followkernel
 arm_64bit=1
 arm_boost=1
 dtoverlay=vc4-kms-v3d
-dtoverlay=disable-wifi
-dtoverlay=disable-bt
-over_voltage=6
-arm_freq=2000
-gpu_mem=16
 ```
 
-- CPU overclock to 2.0 GHz with `over_voltage=6`.
-- GPU memory reduced to 16 MB (headless).
-- Wi-Fi and Bluetooth radios disabled; networking is wired only.
+- `arm_64bit=1` and `arm_boost=1` select the 64-bit kernel and the boost clock.
+- The Debian-era additions — `over_voltage=6` / `arm_freq=2000` overclock and
+  the `disable-wifi` / `disable-bt` overlays — are **not** present on this
+  image; `wlan0` exists but is left down.
 
-`/boot/cmdline.txt` (single line, node-specific `PARTUUID`):
+`/boot/firmware/current/cmdline.txt` (single line):
 
 ```
-console=serial0,115200 console=tty1 root=PARTUUID=<uuid>-02 rootfstype=ext4 \
-fsck.repair=yes rootwait cgroup_enable=cpuset cgroup_enable=memory \
-cgroup_memory=1 swapaccount=1
+console=serial0,115200 multipath=off dwc_otg.lpm_enable=0 console=tty1 \
+root=LABEL=writable rootfstype=ext4 rootwait fixrtc
 ```
 
-The four `cgroup_*` / `swapaccount` arguments are **required** for Kubernetes
-and must be preserved when reimaging.
+**No cgroup arguments are needed.** The previous Debian install required
+`cgroup_enable=cpuset cgroup_enable=memory cgroup_memory=1 swapaccount=1` to get
+cgroup v1; this kernel boots cgroup v2 by default — verify with
+`stat -fc %T /sys/fs/cgroup` → `cgroup2fs`, which is what Kubernetes wants
+anyway.
 
 ## Networking
 
-Static addressing is configured in `/etc/dhcpcd.conf`, with an entry for both
-`eth0` and `wlan0` (the `wlan0` entry is inert because Wi-Fi is disabled):
+Static addressing is configured with **netplan**, in
+`/etc/netplan/50-cloud-init.yaml`. The image also ships `dhcpcd`, but nothing
+is configured there. Every node has the same shape with its own address:
 
+```yaml
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4: false
+      addresses:
+        - 192.168.0.61/24
+      routes:
+        - to: default
+          via: 192.168.0.1
 ```
-interface eth0
-static ip_address=192.168.0.61/24
-static routers=192.168.0.1
-static domain_name_servers=208.67.220.220 208.67.222.222
 
-interface wlan0
-static ip_address=192.168.0.61/24
-static routers=192.168.0.1
-static domain_name_servers=208.67.220.220 208.67.222.222
-```
+Apply changes with `sudo netplan apply`.
 
 - Router: `192.168.0.1`
-- Upstream DNS: OpenDNS (`208.67.220.220`, `208.67.222.222`)
+- DNS: provided by the router (a link-local resolver); no static nameservers in
+  netplan. The previous install pointed at OpenDNS directly
+  (`208.67.220.220`, `208.67.222.222`).
 - The MetalLB pool (`192.168.0.201–250`) is **outside** the static node range
   and is reserved in the router's DHCP configuration (confirmed 2026-11-14), so
   DHCP cannot hand MetalLB's VIP to a client.
-- Nodes are dual-homed in name only; only `eth0` is active.
+- `wlan0` exists but is down; `eth0` is the only active interface.
 
 ## Installed packages
 
-Beyond the base Debian image:
+Verified present on the base Ubuntu image (2026-11-15):
 
 ```
 ca-certificates
 curl
 jq
-nfs-common          # Longhorn RWX volumes (mysite-content)
-open-iscsi          # Longhorn block devices; iscsid active on every node
+open-iscsi          # Longhorn block devices
 openssh-server
 ```
 
-`open-iscsi` and `nfs-common` are Longhorn prerequisites and must be installed
-before k3s/Longhorn.
+`nfs-common` is **not** installed and is **not** required: `mysite-content` is
+RWX through Longhorn itself, not through an NFS backend.
+
+`open-iscsi` is the only Longhorn prerequisite beyond `curl`, and its daemon has
+to be running (it ships disabled):
+
+```bash
+sudo systemctl enable --now iscsid    # active and enabled on all four, 2026-11-15
+```
 
 ## Health baseline
 
-Measured 2026-11-14 on the four live nodes:
+Measured 2026-11-14 on the **previous** install, with all workloads running.
+Re-measure after the rebuild; on this image `vcgencmd` needs `sudo`.
 
 | Node | Uptime | Load (1/5/15) | Memory used | Rootfs used | Temp | `get_throttled` |
 |---|---|---|---|---|---|---|
@@ -136,5 +161,8 @@ Measured 2026-11-14 on the four live nodes:
 | kube3 | 31w 2d | 0.22 / 0.28 / 0.27 | 596 / 3844 MB | 8.8 G / 459 G | 52.5 °C | `0x0` |
 | kube4 | 31w 2d | — | — | — | 54.5 °C | `0x0` |
 
-No under-voltage or thermal throttling has occurred. Disk use is dominated by
-container images and Longhorn replicas.
+Immediately after the 2026-11-15 reimage the nodes were idle at 33–44 minutes
+uptime, load under 0.25, ~470 MB used, 3.5 G of 458 G rootfs, 39.4 °C and
+`throttled=0x0`.
+
+No under-voltage or thermal throttling has occurred on any node.

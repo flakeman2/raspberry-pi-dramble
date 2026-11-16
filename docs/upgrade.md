@@ -1,11 +1,14 @@
 # Upgrade plan
 
-**Status:** A1 is done — the repository's scripts and manifests were retargeted
-to the target versions on 2026-11-14 and validated with `pluto` and
-`kubeconform`. The cluster itself has not been touched: it still runs the 2021
-stack, so A0 (backups), A2 (rebuild) and A3 (restore) are all outstanding.
-Version data was checked on 2026-11-14 — re-verify patch levels before
-starting, because they move.
+**Status (2026-11-15):** A0 (preserve) and A1 (retarget the repo) are complete,
+and the four nodes have been **reimaged to Ubuntu Server 26.04.1 LTS** — the old
+cluster is gone, so the public sites are down until A2 and A3 finish. Everything
+in the A0 gate was verified before the wipe: mysite tarball matching git,
+rotated `authsecret`/`grafana`, `acme.json`, host state in `hardware.md`, and
+the workstation tools. The Park-Your-Domain rotation is scheduled for
+immediately after the cluster is back, as recorded below. Version data was
+checked on 2026-11-14 — re-verify patch levels before starting, because they
+move.
 
 This page covers every component, the order, the gates between steps, and the
 choice between upgrading in place and rebuilding. Argo CD adoption is sequenced
