@@ -78,6 +78,13 @@ echo "==> Traefik ${TRAEFIK_CHART_VERSION}"
 helm upgrade --install traefik traefik/traefik \
   --namespace traefik --version "${TRAEFIK_CHART_VERSION}" \
   -f cluster/traefik/values.yaml --wait --timeout 10m
+# Chart 42 exposes no `deployment.strategy` key (its values schema rejects
+# unknown keys), and the default RollingUpdate deadlocks against the RWO
+# acme.json PVC: the new pod waits for a detach that never comes while
+# maxUnavailable keeps the old pod alive. Hit twice during the 2026-11-15
+# rebuild; each time it needed a manual pod delete. Recreate avoids it.
+kubectl -n traefik patch deploy traefik --type json \
+  -p '[{"op":"replace","path":"/spec/strategy","value":{"type":"Recreate"}}]'
 
 echo "==> Prometheus ${PROMETHEUS_CHART_VERSION}"
 helm upgrade --install prometheus prometheus-community/prometheus \
