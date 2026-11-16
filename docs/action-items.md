@@ -9,28 +9,28 @@ Status snapshot: [cluster-status.md](cluster-status.md). Rebuild procedure:
 
 ## P0 — do first
 
-### 1. Rotate exposed credentials — partially done (2026-11-14/16)
+### 1. Rotate exposed credentials — done (2026-11-14/16)
 
-- ~~**k3s join token**~~ — done automatically by the rebuild: a fresh server
-  generated a new token and the old one died with the old cluster.
+- ~~**k3s join token**~~ — rotated automatically by the rebuild (2026-11-15): a
+  fresh server generated a new token and the old one died with the cluster.
 - ~~**Grafana admin password and `authsecret`**~~ — rotated *before* the wipe;
-  the new values live only in the off-repo export directory (`0600`).
-- **Park-Your-Domain (Namecheap) passwords — rotation in progress (2026-11-16).**
-  The live Secret still holds the exposed interim `devinflake.com` value, and
-  **Namecheap requires a unique password per domain** — so rotate *both* values
-  and load them into the two-key Secret (`password-devinflake.com`,
-  `password-flakeman2.com`) that `cluster/dns/cronjobs.yaml` now reads.
-  Sequencing: [secrets.md](secrets.md#rotation-decisions-2026-11-14).
+  the values live only in the off-repo export directory (`0600`).
+- ~~**Park-Your-Domain (Namecheap) passwords**~~ — rotated **2026-11-16**, one
+  unique value per domain (Namecheap enforces unique passwords), loaded into
+  the two-key Secret `dyn-dns-credentials` (`password-devinflake.com`,
+  `password-flakeman2.com`). Verified with manual jobs: **`<ErrCount>0</ErrCount>`
+  on all three records of both domains**. The interim password files —
+  including the value exposed during the investigation — were deleted.
 
-Caveat when verifying: the CronJobs report `Complete` **even when a password
-is wrong**, because the API answers HTTP 200 with `<ErrCount>` in the body:
+Worth keeping as a permanent caveat: the CronJobs report `Complete` **even when
+a password is wrong**, because the API answers HTTP 200 with `<ErrCount>` in the
+body:
 
 ```bash
 for j in $(kubectl -n default get jobs -o name --sort-by=.metadata.creationTimestamp | tail -2); do
   printf '%s  ' "$j"; kubectl -n default logs "$j" | grep -o '<ErrCount>[0-9]*</ErrCount>' | tail -1
 done
 # want <ErrCount>0</ErrCount> from BOTH jobs
-# (flakeman2 showed 1 on 2026-11-16 under the interim single-key Secret)
 ```
 
 ### 2. ~~Stop kube2's broken `k3s.service`~~ — moot after the rebuild (2026-11-15)
@@ -56,11 +56,19 @@ with **0 down** (was 30 targets / 7 down).
 If the hardware is ever returned to service, reimage it and join with
 `scripts/install-agent.sh`; it will register as a new node.
 
-### 4. Control access to the cluster API
+### 4. ~~Control access to the cluster API~~ — verified clean 2026-11-16
 
-The k3s API is reachable on `192.168.0.61:6443` from the LAN. If the router
-forwards 6443, stop that immediately; nothing in this design requires remote API
-access. Only 80/443 should reach `192.168.0.201`.
+The k3s API is reachable on `192.168.0.61:6443` **from the LAN only**. Verified
+after the rebuild: the public IP does not answer on `6443` (the router forwards
+only 80/443), `.201` does not answer on `6443`, and the only `LoadBalancer`
+Service in the cluster is `traefik/traefik` → `192.168.0.201`. Re-check after
+any router change:
+
+```bash
+PUB=$(curl -s https://api.ipify.org)
+timeout 6 bash -c "exec 3<>/dev/tcp/$PUB/6443" && echo "EXPOSED" || echo "closed ✓"
+kubectl get svc -A --no-headers | awk '$3=="LoadBalancer" {print $1"/"$2, $5}'
+```
 
 ## P1 — correctness and resilience
 
