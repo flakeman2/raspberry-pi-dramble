@@ -102,6 +102,7 @@ on kube2.
 | same hosts + `PathPrefix(/whoami)` | `whoami/whoami:80` | ACME | redirect |
 | `blog.devinflake.com` | `jekyll/jekyll-website:80` | ACME | redirect |
 | `grafana.devinflake.com`, `grafana.flakeman2.com` | `monitoring/grafana:80` | ACME | none |
+| `prometheus.devinflake.com`, `prometheus.flakeman2.com` | `monitoring/prometheus-server:80` | ACME | basic-auth + redirect |
 | `traefik.devinflake.com`, `traefik.flakeman2.com` | `api@internal` | ACME | basic-auth + redirect |
 | `longhorn.devinflake.com`, `longhorn.flakeman2.com` | `longhorn-system/longhorn-frontend:80` | ACME | basic-auth + redirect |
 
