@@ -83,7 +83,12 @@ jobs:
           TRAEFIK_VER=$(addon TRAEFIK_CHART_VERSION)
           PROM_VER=$(addon PROMETHEUS_CHART_VERSION)
           GRAF_VER=$(addon GRAFANA_CHART_VERSION)
-          ARGOCD_VER=$(grep -oE 'chart `argo-cd` [0-9.]+' gitops/bootstrap/values.yaml | grep -oE '[0-9.]+$' || true)
+          # The version is declared in values.yaml's header as markdown-quoted
+          # text: chart `argo-cd` 10.18.0. Match the backticks with `.` rather
+          # than quoting them literally — shellcheck SC2016 flags backticks
+          # inside single quotes as a non-expanding expression, and actionlint
+          # treats that as a failure.
+          ARGOCD_VER=$(grep -oE 'chart .argo-cd. [0-9.]+' gitops/bootstrap/values.yaml | grep -oE '[0-9.]+$' || true)
           if [ -z "$ARGOCD_VER" ]; then
             echo "::error::could not find the argo-cd chart version in gitops/bootstrap/values.yaml"
             exit 1
@@ -198,6 +203,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # actionlint also runs shellcheck over every `run:` block, but ONLY if
+      # shellcheck is on PATH. ubuntu-latest ships it; a bare workstation may
+      # not — which makes a local `actionlint` pass weaker than CI's. Install
+      # shellcheck locally before trusting a green result here.
       - name: Install actionlint
         run: |
           set -euo pipefail
