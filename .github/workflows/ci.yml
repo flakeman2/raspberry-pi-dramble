@@ -1,0 +1,220 @@
+name: CI
+
+# Phase 4 of docs/gitops.md: a bad manifest cannot merge.
+#
+# Four independent jobs so a failure names itself immediately:
+#   Manifests  kubeconform -strict over raw + Helm-rendered + Kustomize-rendered
+#   Secrets    gitleaks over the whole history
+#   Docs       scripts/check-docs.py (links, anchors, reference links)
+#   Workflows  actionlint over this directory
+#
+# Deliberately NOT here: anything that needs a kubeconfig. CI must not hold
+# cluster credentials, so "does the doc match the *running* cluster?" is a
+# local check (scripts/verify-docs.sh), not a CI one. A self-hosted runner on
+# a Pi could change that later, at the cost of putting an admin kubeconfig in
+# GitHub.
+
+on:
+  pull_request:
+    branches: [dev, master]
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Newest schema family published in yannh/kubernetes-json-schema. The cluster
+  # runs k3s 1.36 but schemas stop at 1.34.x, so this is the closest available.
+  # Bump when the schema store publishes 1.36.
+  K8S_SCHEMA_VERSION: "1.34.11"
+  KUBECONFORM_VERSION: "v0.8.0"
+  GITLEAKS_VERSION: "8.30.1"
+  ACTIONLINT_VERSION: "v1.7.12"
+  HELM_VERSION: "v3.19.0"
+  KUBECTL_VERSION: "v1.37.1"
+
+jobs:
+  manifests:
+    name: Manifests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v5
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Set up kubectl (for `kubectl kustomize`)
+        uses: azure/setup-kubectl@v5
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+
+      - name: Install kubeconform
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/bin"
+          curl -sSL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+            | tar xz -C "$HOME/bin"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+          "$HOME/bin/kubeconform" -v
+
+      # Single-source each chart version from the file that installs it, so CI
+      # cannot drift from the install path. Fails loudly if a pin is removed.
+      - name: Resolve pinned chart versions
+        id: pins
+        run: |
+          set -euo pipefail
+          addon() {
+            local v
+            v=$(grep -oE "^$1=[0-9.]+" scripts/install-addons.sh | cut -d= -f2)
+            if [ -z "$v" ]; then
+              echo "::error::could not find $1 in scripts/install-addons.sh"
+              exit 1
+            fi
+            printf '%s' "$v"
+          }
+          TRAEFIK_VER=$(addon TRAEFIK_CHART_VERSION)
+          PROM_VER=$(addon PROMETHEUS_CHART_VERSION)
+          GRAF_VER=$(addon GRAFANA_CHART_VERSION)
+          # The version is declared in values.yaml's header as markdown-quoted
+          # text: chart `argo-cd` 10.18.0. Match the backticks with `.` rather
+          # than quoting them literally — shellcheck SC2016 flags backticks
+          # inside single quotes as a non-expanding expression, and actionlint
+          # treats that as a failure.
+          ARGOCD_VER=$(grep -oE 'chart .argo-cd. [0-9.]+' gitops/bootstrap/values.yaml | grep -oE '[0-9.]+$' || true)
+          if [ -z "$ARGOCD_VER" ]; then
+            echo "::error::could not find the argo-cd chart version in gitops/bootstrap/values.yaml"
+            exit 1
+          fi
+          {
+            echo "traefik=${TRAEFIK_VER}"
+            echo "prometheus=${PROM_VER}"
+            echo "grafana=${GRAF_VER}"
+            echo "argocd=${ARGOCD_VER}"
+          } >> "$GITHUB_OUTPUT"
+          echo "  traefik=${TRAEFIK_VER} prometheus=${PROM_VER} grafana=${GRAF_VER} argocd=${ARGOCD_VER}"
+
+      - name: Add chart repositories
+        run: |
+          set -euo pipefail
+          helm repo add traefik https://traefik.github.io/charts --force-update
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts --force-update
+          helm repo add grafana https://grafana-community.github.io/helm-charts --force-update
+          helm repo add argo https://argoproj.github.io/argo-helm --force-update
+          helm repo update
+
+      - name: Render Helm charts
+        run: |
+          set -euo pipefail
+          mkdir -p rendered
+          helm template traefik traefik/traefik \
+            --namespace traefik --version "${{ steps.pins.outputs.traefik }}" \
+            -f cluster/traefik/values.yaml > rendered/traefik.yaml
+          helm template prometheus prometheus-community/prometheus \
+            --namespace monitoring --version "${{ steps.pins.outputs.prometheus }}" \
+            -f cluster/monitoring/prometheus-values.yaml > rendered/prometheus.yaml
+          helm template grafana grafana/grafana \
+            --namespace monitoring --version "${{ steps.pins.outputs.grafana }}" \
+            -f cluster/monitoring/grafana-values.yaml > rendered/grafana.yaml
+          helm template argocd argo/argo-cd \
+            --namespace argocd --version "${{ steps.pins.outputs.argocd }}" \
+            -f gitops/bootstrap/values.yaml > rendered/argocd.yaml
+          for f in rendered/*.yaml; do
+            printf '  %-24s %s resources\n' "$f" "$(grep -c '^kind:' "$f")"
+          done
+
+      - name: Render Kustomize
+        run: |
+          set -euo pipefail
+          # Every directory under gitops/apps/ that has a kustomization.yaml must
+          # build — a typo'd resource reference would otherwise only surface at
+          # sync time. Phase 2 adds the rest here automatically.
+          mkdir -p rendered
+          count=0
+          for dir in gitops/apps/*/; do
+            [ -f "${dir}kustomization.yaml" ] || continue
+            name=$(basename "$dir")
+            kubectl kustomize "$dir" > "rendered/kustomize-${name}.yaml"
+            printf '  %-24s %s resources\n' "$name" "$(grep -c '^kind:' "rendered/kustomize-${name}.yaml")"
+            count=$((count + 1))
+          done
+          echo "  kustomize builds: ${count}"
+
+      - name: kubeconform (strict)
+        run: |
+          set -euo pipefail
+          # Raw manifests, minus Helm values files (not manifests) and
+          # kustomization.yaml (validated by building it above).
+          mapfile -t RAW < <(find cluster gitops -name '*.yaml' \
+            ! -name '*-values.yaml' ! -name 'values.yaml' ! -name 'kustomization.yaml' | sort)
+          echo "  raw manifests: ${#RAW[@]}"
+          mapfile -t RENDERED < <(find rendered -name '*.yaml' | sort)
+          kubeconform -strict -summary \
+            -kubernetes-version "${K8S_SCHEMA_VERSION}" \
+            -ignore-missing-schemas \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            "${RAW[@]}" "${RENDERED[@]}"
+
+  secrets:
+    name: Secrets
+    runs-on: ubuntu-latest
+    steps:
+      # Full history: gitleaks can only see what it is given, and the gate is
+      # "no credential lands in git", not "no credential lands in this diff".
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/bin"
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar xz -C "$HOME/bin" gitleaks
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+          "$HOME/bin/gitleaks" version
+
+      - name: Scan
+        run: gitleaks detect --no-banner --redact --exit-code 1
+
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Check links, anchors and references
+        run: python3 scripts/check-docs.py
+
+  workflows:
+    name: Workflows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # actionlint also runs shellcheck over every `run:` block, but ONLY if
+      # shellcheck is on PATH. ubuntu-latest ships it; a bare workstation may
+      # not — which makes a local `actionlint` pass weaker than CI's. Install
+      # shellcheck locally before trusting a green result here.
+      - name: Install actionlint
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/bin"
+          curl -sSL "https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" \
+            | tar xz -C "$HOME/bin" actionlint
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+          "$HOME/bin/actionlint" --version
+
+      - name: Lint
+        run: actionlint -color
