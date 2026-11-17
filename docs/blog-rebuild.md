@@ -38,6 +38,10 @@ they are history, not a source of truth.
 **The running image, `1.0.6`, was built from `f8650e8` — the branch head — and
 pushed 2026-11-16T06:10Z. Source and cluster agree.**
 
+From 2026-11-17 the tag carries this on its face: it *is* the source commit
+(`sha-<7>`), so the table below stops being necessary for new releases — see
+[Publishing a post](#publishing-a-post).
+
 | Commit | When | Shipped in |
 |---|---|---|
 | `df1dbaa` | 2022-02-04 | `1.0.4`, built 2022-02-05T02:06:19Z |
@@ -56,7 +60,9 @@ exactly — see [Verification](#verification) below. Since `1.0.5`, building fro
 
 ### Docker image history
 
-`flakeman2/jekyll` on Docker Hub is public, not automated (built by hand):
+`flakeman2/jekyll` on Docker Hub is public. Tags through `1.0.6` were built by
+hand; **since 2026-11-17 CI publishes them** — see
+[Publishing a post](#publishing-a-post):
 
 | Tag | Built | Architectures |
 |---|---|---|
@@ -65,6 +71,7 @@ exactly — see [Verification](#verification) below. Since `1.0.5`, building fro
 | `1.0.4` | 2022-02-05 | **arm64 only** |
 | `1.0.5` | 2026-11-14 | **arm64 only** |
 | `1.0.6` (deployed) | 2026-11-15 | **arm64 only** |
+| `sha-<7>` (from 2026-11-17) | CI | **arm64 only** |
 
 Deployed digest (`1.0.6`, 15.5 MB):
 `sha256:e334741bbc912c4928096161bae95d35512db069cdaf1f868f7fa092f9690bb5`
@@ -167,11 +174,27 @@ landing page's hero image → 200.
 
 ## Publishing a post
 
-1. Add `_posts/YYYY-MM-DD-slug.md` in `Ephesus`, commit, push.
-2. Build and push a new image tag (above), verifying first.
-3. Bump the image tag in `cluster/workloads/jekyll/deployment.yaml`.
-4. Follow the branch workflow in the README: commit to `dev`, promote to
-   `master` through a pull request.
+Since 2026-11-17 this is one step, not four — `.github/workflows/publish.yml`
+in Ephesus does the rest:
+
+1. Add `_posts/YYYY-MM-DD-slug.md` in `Ephesus`, commit, push to `master`.
+2. CI builds `linux/arm64`, **smoke-tests it** (200 homepage, real HTML, at
+   least one `<entry>` in the atom feed), pushes
+   `flakeman2/jekyll:sha-<7 of the commit>`, and opens the bump PR against
+   `raspberry-pi-dramble` with `base: dev`.
+3. Merge the bump PR, then promote `dev` → `master`. **Argo CD watches
+   `master`**, so the blog updates at that point — two merges, not one.
+
+The tag *is* the Ephesus commit, so the deployed tag names its own source and
+the `1.0.4`/`1.0.5` drift cannot recur. It also means the tag is never reused,
+which keeps `imagePullPolicy: IfNotPresent` honest.
+
+Secrets in Ephesus (none grant cluster access): `DOCKERHUB_USERNAME`,
+`DOCKERHUB_TOKEN`, and `DRAMBLE_BUMP_TOKEN` — a fine-grained PAT scoped to
+`flakeman2/raspberry-pi-dramble` for Contents + Pull requests.
+
+Building by hand still works and remains the fallback — see
+[Rebuild](#rebuild) above.
 
 ## Landing page (`mysite-content`)
 
@@ -194,10 +217,17 @@ See also `cluster/workloads/README.md`.
 
 - **The blog source lives outside this repository.** If `flakeman2/Ephesus` is
   deleted or made private, the blog source and its history go with it. Nothing
-  in `raspberry-pi-dramble` references it except this page.
-- **No CI.** `.github/` in `Ephesus` has only issue templates; images are built
-  and pushed by hand, which is how the deployed image and its source commit
-  drifted apart.
-- **Arm64-only image.** Any rebuild needs a cross-build or a Pi.
-- **Tag, not digest, in the manifest.** A tag can be moved; pinning the digest
-  makes the deployment reproducible.
+  in `raspberry-pi-dramble` references it except this page. **CI does not fix
+  this** — it needs a mirror or a backup.
+- ~~**No CI.**~~ Resolved 2026-11-17: `.github/workflows/publish.yml` builds,
+  verifies, publishes and opens the bump PR (see
+  [Publishing a post](#publishing-a-post)). Images were built and pushed by
+  hand, which is how the deployed image and its source commit drifted apart.
+- **Arm64-only image.** Still arm64-only, but no longer a constraint: the
+  Dockerfile pins the build stage to `$BUILDPLATFORM`, so CI compiles the gems
+  natively on an amd64 runner and only the final `COPY` targets arm64 — no Pi
+  and no cross-build setup.
+- **Tag, not digest, in the manifest.** The tag is now content-derived
+  (`sha-<7>`), so it names its own source and cannot be quietly repointed at
+  different content — but it is still a tag. Pinning the digest would also
+  defend against registry-side tampering.
