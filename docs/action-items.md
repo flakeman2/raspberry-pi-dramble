@@ -146,11 +146,16 @@ answered. Cleared in three passes:
 
 ## P2 — hygiene
 
-### 9. Pin image tags
+### 9. ~~Pin image tags~~ — done 2026-11-17
 
-The live cluster uses floating tags for `nginx:latest`, `traefik/whoami`, and
-`curlimages/curl`. The DNS manifests in this repo pin curl to `7.81.0`; pin the
-other two after choosing versions.
+The live cluster used floating tags for `nginx:latest` and `traefik/whoami`
+(`curlimages/curl` was already pinned to `7.81.0` in the DNS manifests).
+
+Pinned to **`nginx:1.31.8`** and **`traefik/whoami:v1.12.0`**, chosen by
+matching the *running* container's index digest against the registry rather
+than guessing: both images' `latest` and version tags resolved to the same
+digest as what was already running, so pinning changed nothing content-wise —
+it only stops `latest` from drifting on a node restart.
 
 ### 10. Backups
 
