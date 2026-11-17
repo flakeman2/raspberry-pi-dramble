@@ -140,13 +140,29 @@ the fallback until phase 3 is complete.
 
 ## Drift to codify first
 
-Argo CD will surface these immediately; fix them before turning on auto-sync:
+Argo CD will surface these immediately; fix them before turning on auto-sync.
+**Status 2026-11-16 — most of this list was cleared by the rebuild:**
 
-- Grafana's Prometheus datasource and missing dashboards (UI state today);
-- the inline dynamic-DNS password in the live CronJobs;
-- floating image tags (`nginx:latest`, `traefik/whoami`, `curlimages/curl`);
-- the stray `k3s.service` on kube2 — host configuration, not Kubernetes state,
-  so it stays in [redeploy.md](redeploy.md), not in GitOps.
+- ~~the inline dynamic-DNS password in the live CronJobs~~ — resolved: both
+  CronJobs read `dyn-dns-credentials` (one key per domain) and are verified at
+  `<ErrCount>0</ErrCount>`;
+- ~~the stray `k3s.service` on kube2~~ — moot: the node was reimaged and
+  `install-agent.sh` now disables any stray server unit;
+- ~~the floating `curlimages/curl` tag~~ — pinned to `7.81.0` in
+  `cluster/dns/cronjobs.yaml`;
+- ~~Grafana's datasource~~ — already codified in
+  `cluster/monitoring/grafana-values.yaml`.
+
+**Still open:**
+
+- floating image tags `nginx:latest` and untagged `traefik/whoami`
+  ([action-items.md](action-items.md) item 9) — pin them before adopting the
+  workloads, or Argo CD will faithfully reconcile a tag someone else moved;
+- Grafana has **0 dashboards** (item 7) — provision them as ConfigMaps in
+  `gitops/apps/` *before* auto-sync, otherwise a rebuild starts empty;
+- host configuration (SSH keys, netplan, `iscsid`, `wpa_supplicant`, boot
+  tuning) stays in [redeploy.md](redeploy.md) and [hardware.md](hardware.md) —
+  Argo CD manages cluster objects, not nodes.
 
 ## Open questions
 
