@@ -1,0 +1,41 @@
+# Public entry for the Argo CD UI: one redirect route on `web`, one TLS route
+# on `websecure` — the same shape the other dashboards use. The redirect
+# middleware lives in `default` and is referenced cross-namespace, which
+# `providers.kubernetesCRD.allowCrossNamespace` permits (the whoami route does
+# the same today).
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: argocd-http
+  namespace: argocd
+spec:
+  entryPoints:
+  - web
+  routes:
+  - kind: Rule
+    match: Host(`argocd.devinflake.com`)
+    middlewares:
+    - name: redirect-to-https
+      namespace: default
+    services:
+    - kind: Service
+      name: argocd-server
+      port: 80
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  entryPoints:
+  - websecure
+  routes:
+  - kind: Rule
+    match: Host(`argocd.devinflake.com`)
+    services:
+    - kind: Service
+      name: argocd-server
+      port: 80
+  tls:
+    certResolver: letsencrypt

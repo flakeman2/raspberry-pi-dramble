@@ -1,0 +1,66 @@
+# Argo CD values for chart `argo-cd` 10.18.0 (app v3.6.1).
+#
+#   helm repo add argo https://argoproj.github.io/argo-helm
+#   helm upgrade --install argocd argo/argo-cd \
+#     --namespace argocd --version 10.18.0 \
+#     -f gitops/bootstrap/values.yaml --wait
+#
+# Design and rollout phases: ../../docs/gitops.md. Deliberate choices for four
+# 4 GB nodes: single replicas everywhere, Dex off, notifications off, bundled
+# Redis (not redis-ha), and an explicit budget on every component — verify the
+# totals with `kubectl top` after installing.
+#
+# The admin password is a bcrypt hash of the unified cluster password (the same
+# credential as the Grafana login and the Traefik/Longhorn basic-auth), so it is
+# safe to commit here: generate with `mkpasswd -m bcrypt -R 10 '<password>'`.
+
+global:
+  domain: argocd.devinflake.com
+
+configs:
+  params:
+    # Traefik terminates TLS on the IngressRoute and forwards plain HTTP, so the
+    # server must speak insecure HTTP + gRPC on the same port (chart README:
+    # `configs.params.server.insecure`).
+    server.insecure: true
+  secret:
+    # REPLACE at install time with a bcrypt hash — see the header comment.
+    argocdServerAdminPassword: "REPLACE_WITH_BCRYPT_HASH"
+    argocdServerAdminPasswordMtime: "2026-11-16T00:00:00Z"
+
+dex:
+  enabled: false
+
+notifications:
+  enabled: false
+
+redis-ha:
+  enabled: false
+
+controller:
+  replicas: 1
+  resources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 512Mi}
+
+server:
+  resources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 512Mi}
+
+repoServer:
+  replicas: 1
+  resources:
+    requests: {cpu: 150m, memory: 256Mi}
+    limits: {cpu: 750m, memory: 768Mi}
+
+redis:
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {cpu: 250m, memory: 256Mi}
+
+# The chart has no `enabled` switch for applicationSet — budget it anyway.
+applicationSet:
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {cpu: 250m, memory: 256Mi}
