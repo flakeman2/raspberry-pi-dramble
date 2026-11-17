@@ -26,7 +26,10 @@ spec:
         task: whoami
     spec:
       containers:
-      - image: traefik/whoami
+      # Pinned from a floating tag on 2026-11-17 (action item 9). The running
+      # image's index digest matched both `latest` and `v1.12.0`, so this
+      # changes nothing content-wise — it stops `latest` from drifting.
+      - image: traefik/whoami:v1.12.0
         imagePullPolicy: Always
         name: whoami
         ports:

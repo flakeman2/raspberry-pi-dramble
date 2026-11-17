@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dashboards
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
+    targetRevision: dev
+    # IngressRoutes for the Grafana, Longhorn, Prometheus and Argo CD UIs.
+    # The manifests span two namespaces (longhorn-system, monitoring) and each
+    # declares its own, so destination.namespace is only the fallback.
+    path: cluster/dashboards
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

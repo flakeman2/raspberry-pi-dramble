@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dns
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
+    targetRevision: dev
+    # The two DynDNS CronJobs. They read `dyn-dns-credentials`, which is a
+    # SealedSecret applied separately (cluster/secrets/sealed/) — if that Secret
+    # is missing the CronJobs fail to start, so keep the two in sync.
+    path: cluster/dns
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

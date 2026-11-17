@@ -23,7 +23,11 @@ spec:
         app: mysite-nginx
     spec:
       containers:
-      - image: nginx:latest
+      # Pinned from :latest on 2026-11-17 (action item 9). The running image's
+      # index digest matched both `latest` and `1.31.8`, so this changes nothing
+      # content-wise — it only stops `latest` from silently becoming 1.32 on a
+      # node restart. curlimages/curl is pinned in the same style (7.81.0).
+      - image: nginx:1.31.8
         imagePullPolicy: Always
         name: nginx
         ports:

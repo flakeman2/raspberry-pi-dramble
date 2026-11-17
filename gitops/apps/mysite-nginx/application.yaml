@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mysite-nginx
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
+    targetRevision: dev
+    # Points at cluster/ rather than being moved into gitops/apps/ — the
+    # rebuild path (scripts/install-addons.sh) applies these same files, and
+    # relocating them would break path references in thirteen documents for no
+    # gain. Single source; gitops/apps/ holds the Application, not the workload.
+    path: cluster/workloads/mysite
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mysite-nginx
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # Namespaces come from cluster/namespaces.yaml via install-addons.sh,
+      # not from Argo — do not let it create or own them.
+      - CreateNamespace=false
