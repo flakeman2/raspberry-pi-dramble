@@ -14,3 +14,6 @@ acme.json
 
 # Helm/Kustomize output produced when rendering manifests locally or in CI
 rendered/
+
+# Python bytecode from scripts/check-docs.py
+__pycache__/

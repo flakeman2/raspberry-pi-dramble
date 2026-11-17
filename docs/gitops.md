@@ -96,17 +96,43 @@ Conventions:
 
 The repository is public, so plain `Secret` manifests cannot be committed.
 
-**Recommended: Sealed Secrets.** One controller in `kube-system`, sealed
-manifests in git, no Argo CD plugin. Bootstrap it before any application that
-consumes a sealed secret, and back up the controller's private key — losing it
-means every sealed secret in git is unrecoverable.
+**Decided 2026-11-17: Sealed Secrets.** One controller in `kube-system`, sealed
+manifests in `cluster/secrets/sealed/`, no Argo CD plugin. It is installed from
+the vendored release manifest `cluster/sealed-secrets/controller.yaml`
+(v0.41.2, checksum-verified against the signed release) rather than the Helm
+chart, because the chart's repository URL now returns 404.
 
-**Alternative: SOPS + age** with a Kustomize plugin. More flexible, more moving
-parts; pick one and do not mix.
+**Back up the controller's private key — losing it means every sealed secret in
+git is unrecoverable.** The key is the `sealed-secrets-key*` Secret in
+`kube-system`; a copy is kept outside this repository at mode `0600`.
 
-Either way the inventory is the same three Secrets — `authsecret`, `grafana`,
-`dyn-dns-credentials` (see [secrets.md](secrets.md)). The k3s join token,
-kubeconfig, and Traefik `acme.json` stay outside git entirely.
+SOPS + age was the alternative and is **not** used. Do not mix the two.
+
+The inventory is the same three Secrets — `authsecret`, `grafana`,
+`dyn-dns-credentials` (see [secrets.md](secrets.md)) — all three now live in
+git as SealedSecrets. The k3s join token, kubeconfig, and Traefik `acme.json`
+stay outside git entirely.
+
+### Adopting a Secret that already exists
+
+The controller **refuses to take over a Secret it does not own**: it fails
+with `already exists and is not managed by SealedSecret`, retries for about
+fifteen seconds, then *gives up* — and deleting the Secret afterwards does not
+wake it up. Annotating the SealedSecret does not either. What works:
+
+1. `kubectl delete sealedsecret <name>` — resets its state
+2. `kubectl delete secret <name>` — opens a short gap
+3. `kubectl apply -f cluster/secrets/sealed/<name>.yaml` — a fresh reconcile
+   creates the Secret with the correct `ownerReferences`
+
+Do one Secret at a time and verify the data hash afterwards (a round-trip
+through throwaway names proves byte-identity before you start).
+
+**The gap matters more than it looks.** A missing `authsecret` does not merely
+disable basic-auth — Traefik cannot resolve the middleware's Secret, so it
+**drops the router entirely**: Longhorn, Prometheus and the Traefik dashboard
+return `404`, not `401`. Grafana and the blog keep working, which is what makes
+it look like an isolated problem when it is not.
 
 ## CI gates
 
@@ -189,5 +215,5 @@ Argo CD will surface these immediately; fix them before turning on auto-sync.
 - Whether MetalLB and Longhorn should be Argo-managed or remain bootstrap-only.
   They are CRD-heavy and upgrade-sensitive; managing them is the goal, but they
   can be the last phase-3 migration rather than the first.
-- Sealed Secrets versus SOPS — decide before phase 2, since it determines the
-  shape of every application manifest.
+- ~~Sealed Secrets versus SOPS~~ — **decided 2026-11-17: Sealed Secrets**, see
+  [Secrets](#secrets).
