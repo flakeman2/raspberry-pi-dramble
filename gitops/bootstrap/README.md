@@ -33,13 +33,16 @@ helm upgrade --install argocd argo/argo-cd \
 kubectl apply -f gitops/bootstrap/ingressroute.yaml
 ```
 
-Before installing, replace `REPLACE_WITH_BCRYPT_HASH` in `values.yaml`
-(`configs.secret.argocdServerAdminPassword`) with the hash of the unified
-cluster password:
+The admin password in `values.yaml` is already a **bcrypt hash** of the unified
+cluster password (same credential as Grafana and the Traefik/Longhorn/Prometheus
+basic-auth) — a hash, never the plaintext, so it is safe to commit. To rotate it:
 
 ```bash
-mkpasswd -m bcrypt -R 10 '<password>'   # same credential as Grafana + basic-auth
+mkpasswd -m bcrypt -R 10 '<new password>'   # paste over argocdServerAdminPassword
 ```
+
+Bumping `argocdServerAdminPasswordMtime` forces Argo CD to re-hash the account
+password from the value, so do that in the same change.
 
 The step is idempotent: `helm upgrade --install` plus declarative `kubectl
 apply` files, so a rebuild just runs it again.

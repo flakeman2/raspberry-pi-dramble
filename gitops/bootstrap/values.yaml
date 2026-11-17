@@ -24,9 +24,11 @@ configs:
     # `configs.params.server.insecure`).
     server.insecure: true
   secret:
-    # REPLACE at install time with a bcrypt hash — see the header comment.
-    argocdServerAdminPassword: "REPLACE_WITH_BCRYPT_HASH"
-    argocdServerAdminPasswordMtime: "2026-11-16T00:00:00Z"
+    # Bcrypt hash of the unified cluster password (same credential as Grafana
+    # and the Traefik/Longhorn/Prometheus basic-auth). A hash, never the
+    # plaintext, so committing it is safe — see the header comment.
+    argocdServerAdminPassword: "$2b$10$5xjPTjU5CoSndYGz0QIq4.vqD5VU6RmW2xMQ7huZX7FIgXofnIH0W"
+    argocdServerAdminPasswordMtime: "2026-11-17T02:19:19Z"
 
 dex:
   enabled: false
