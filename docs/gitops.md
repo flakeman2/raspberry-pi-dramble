@@ -156,9 +156,14 @@ Implemented in `.github/workflows/ci.yml`. Runs on PRs into `dev` (and
 
 Not yet: an `argocd app diff --local` job for apps that have cluster access.
 
-CI deliberately holds **no cluster credentials**. "Do the documented numbers
-match the *running* cluster?" needs a kubeconfig and stays a local check —
-a self-hosted runner on a Pi would be the way to change that.
+CI deliberately holds **no cluster credentials**. The other half of "docs match
+reality" — do the documented numbers match the *running* cluster? — is
+[`scripts/verify-docs.sh`](../scripts/verify-docs.sh), which needs a kubeconfig
+and is therefore run locally. It asserts the `cluster-status.md` totals, the
+hostname/routing-table sets, a valid Let's Encrypt cert on every hostname, the
+four chart pins against live Helm releases, that every SealedSecret is
+`Synced`, and each manifest image tag against the live Deployment. A
+self-hosted runner on a Pi would be the way to run it in CI instead.
 
 Image builds (the `jekyll` site) are CI too, in the **Ephesus** repository:
 build ARM64, smoke-test, push, then open the bump PR here. A small workflow
