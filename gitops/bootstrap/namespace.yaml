@@ -1,0 +1,6 @@
+# The one imperative namespace in the GitOps design: Argo CD cannot create
+# the namespace it is installed into. Everything else is applied by Argo.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd

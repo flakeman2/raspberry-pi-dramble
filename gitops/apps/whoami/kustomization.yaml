@@ -1,0 +1,10 @@
+# Pilot application for GitOps phase 1 (docs/gitops.md): the first workload
+# Argo CD adopts. The manifests are the same ones `cluster/workloads/` applies
+# today, deliberately unmodified — image tag included — so the first
+# `argocd app diff` is empty. Pinning the floating `traefik/whoami` tag is
+# action item 9 and belongs in its own change, not in the adoption.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- deployment.yaml
+- service.yaml
