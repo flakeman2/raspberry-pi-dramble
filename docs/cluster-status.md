@@ -143,13 +143,18 @@ No under-voltage or thermal throttling on any node.
 | whoami | `whoami` | 2/2 | `traefik/whoami` |
 | default | `dyn-dns-*` CronJobs | Complete | `curlimages/curl:7.81.0` |
 
-Totals: **65 pods**, 12 namespaces, 22 Deployments, 5 DaemonSets, 2
-StatefulSets, 2 CronJobs, 25 Services, 12 IngressRoutes, 5 Middlewares, 1
+Totals: **66 pods**, 12 namespaces, 23 Deployments, 5 DaemonSets, 2
+StatefulSets, 2 CronJobs, 27 Services, 12 IngressRoutes, 5 Middlewares, 1
 TLSOption, 6 PDBs, 10 NetworkPolicies (6 Longhorn's own, 4 Argo CD's).
 
-The deltas from the 2026-11-16 rebuild snapshot are all Argo CD: +1 namespace,
-+5 pods, +4 Deployments, +1 StatefulSet, +5 Services, +4 NetworkPolicies, and
-+3 IngressRoutes (`prometheus` plus the two `argocd` routes).
+The deltas from the 2026-11-16 rebuild snapshot are all Argo CD (+1 namespace,
++5 pods, +4 Deployments, +1 StatefulSet, +5 Services, +4 NetworkPolicies, +3
+IngressRoutes from `prometheus` and the two `argocd` routes) plus Sealed
+Secrets (+1 pod, +1 Deployment, +2 Services).
+
+These numbers are asserted against the live cluster by
+[`scripts/verify-docs.sh`](../scripts/verify-docs.sh); run it after changing
+anything that alters the shape of the cluster.
 
 The IngressRoutes are the pre-reimage set minus the two `pi-hole` routes
 (`pi-hole` was removed from the manifests before the rebuild — action item #8).
