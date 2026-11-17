@@ -6,7 +6,9 @@ Checks, across every Markdown file in the tree:
   1. local links resolve to a real path (relative links only; http/mailto are
      assumed fine — CI should not depend on third-party availability);
   2. in-page anchors (#section) point at a real heading in the same file;
-  3. reference-style links ([text][ref]) have a matching [ref]: definition.
+  3. links of the form other.md#section resolve the file AND the anchor inside
+     it — cross-file anchors are the easy ones to break silently;
+  4. reference-style links ([text][ref]) have a matching [ref]: definition.
 
 These are the checks that catch "the doc links to a file that was renamed" —
 the class of breakage a reader hits first.
@@ -34,10 +36,16 @@ REF_DEF_RE = re.compile(r"^\[([^\]]+)\]:\s*(\S+)", re.MULTILINE)
 
 
 def slugify(heading: str) -> str:
-    """GitHub-style anchor slug: lowercase, strip punctuation, spaces to dashes."""
+    """GitHub-style anchor slug (github-slugger semantics).
+
+    Lowercase, strip punctuation, then replace **each** space with a dash —
+    deliberately not collapsing runs of whitespace. Removing an em dash from
+    "probes — done" leaves two spaces, and GitHub turns those into "--", so
+    collapsing here would disagree with every link GitHub generates.
+    """
     text = heading.strip().lower()
     text = re.sub(r"[^\w\s-]", "", text)
-    return re.sub(r"\s+", "-", text)
+    return text.replace(" ", "-")
 
 
 def markdown_files(root: Path) -> list[Path]:
@@ -57,16 +65,25 @@ def check_file(path: Path, root: Path) -> list[str]:
     headings = {slugify(m.group(1)) for m in HEADING_RE.finditer(text)}
     definitions = dict(REF_DEF_RE.findall(text))
 
-    # 1. local links
+    # 1. local links — and, when they carry an #anchor, that the anchor exists
+    #    in the target file (cross-file anchors are the easy ones to break).
     for _label, target in INLINE_LINK_RE.findall(text):
-        if target.startswith(("http://", "https://", "mailto:", "#")):
+        if target.startswith(("http://", "https://", "mailto:")):
             continue
-        local = target.split("#", 1)[0]
+        local, _, anchor = target.partition("#")
         if not local:
-            continue
+            continue  # pure in-page anchor, handled below
         resolved = (path.parent / local).resolve()
         if not resolved.exists():
             problems.append(f"{rel}: broken link -> {target}")
+            continue
+        if anchor and resolved.suffix == ".md" and resolved.is_file():
+            target_headings = {
+                slugify(m.group(1))
+                for m in HEADING_RE.finditer(resolved.read_text(encoding="utf-8", errors="replace"))
+            }
+            if anchor not in target_headings:
+                problems.append(f"{rel}: dead anchor in link -> {target}")
 
     # 2. in-page anchors (both inline and reference style)
     for target in re.findall(r"\]\(#([^)]+)\)", text):

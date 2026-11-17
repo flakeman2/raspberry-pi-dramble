@@ -8,7 +8,9 @@
 #
 # Prerequisites:
 #   - kubectl and helm 3 installed on the machine running this script
-#   - Secrets created first: see cluster/secrets/README.md
+#   - the sealed-secrets private key backup, if this is a fresh cluster:
+#     see cluster/secrets/README.md (sealed manifests cannot be unsealed
+#     without the key that encrypted them)
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -34,15 +36,44 @@ require_secret() {
   fi
 }
 
-echo "==> checking required Secrets"
-missing=0
-require_secret default authsecret || missing=1
-require_secret default dyn-dns-credentials || missing=1
-require_secret monitoring grafana || missing=1
+# Sealed manifests are encrypted to a specific controller key. On a fresh
+# cluster the controller generates a new key and then cannot read anything in
+# cluster/secrets/sealed/ — so restore the backup BEFORE starting it, while
+# there is still no key of its own to conflict with.
+KEY_BACKUP="${SEALED_SECRETS_KEY_BACKUP:-$HOME/.kube/sealed-secrets-private-key-backup.yaml}"
+if [ -f "$KEY_BACKUP" ]; then
+  echo "==> restoring sealed-secrets key from ${KEY_BACKUP}"
+  kubectl apply -f "$KEY_BACKUP"
+else
+  echo "==> WARNING: no sealed-secrets key backup at ${KEY_BACKUP}" >&2
+  echo "   On a brand-new cluster this is fatal: the controller will mint a" >&2
+  echo "   fresh key and every manifest in cluster/secrets/sealed/ will fail" >&2
+  echo "   to unseal. Copy the backup to that path first." >&2
+fi
+
+echo "==> sealed-secrets controller"
+kubectl apply -f cluster/sealed-secrets/controller.yaml
+kubectl -n kube-system rollout status deploy/sealed-secrets-controller --timeout=5m
+
+echo "==> required Secrets (unsealed from cluster/secrets/sealed/)"
+kubectl apply -f cluster/secrets/sealed/
+
+# The controller unseals asynchronously — wait for it instead of failing.
+missing=1
+for _ in $(seq 1 30); do
+  missing=0
+  require_secret default authsecret || missing=1
+  require_secret default dyn-dns-credentials || missing=1
+  require_secret monitoring grafana || missing=1
+  [ "$missing" -eq 0 ] && break
+  sleep 2
+done
 if [ "$missing" -ne 0 ]; then
   echo
-  echo "create the missing Secrets using cluster/secrets/examples/ as a template," >&2
-  echo "then re-run this script. See cluster/secrets/README.md." >&2
+  echo "the controller did not unseal the Secrets within 60s." >&2
+  echo "Check: kubectl -n kube-system logs deploy/sealed-secrets-controller" >&2
+  echo "Most likely the key backup is missing or belongs to another cluster." >&2
+  echo "See cluster/secrets/README.md and docs/gitops.md#secrets." >&2
   exit 1
 fi
 
