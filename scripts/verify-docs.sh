@@ -218,6 +218,26 @@ else
   fail "images: a manifest tag does not match the live deployment"
 fi
 
+echo "== 7. Argo CD tracks the repository default branch =="
+# Repointing Argo by hand is exactly the kind of manual change that silently
+# drifts from the documented branching model, so assert the two agree.
+DEFAULT_BRANCH=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)
+if [ -z "$DEFAULT_BRANCH" ] && command -v gh >/dev/null; then
+  DEFAULT_BRANCH=$(gh repo view flakeman2/raspberry-pi-dramble \
+    --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null || true)
+fi
+TARGET=$(kubectl get applications.argoproj.io -n argocd \
+  -o jsonpath='{.items[0].spec.source.targetRevision}' 2>/dev/null || true)
+if [ -z "$DEFAULT_BRANCH" ]; then
+  fail "argocd: could not determine the default branch (set origin/HEAD or install gh)"
+elif [ -z "$TARGET" ]; then
+  fail "argocd: no Application found to check"
+elif [ "$TARGET" = "$DEFAULT_BRANCH" ]; then
+  pass "argocd: targetRevision=$TARGET matches the default branch"
+else
+  fail "argocd: targetRevision=$TARGET but the default branch is $DEFAULT_BRANCH"
+fi
+
 echo
 echo "passed: $PASS   failed: $FAIL"
 if [ "$FAIL" -ne 0 ]; then

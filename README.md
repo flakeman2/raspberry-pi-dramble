@@ -107,9 +107,8 @@ export KUBECONFIG=~/.kube/config-dramble-k3s
 
 ## Branching and review workflow
 
-`dev` is the integration branch and the repository default. `master` mirrors what
-is deployed to the cluster, so changes reach it only through a reviewed pull
-request.
+`dev` is the only branch, and the repository default. Argo CD tracks it, so a
+merged pull request *is* the deployment target — there is no promotion step.
 
 ```bash
 git switch dev && git pull
@@ -119,21 +118,21 @@ git push -u origin fix/short-description
 gh pr create --base dev --fill
 ```
 
-Merge the topic branch into `dev` once it looks right. When a batch is ready to
-be deployed, promote `dev` to `master` with a second pull request:
+Merge the topic branch into `dev` once it looks right. CI runs four jobs on the
+PR — manifests, secrets, docs, workflows — and a green check is the review
+record.
 
-```bash
-gh pr create --base master --head dev --title "Release: <summary>"
-```
+Repository settings back this up: `dev` rejects force-pushes and deletion. Head
+branches are deleted automatically when a pull request merges
+(`delete_branch_on_merge`, enabled 2026-11-14), so topic branches do not
+accumulate. A single maintainer cannot approve their own PR, so no approving
+review is required — enable "required approvals" in the branch protection
+settings if another maintainer joins.
 
-Repository settings back this up: `master` rejects direct pushes, force-pushes,
-and deletion; `dev` rejects force-pushes and deletion. Head branches are
-deleted automatically when a pull request merges (`delete_branch_on_merge`,
-enabled 2026-11-14), so topic branches do not accumulate — the merged ones that
-already had were pruned at the same time, leaving only `dev` and `master`. A
-single maintainer cannot approve their own PR, so no approving review is
-required — the PR itself is the review record. Enable "required approvals" in
-the branch protection settings if another maintainer joins.
+A `master` branch existed until 2026-11-17 as the "deployed state" mirror that
+promotion PRs targeted. Its tree was byte-identical to `dev` — only the
+promotion merge commits differed — so deleting it lost no content, and it also
+removed the second merge a blog post needed before going live.
 
 ## License
 

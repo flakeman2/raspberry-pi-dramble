@@ -6,10 +6,10 @@ page is the design and the staged rollout plan.
 
 ## Goals
 
-- The cluster converges to `master` in this repository; drift is visible and can
+- The cluster converges to `dev` in this repository; drift is visible and can
   be self-healed.
-- Every change reaches the cluster through a pull request into `dev`, then a
-  promotion PR into `master` (see the README workflow).
+- Every change reaches the cluster through a pull request into `dev` (see the
+  README workflow). There is no promotion step.
 - Secrets never appear in git as plaintext.
 - A bare rebuild becomes: install k3s, bootstrap Argo CD, sync.
 
@@ -53,7 +53,7 @@ All four gates below are **satisfied** — evidence in
 | Dex / notifications | disabled |
 | Ingress | `argocd.devinflake.com` via `IngressRoute`, TLS-ALPN, server runs `--insecure` |
 | Storage | none (emptyDir caches); no PVC |
-| Git source | this repository, path `gitops/`, `targetRevision: master` |
+| Git source | this repository, path `gitops/`, `targetRevision: dev` |
 | Sync policy | automated + self-heal for apps; manual for addons |
 
 Argo CD adds a controller, repo-server, Redis, and API server to a cluster of
@@ -64,8 +64,11 @@ before enabling anything else. The resource work in
 has already landed for every container this repository owns — budget Argo CD
 explicitly as well.
 
-Argo CD tracks `master`, not `dev`. `dev` is where changes accumulate; `master`
-is what the cluster should be running.
+Argo CD tracks `dev`, which is also the repository default — so a merge into
+`dev` *is* the deployment target and there is no promotion step. The `master`
+branch existed until 2026-11-17 as the "deployed state" mirror; its tree was
+byte-identical to `dev` (only promotion merge commits differed), so removing
+it lost no content.
 
 ## Repository layout
 
@@ -136,8 +139,8 @@ it look like an isolated problem when it is not.
 
 ## CI gates
 
-Implemented in `.github/workflows/ci.yml`. Runs on PRs into `dev` (and
-`master`) as **four independent jobs**, so a red check names itself:
+Implemented in `.github/workflows/ci.yml`. Runs on PRs into `dev` as **four
+independent jobs**, so a red check names itself:
 
 - **Manifests** — `kubeconform -strict` over the raw manifests, all four Helm
   charts rendered at their pinned versions, and every `gitops/apps/*/`
