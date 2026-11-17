@@ -67,7 +67,7 @@ it — `mysite-content` is RWX.
 |---|---|
 | 4/4 nodes `Ready`, server `v1.36.6+k3s1`, kubectl within one minor | ✅ (`v1.37.1` client) |
 | 5 PVCs `Bound`, Longhorn volumes healthy, 3 replicas each | ✅ 5/5, 15/15 replicas |
-| `devinflake.com`, `blog`, `grafana` valid certificates; whoami at `.201` | ✅ **all 8 names** serve Let's Encrypt certs |
+| `devinflake.com`, `blog`, `grafana` valid certificates; whoami at `.201` | ✅ **all 11 names** then serving Let's Encrypt certs (14 today) |
 | Prometheus targets with none down | ✅ **24 up / 0 down** |
 | CronJobs complete | ✅ ran `03:30Z`, both jobs `Complete` (see caveat below) |
 | Docs updated to the new versions | ✅ this page + README/architecture/hardware |
@@ -78,7 +78,7 @@ it — `mysite-content` is RWX.
   `2.3.7-k3s1.36`, **no pressure conditions**, no failing APIServices.
 - The stack is **fully supported** and matches the repository pins exactly.
 - **60 pods**, all `Running` or `Completed` — nothing pending, nothing crash-looping.
-- Public HTTPS works on all eight hostnames; the landing page content is
+- Public HTTPS works on all fourteen hostnames; the landing page content is
   byte-identical to git; the blog serves image `flakeman2/jekyll:1.0.6` with
   the post `/dramble_wiped_and_rebuilt/` live.
 
@@ -175,23 +175,26 @@ Note the alertmanager PVC name changed with chart 29 (`prometheus-alertmanager`
   `metallb.universe.tf/loadBalancerIPs` and announced by whichever speaker
   holds it — currently **kube1's MAC `dc:a6:32:96:f9:49`** (the MAC is not
   fixed; it follows the speaker).
-- No `Ingress` objects; 9 `IngressRoute` objects; `TLSOption/default`
+- No `Ingress` objects; 12 `IngressRoute` objects; `TLSOption/default`
   `minVersion: VersionTLS12`.
-- ACME store `/data/acme.json`: **5 certificates re-issued 2026-11-16**,
-  covering all eight public names:
+- ACME store `/data/acme.json`: **7 certificates covering all fourteen public
+  names**. Five were re-issued 2026-11-16 when the router returned to `.201`;
+  `prometheus` and `argocd` were issued later as those two UIs were exposed:
 
 | Stored certificate | Covers (verified over HTTPS) |
 |---|---|
 | `devinflake.com` | `devinflake.com`, `www.devinflake.com`, `flakeman2.com`, `www.flakeman2.com` |
 | `blog.devinflake.com` | `blog.devinflake.com` |
 | `grafana.devinflake.com` | `grafana.devinflake.com`, `grafana.flakeman2.com` |
+| `prometheus.devinflake.com` | `prometheus.devinflake.com`, `prometheus.flakeman2.com` |
 | `traefik.devinflake.com` | `traefik.devinflake.com`, `traefik.flakeman2.com` |
 | `longhorn.devinflake.com` | `longhorn.devinflake.com`, `longhorn.flakeman2.com` |
+| `argocd.devinflake.com` | `argocd.devinflake.com` |
 
 Verified from outside: every name returns a Let's Encrypt certificate with the
 right behaviour — apex/blog `200` after a `308` redirect, grafana `302`,
-longhorn/traefik `401` (basic auth), `/whoami` answering behind
-`PathPrefix(/whoami)`.
+longhorn/traefik/prometheus `401` (basic auth), argocd `200` at the login
+page, `/whoami` answering behind `PathPrefix(/whoami)`.
 
 ## Monitoring
 

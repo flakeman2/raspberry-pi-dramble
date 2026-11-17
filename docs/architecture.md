@@ -105,6 +105,7 @@ on kube2.
 | `prometheus.devinflake.com`, `prometheus.flakeman2.com` | `monitoring/prometheus-server:80` | ACME | basic-auth + redirect |
 | `traefik.devinflake.com`, `traefik.flakeman2.com` | `api@internal` | ACME | basic-auth + redirect |
 | `longhorn.devinflake.com`, `longhorn.flakeman2.com` | `longhorn-system/longhorn-frontend:80` | ACME | basic-auth + redirect |
+| `argocd.devinflake.com` | `argocd/argocd-server:80` | ACME | redirect; login is Argo CD's own |
 
 Traefik's chart also creates `traefik/traefik-dashboard` on `PathPrefix(/dashboard)`
 and `PathPrefix(/api)`. It is not exposed through the LoadBalancer by hostname.

@@ -40,7 +40,7 @@ All four gates below are **satisfied** — evidence in
 - ✅ k3s is on a Kubernetes minor inside Argo CD's tested range (`1.36`);
 - ✅ Longhorn, MetalLB and Traefik support that minor and are migrated;
 - ✅ all four nodes are `Ready` and all five Longhorn volumes are `healthy`;
-- ✅ the workloads are reachable over HTTPS again — all eight hostnames serve
+- ✅ the workloads are reachable over HTTPS again — all fourteen hostnames serve
   valid Let's Encrypt certificates.
 
 ## Target architecture
