@@ -24,6 +24,21 @@ image:
 
 replicas: 1
 
+# The PVC below is ReadWriteOnce, and the chart's default strategy is
+# RollingUpdate with maxSurge/maxUnavailable of 25% — against a single replica
+# that rounds to maxSurge 1 / maxUnavailable 0, so the new pod is created
+# *first* and the old one is not terminated until the new one is Available.
+# The new pod cannot attach the volume the old pod still holds, and the old pod
+# will not release it: a deadlock. Hit for real during the 2026-11-17 unified
+# password rotation (the rollout hung on "1 old replicas are pending
+# termination" and needed a manual scale 0 → 1). Same class of bug as Traefik's
+# RWO `acme.json` (cluster-status.md defect 5, PR #22).
+#
+# `Recreate` trades a few seconds of downtime on upgrade for a rollout that
+# always completes — the right call for one replica with no HA to protect.
+deploymentStrategy:
+  type: Recreate
+
 persistence:
   enabled: true
   type: pvc

@@ -30,6 +30,17 @@ bearer-token auth, which the chart's annotation-driven job cannot do (see
 `../metallb/README.md`). Every workload in this directory now has
 requests/limits, and Grafana's probes come from the chart (`GET /api/health`).
 
+## Grafana rollout strategy
+
+Grafana's PVC is `ReadWriteOnce`, so its `deploymentStrategy` is set to
+**`Recreate`** rather than the chart's default `RollingUpdate`. With one
+replica, `RollingUpdate`'s 25% `maxUnavailable` rounds to **0** — the surge pod
+is created first and the old pod is not terminated until it is Available, but
+the surge pod cannot attach a volume the old pod still holds. That deadlock was
+hit during the 2026-11-17 password rotation; it is the same failure mode as
+Traefik's RWO `acme.json` (PR #22). `Recreate` costs a few seconds of
+downtime per upgrade and guarantees the rollout finishes.
+
 ## Grafana secret
 
 `grafana-values.yaml` sets `admin.existingSecret: grafana`. Create it first:
