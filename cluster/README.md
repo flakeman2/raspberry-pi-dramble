@@ -7,7 +7,7 @@ Everything the cluster runs, minus secrets. Apply order is handled by
 |---|---|
 | `namespaces.yaml` | All application namespaces |
 | `metallb/` | MetalLB 0.16.2 upstream native manifest + `IPAddressPool`/`L2Advertisement` CRs |
-| `longhorn/` | Longhorn 1.13.0 install notes (upstream manifest) |
+| `longhorn/` | Longhorn 1.13.0 | **vendored** manifest `longhorn-v1.13.0.yaml` + install notes |
 | `traefik/` | Helm values, TLSOption, Middlewares, IngressRoutes |
 | `monitoring/` | Grafana Helm values; Prometheus uses chart defaults |
 | `dns/` | Dynamic DNS CronJobs |

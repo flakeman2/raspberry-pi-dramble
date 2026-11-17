@@ -274,7 +274,7 @@ kubectl wait --for condition=established --timeout=60s \
   crd/ipaddresspools.metallb.io crd/l2advertisements.metallb.io
 kubectl apply -f cluster/metallb/config.yaml
 
-kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.13.0/deploy/longhorn.yaml
+kubectl apply -f cluster/longhorn/longhorn-v1.13.0.yaml
 kubectl -n longhorn-system rollout status deploy/longhorn-driver-deployer --timeout=15m
 
 helm repo add traefik https://traefik.github.io/charts
