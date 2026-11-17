@@ -110,30 +110,47 @@ kubeconfig, and Traefik `acme.json` stay outside git entirely.
 
 ## CI gates
 
-GitHub Actions on PRs into `dev`:
+Implemented in `.github/workflows/ci.yml`. Runs on PRs into `dev` (and
+`master`) as **four independent jobs**, so a red check names itself:
 
-- `kustomize build` for every overlay;
-- `kubeconform -strict` against the target Kubernetes version;
-- `gitleaks` for accidental credentials;
-- `helm template` for addon values once addons are adopted;
-- later, an `argocd app diff --local` job for the apps that have cluster access.
+- **Manifests** — `kubeconform -strict` over the raw manifests, all four Helm
+  charts rendered at their pinned versions, and every `gitops/apps/*/`
+  Kustomize build. Chart versions are **single-sourced** from
+  `scripts/install-addons.sh` and `gitops/bootstrap/values.yaml`, so CI cannot
+  drift from the install path — a removed pin fails the job. The Traefik,
+  MetalLB and Argo CD custom resources are validated against the
+  CRDs-catalog rather than skipped.
+- **Secrets** — `gitleaks` across the **whole history**, not just the diff:
+  the gate is "no credential lands in git", not "no credential lands in this
+  PR". The two inherited 2018 upstream findings are allowlisted by commit in
+  `.gitleaks.toml`.
+- **Docs** — `scripts/check-docs.py`: local links, in-page anchors and
+  reference links in every Markdown file.
+- **Workflows** — `actionlint`.
 
-Image builds (the `jekyll` site) stay in CI: build ARM64, push, then bump the
-tag in git. Argo CD Image Updater with git write-back is optional; a small
-workflow that opens the bump PR is easier to reason about.
+Not yet: an `argocd app diff --local` job for apps that have cluster access.
+
+CI deliberately holds **no cluster credentials**. "Do the documented numbers
+match the *running* cluster?" needs a kubeconfig and stays a local check —
+a self-hosted runner on a Pi would be the way to change that.
+
+Image builds (the `jekyll` site) are CI too, in the **Ephesus** repository:
+build ARM64, smoke-test, push, then open the bump PR here. A small workflow
+that opens a PR is easier to reason about than Argo CD Image Updater with git
+write-back.
 
 There are no preview environments on this hardware. The diff job is the review
 gate.
 
 ## Phased rollout
 
-| Phase | Scope | Done when |
-|---|---|---|
-| 0. Upgrade | k3s, Longhorn, MetalLB, Traefik, monitoring charts | Argo CD's tested k8s range is met; volumes healthy |
-| 1. Pilot | Bootstrap Argo CD; adopt one stateless app (`whoami`) with manual sync | `argocd app diff` is empty; no surprise mutations |
-| 2. Workloads | `apps/` for mysite, jekyll, whoami, dashboards, DNS; sealed secrets | Apps auto-sync with self-heal; Grafana is code, not UI state |
-| 3. Addons | Traefik, Prometheus, Grafana as Helm Applications; Argo CD self-managed | Addons sync manually; bootstrap script only installs Argo CD |
-| 4. CI | kustomize/kubeconform/gitleaks gates; image pipeline | A bad manifest cannot merge |
+| Phase | Scope | Done when | Status |
+|---|---|---|---|
+| 0. Upgrade | k3s, Longhorn, MetalLB, Traefik, monitoring charts | Argo CD's tested k8s range is met; volumes healthy | ✅ done 2026-11-16 |
+| 1. Pilot | Bootstrap Argo CD; adopt one stateless app (`whoami`) with manual sync | `argocd app diff` is empty; no surprise mutations | ✅ done 2026-11-17 |
+| 2. Workloads | `apps/` for mysite, jekyll, whoami, dashboards, DNS; sealed secrets | Apps auto-sync with self-heal; Grafana is code, not UI state | not started |
+| 3. Addons | Traefik, Prometheus, Grafana as Helm Applications; Argo CD self-managed | Addons sync manually; bootstrap script only installs Argo CD | not started |
+| 4. CI | kustomize/kubeconform/gitleaks gates; image pipeline | A bad manifest cannot merge | **in progress** — gates live 2026-11-17; image pipeline shipped in Ephesus |
 
 Keep the rebuild path working throughout: `scripts/install-addons.sh` remains
 the fallback until phase 3 is complete.

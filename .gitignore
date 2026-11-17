@@ -11,3 +11,6 @@ acme.json
 *.token
 *.pem
 *.key
+
+# Helm/Kustomize output produced when rendering manifests locally or in CI
+rendered/

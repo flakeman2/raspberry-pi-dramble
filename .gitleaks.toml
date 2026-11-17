@@ -1,0 +1,22 @@
+title = "raspberry-pi-dramble"
+
+# Full-history scans are used by CI (on push to dev) and locally via
+# `gitleaks detect`. Three findings exist in inherited upstream history and
+# are allowlisted by commit rather than by path, so a future file named
+# example.config.yml with a real credential is still caught:
+#
+#   e20e762 (2018-05-24) and bf6f181 (2018-06-25) — Jeff Geerling's Drupal
+#   demo stack: mysql_drupal_password / mysql_root_password in
+#   example.config.yml. The file was deleted by 249f1ed (the 2026-11-14
+#   rewrite that removed the upstream Ansible material), is not in HEAD, and
+#   belongs to an 8-year-old example project that no longer exists.
+#
+# Allowlisting the two commits keeps `gitleaks detect` runnable over the whole
+# history without weakening any path or rule for changes we make today.
+
+[allowlist]
+description = "Upstream geerlingguy history: 2018 Drupal demo credentials, file removed in 249f1ed"
+commits = [
+  "e20e7626a088ef2dd043a30860bcd0259d6be1d9",
+  "bf6f181d340064a776f51d425111cd69adae99de",
+]
