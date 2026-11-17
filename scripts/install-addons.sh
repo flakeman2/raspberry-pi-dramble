@@ -95,7 +95,11 @@ kubectl wait --for condition=established --timeout=60s \
 kubectl apply -f cluster/metallb/config.yaml
 
 echo "==> Longhorn ${LONGHORN_VERSION}"
-kubectl apply -f "https://raw.githubusercontent.com/longhorn/longhorn/v${LONGHORN_VERSION}/deploy/longhorn.yaml"
+# Vendored, not fetched: a rebuild must not depend on raw.githubusercontent.com
+# being reachable while you are trying to install storage. The file was
+# verified byte-identical to the live cluster with `kubectl diff` before it was
+# committed (exit 0, zero output). See cluster/longhorn/README.md to update it.
+kubectl apply -f "cluster/longhorn/longhorn-v${LONGHORN_VERSION}.yaml"
 kubectl -n longhorn-system rollout status deploy/longhorn-driver-deployer --timeout=15m
 kubectl -n longhorn-system rollout status ds/longhorn-manager --timeout=15m
 kubectl get sc longhorn >/dev/null

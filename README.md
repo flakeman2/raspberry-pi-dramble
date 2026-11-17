@@ -68,7 +68,7 @@ pull requests are no longer opened against it. See
 cluster/                     Manifests for everything the cluster runs
   namespaces.yaml            All application namespaces
   metallb/                   MetalLB install manifest + address pool
-  longhorn/                  Longhorn install notes (upstream manifest)
+  longhorn/                  Vendored Longhorn manifest + install notes
   traefik/                   Helm values + IngressRoutes/Middlewares/TLSOption
   monitoring/                Prometheus + Grafana Helm values
   dns/                       Dynamic DNS CronJobs

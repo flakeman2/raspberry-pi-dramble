@@ -225,10 +225,12 @@ Verified anchors (not the full path):
 
 Check the archived support matrix for 1.2–1.8 before each early hop. Upgrade
 Longhorn with the manifest method it was installed with — do not switch to Helm
-mid-upgrade:
+mid-upgrade. Current versions are vendored in `cluster/longhorn/`; for a new
+one, fetch it there, review the `kubectl diff`, and open that diff as the
+upgrade PR.
 
 ```bash
-# replace v1.3.x with the next minor and its current patch
+# historical example: an early 1.3.x hop, when the manifest was fetched live
 kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.3.x/deploy/longhorn.yaml
 kubectl -n longhorn-system rollout status ds/longhorn-manager --timeout=15m
 kubectl -n longhorn-system get volumes.longhorn.io   # wait for healthy
