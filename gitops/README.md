@@ -17,7 +17,8 @@ apps/        First-party workloads, one directory per Application (Kustomize)
 
 ## Conventions
 
-- Argo CD tracks `master`. `dev` accumulates changes until a promotion PR.
+- Argo CD tracks `dev`, the repository default — a merge into `dev` is the
+  deployment target, and there is no promotion step.
 - Third-party software is consumed as a Helm chart in the `Application` source
   (`source.helm` with a committed values file), not as vendored YAML.
 - First-party workloads use Kustomize with a `kustomization.yaml` per directory.

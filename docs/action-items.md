@@ -196,13 +196,12 @@ so the next failure does not depend on git alone.
 - Remove the abandoned kube-vip, cert-manager, ghost-blog, and
   kubernetes-dashboard material from any remaining notes or scripts.
 
-### 15. Adopt Argo CD
+### 15. Adopt Argo CD — pilot done 2026-11-17; phases 2–4 remain
 
-After the upgrade lands, bootstrap Argo CD from `gitops/` and let it reconcile
-from `master`. Rollout phases and conventions: [gitops.md](gitops.md) and
-[../gitops/README.md](../gitops/README.md). Do not start until k3s is on 1.36,
-Longhorn is healthy, and the manifests have been re-targeted to the new
-component versions.
+Phase 1 is complete: Argo CD bootstrapped from `gitops/`, the `whoami` pilot
+adopted with manual sync, and `argocd app diff` empty. It reconciles from
+`dev`. Remaining: workloads and sealed secrets (2), addons (3), CI (4).
+Conventions: [gitops.md](gitops.md) and [../gitops/README.md](../gitops/README.md).
 
 ### 16. ~~Restore host tuning: Wi-Fi, Bluetooth, and the overclock~~ — done 2026-11-16
 

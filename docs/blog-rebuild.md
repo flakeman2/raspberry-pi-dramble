@@ -182,8 +182,8 @@ in Ephesus does the rest:
    least one `<entry>` in the atom feed), pushes
    `flakeman2/jekyll:sha-<7 of the commit>`, and opens the bump PR against
    `raspberry-pi-dramble` with `base: dev`.
-3. Merge the bump PR, then promote `dev` → `master`. **Argo CD watches
-   `master`**, so the blog updates at that point — two merges, not one.
+3. Merge the bump PR. **Argo CD watches `dev`**, so the blog updates at that
+   point — one merge, not two.
 
 The tag *is* the Ephesus commit, so the deployed tag names its own source and
 the `1.0.4`/`1.0.5` drift cannot recur. It also means the tag is never reused,
