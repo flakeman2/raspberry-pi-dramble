@@ -137,15 +137,19 @@ No under-voltage or thermal throttling on any node.
 | monitoring | `prometheus-alertmanager` (StatefulSet) | 1/1 | Alertmanager (chart default) |
 | monitoring | `prometheus-kube-state-metrics` / `pushgateway` | 1/1 each | chart defaults |
 | monitoring | `prometheus-prometheus-node-exporter` (DaemonSet) | 4/4 | chart defaults |
-| monitoring | `grafana` | 1/1 | `docker.io/grafana/grafana:13.3.1-distroless` |
+| monitoring | `grafana` | 1/1 | `docker.io/grafana/grafana:13.3.1-distroless`, strategy **`Recreate`** |
 | mysite-nginx | `mysite-nginx` | 1/1 | `nginx:latest` |
 | jekyll | `jekyll-website` | 3/3 | `flakeman2/jekyll:1.0.6` |
 | whoami | `whoami` | 2/2 | `traefik/whoami` |
 | default | `dyn-dns-*` CronJobs | Complete | `curlimages/curl:7.81.0` |
 
-Totals: **60 pods**, 11 namespaces, 18 Deployments, 5 DaemonSets, 1
-StatefulSet, 2 CronJobs, 20 Services, 9 IngressRoutes, 5 Middlewares, 1
-TLSOption, 6 PDBs, 6 NetworkPolicies (all Longhorn's own).
+Totals: **65 pods**, 12 namespaces, 22 Deployments, 5 DaemonSets, 2
+StatefulSets, 2 CronJobs, 25 Services, 12 IngressRoutes, 5 Middlewares, 1
+TLSOption, 6 PDBs, 10 NetworkPolicies (6 Longhorn's own, 4 Argo CD's).
+
+The deltas from the 2026-11-16 rebuild snapshot are all Argo CD: +1 namespace,
++5 pods, +4 Deployments, +1 StatefulSet, +5 Services, +4 NetworkPolicies, and
++3 IngressRoutes (`prometheus` plus the two `argocd` routes).
 
 The IngressRoutes are the pre-reimage set minus the two `pi-hole` routes
 (`pi-hole` was removed from the manifests before the rebuild — action item #8).
