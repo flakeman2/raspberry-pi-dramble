@@ -37,3 +37,26 @@ spec:
       port: 80
   tls:
     certResolver: letsencrypt
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: prometheus-dashboard
+  namespace: monitoring
+spec:
+  entryPoints:
+  - web
+  - websecure
+  routes:
+  - kind: Rule
+    match: Host(`prometheus.devinflake.com`) || Host(`prometheus.flakeman2.com`)
+    middlewares:
+    - name: basic-auth
+      namespace: default
+    - name: redirect-to-https
+      namespace: default
+    services:
+    - name: prometheus-server
+      port: 80
+  tls:
+    certResolver: letsencrypt
