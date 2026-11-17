@@ -7,7 +7,7 @@
 | **A0** preserve + gate | 2026-11-14 | mysite tarball byte-identical to git, `acme.json`, rotated `authsecret`/`grafana` off-repo at `0600`, host state, tools — gate passed **before** the wipe, which mattered because there was no rollback |
 | **A1** retarget the repo | 2026-11-14 | PRs #8/#9/#12; `pluto` (no APIs removed by 1.36) and `kubeconform` clean |
 | **A2** reimage + rebuild | 2026-11-15 | all four disks wiped → Ubuntu Server 26.04.1 LTS, then k3s `v1.36.6+k3s1`, MetalLB `0.16.2`, Longhorn `1.13.0`, Traefik `42.4.0`, Prometheus `29.47.2`, Grafana `14.4.1` |
-| **A3** restore + verify | 2026-11-16 | content restored byte-identical; certificates re-issued for all 8 hostnames once the router returned to `.201` |
+| **A3** restore + verify | 2026-11-16 | content restored byte-identical; certificates re-issued for all 11 hostnames then in service once the router returned to `.201` (14 today) |
 | **A4** exit criteria | 2026-11-16 | all six criteria met — see [cluster-status.md](cluster-status.md) for the post-rebuild snapshot **and the rebuild history**, including the five defects the rebuild surfaced |
 
 Version data was checked on 2026-11-14; the pins above are what is now running.

@@ -52,10 +52,10 @@ pull requests are no longer opened against it. See
 > from is [docs/upgrade.md](docs/upgrade.md).
 
 > **Status:** all four nodes `Ready` on k3s `v1.36.6+k3s1` (Ubuntu 26.04.1),
-> all five volumes `healthy` with 15 replicas, **all eight public hostnames
-> serving valid Let's Encrypt certificates**, Prometheus **24 targets / 0
-> down**. The frozen 2021 stack was retired by a full rebuild on 2026-11-15/16
-> — before-and-after is recorded in
+> all five volumes `healthy` with 15 replicas, **all fourteen public hostnames
+> serving valid Let's Encrypt certificates** (7 certificates), Prometheus **24
+> targets / 0 down**. The frozen 2021 stack was retired by a full rebuild on
+> 2026-11-15/16 — before-and-after is recorded in
 > [docs/cluster-status.md](docs/cluster-status.md).
 >
 > **Next:** bootstrap Argo CD per [docs/gitops.md](docs/gitops.md), then the
