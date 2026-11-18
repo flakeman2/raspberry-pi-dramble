@@ -7,7 +7,8 @@
 #
 # Exit codes:
 #   0  every pin is current
-#   1  at least one update is available
+#   1  at least one update is available, OR one is blocked by a compatibility
+#      constraint (still actionable: the blocker has to move first)
 #   2  at least one check could not run (network / API failure)
 #      — distinct from 1 on purpose: "we could not tell" must never look like
 #        "nothing to do".
@@ -26,6 +27,7 @@ cd "$(dirname "$0")/.." || exit 2
 
 UPDATES=0
 ERRORS=0
+BLOCKED=0
 CHECKS=0
 
 # --- reporting -------------------------------------------------------------
@@ -33,8 +35,9 @@ row() { # status label detail
   printf '  %-9s %-34s %s\n' "$1" "$2" "$3"
   CHECKS=$((CHECKS + 1))
   case "$1" in
-    update) UPDATES=$((UPDATES + 1)) ;;
-    error)  ERRORS=$((ERRORS + 1)) ;;
+    update)  UPDATES=$((UPDATES + 1)) ;;
+    blocked) BLOCKED=$((BLOCKED + 1)) ;;
+    error)   ERRORS=$((ERRORS + 1)) ;;
   esac
 }
 
@@ -52,6 +55,45 @@ a, b = parts(sys.argv[1]), parts(sys.argv[2])
 n = max(len(a), len(b))
 a += [0] * (n - len(a)); b += [0] * (n - len(b))
 sys.exit(0 if a > b else 1)
+PY
+}
+
+# The highest Kubernetes minor the INSTALLED Longhorn version was tested
+# against, read from the compatibility table in docs/upgrade.md (section B2)
+# rather than hardcoded — so it stays correct when Longhorn is upgraded.
+#
+# This matters: k3s 1.37.2 is newer than our pin, but Longhorn 1.13.x is only
+# tested on 1.33–1.36, so taking it now would put the storage layer outside
+# its supported range. Reporting that as a plain "update available" would be
+# actively misleading.
+max_k8s_for_longhorn() { # $1 = installed longhorn version
+  python3 - "$1" <<'PY'
+import re, sys
+
+installed = sys.argv[1].lstrip('v')
+doc = open('docs/upgrade.md', encoding='utf-8').read()
+
+def matches(pattern, version):
+    """'1.13.x' matches '1.13.0'; '1.9.2' matches only itself."""
+    p = [s for s in pattern.strip().split('.')]
+    v = [s for s in version.split('.')]
+    if len(p) != len(v):
+        return False
+    return all(seg == 'x' or seg == ver for seg, ver in zip(p, v))
+
+best = None
+for line in doc.splitlines():
+    # rows look like: | 1.12.x, 1.13.x | 1.33–1.36 |
+    m = re.match(r'\|\s*([\d.,\sx]+?)\s*\|\s*([\d.]+)[–-]([\d.]+)\s*\|', line)
+    if not m:
+        continue
+    if any(matches(pat, installed) for pat in m.group(1).split(',')):
+        top = int(m.group(3).split('.')[1])       # minor of the upper bound
+        best = top if best is None else max(best, top)
+
+if best is None:
+    sys.exit(1)                                   # no row matched: say so
+print(best)
 PY
 }
 
@@ -128,7 +170,7 @@ except Exception:
 }
 
 check_k3s() { # current
-  local current=$1 latest
+  local current=$1 latest max_minor
   # /channels/stable answers 302 -> HTML; the collection endpoint is JSON.
   latest=$(curl -fsSL --max-time 25 https://update.k3s.io/v1-release/channels 2>/dev/null \
     | python3 -c "
@@ -138,6 +180,18 @@ for c in json.load(sys.stdin).get('data', []):
         print(c['latest']); break
 " 2>/dev/null) || { row error "k3s (stable channel)" "could not read channel"; return; }
   latest=${latest%%+*}          # v1.37.2+k3s1 -> v1.37.2
+
+  # Is the newest k3s inside the range our Longhorn was tested against?
+  # Take the minor explicitly: `${latest#1.}` would give "37.2", and a
+  # non-integer test silently evaluates false.
+  max_minor=$(max_k8s_for_longhorn "${LONGHORN:-1.13.0}" 2>/dev/null || true)
+  minor=$(printf '%s' "$latest" | cut -d. -f2)
+  if [ -n "$max_minor" ] && [ -n "$minor" ] && [ "$minor" -gt "$max_minor" ] 2>/dev/null; then
+    row blocked "k3s (stable channel)" \
+      "$current -> $latest  BLOCKED: Longhorn ${LONGHORN} tested only to 1.${max_minor}"
+    return
+  fi
+
   if newer "$latest" "$current"; then
     row update "k3s (stable channel)" "$current -> $latest"
   else
@@ -247,10 +301,14 @@ fi
 
 # =============================================================================
 echo
-echo "checks: $CHECKS   updates available: $UPDATES   errors: $ERRORS"
+echo "checks: $CHECKS   updates: $UPDATES   blocked: $BLOCKED   errors: $ERRORS"
 if [ "$ERRORS" -gt 0 ]; then
   echo "RESULT: could not verify everything — treat as unknown, not as current."
   exit 2
+elif [ "$BLOCKED" -gt 0 ]; then
+  echo "RESULT: a newer version exists but a compatibility constraint blocks it."
+  echo "        Upgrade the blocker first — see docs/upgrade.md B2."
+  exit 1
 elif [ "$UPDATES" -gt 0 ]; then
   echo "RESULT: updates available."
   exit 1
