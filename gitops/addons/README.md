@@ -3,7 +3,11 @@
 Third-party components, each as one Argo CD `Application` wrapping its Helm
 chart with a committed values file.
 
-**Not yet applied.** Migration notes per component are in
+**Applied so far:** `sealed-secrets/` and `metallb/` (2026-11-18) — both
+registered with sync disabled first, diffed, and only then given automation.
+**Not yet applied:** `longhorn/`, `traefik/`, `monitoring/`.
+
+Migration notes per component are in
 [../../docs/upgrade.md](../../docs/upgrade.md) and
 [../../docs/gitops.md](../../docs/gitops.md#prerequisite-the-kubernetes-upgrade).
 

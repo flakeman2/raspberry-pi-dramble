@@ -1,0 +1,57 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metallb
+  namespace: argocd
+  annotations:
+    # Phase 3 ordering: MetalLB must be up before anything needs a
+    # LoadBalancer IP — Traefik's .201 in particular.
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  # The AppProject rather than `default`, so the whitelist is exercised. All
+  # five cluster-scoped kinds this addon creates (Namespace, CRD, ClusterRole,
+  # ClusterRoleBinding, ValidatingWebhookConfiguration) are listed there —
+  # the last two were added specifically when this file was written, because
+  # the original draft would have blocked adoption.
+  project: drumble
+  source:
+    repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
+    targetRevision: dev
+    # Three files, applied together rather than as three separate kubectl calls
+    # as install-addons.sh does:
+    #   metallb-v0.16.2.yaml  the native manifest (namespace, CRDs, RBAC,
+    #                         controller, speaker, validating webhook)
+    #   metrics-rbac.yaml     TokenReview/SAR permissions for the v0.16 metrics
+    #                         scrape — the native manifest does not ship them
+    #   config.yaml           IPAddressPool (.201-.250) + L2Advertisement
+    path: cluster/metallb
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: metallb-system
+  # Registered MANUAL first, per the phase-2 discipline: sync disabled, diff
+  # read line by line, and only then automation. The diff was empty apart from
+  # Argo's own tracking-id annotations on 24 resources — no content changes,
+  # including the webhook certificate, which matched live rather than
+  # clobbering it — so automation follows.
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # The manifest declares the namespace itself, and Argo must not try to
+      # own it beyond that.
+      - CreateNamespace=false
+
+  # prune is safe here, and it was checked rather than assumed:
+  # `argocd app resources metallb` lists 31 managed resources and every one of
+  # them comes from the three manifests in cluster/metallb/ — there is no
+  # controller-generated object (unlike Sealed Secrets' private key) for a
+  # prune to reach.
+  #
+  # Ordering note: install-addons.sh waits for the CRDs to be Established
+  # before applying config.yaml, because the pool CRs fail without them. On
+  # adoption that ordering does not matter — the CRDs are already established
+  # in a running cluster — and Argo retries a sync whose CRs arrive before
+  # their CRD. It would only matter on a genuinely fresh install, where the
+  # sync wave plus Argo's built-in kind ordering (CRDs before custom
+  # resources) covers it.
