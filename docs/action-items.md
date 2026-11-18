@@ -201,11 +201,18 @@ so the next failure does not depend on git alone.
 - Remove the abandoned kube-vip, cert-manager, ghost-blog, and
   kubernetes-dashboard material from any remaining notes or scripts.
 
-### 15. Adopt Argo CD — pilot done 2026-11-17; phases 2–4 remain
+### 15. Adopt Argo CD — phases 1–2 done; 3–4 remain
 
-Phase 1 is complete: Argo CD bootstrapped from `gitops/`, the `whoami` pilot
-adopted with manual sync, and `argocd app diff` empty. It reconciles from
-`dev`. Remaining: workloads and sealed secrets (2), addons (3), CI (4).
+**Phase 1 (2026-11-17):** Argo CD bootstrapped from `gitops/`, the `whoami`
+pilot adopted, `argocd app diff` empty, reconciling from `dev`.
+
+**Phase 2 (2026-11-17):** `mysite-nginx`, `jekyll-website`, `dashboards` and
+`dns` adopted alongside `whoami` — all five on automated sync with self-heal
+and prune. Each was registered with sync disabled first, diffed, and only then
+given automation, per the convention that prune stays off until an app's diff
+is clean. Sealed Secrets landed the same day and closed this item's blocker.
+
+**Remaining:** addons as Argo Applications (3) and the rest of CI (4).
 Conventions: [gitops.md](gitops.md) and [../gitops/README.md](../gitops/README.md).
 
 ### 16. ~~Restore host tuning: Wi-Fi, Bluetooth, and the overclock~~ — done 2026-11-16

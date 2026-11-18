@@ -157,6 +157,28 @@ independent jobs**, so a red check names itself:
   reference links in every Markdown file.
 - **Workflows** — `actionlint`.
 
+### PR-Agent — advisory, not a gate
+
+`.github/workflows/pr-agent.yml` posts `/describe` and `/review` on every opened
+PR using [PR-Agent](https://github.com/The-PR-Agent/pr-agent) on **Google
+Gemini's free tier** (`gemini/gemini-3.8-flash`, falling back to
+`gemini/gemini-3.5-flash-lite`) — no card, no published daily cap. It needs one
+secret, `GEMINI_API_KEY`, from <https://aistudio.google.com/apikey>.
+
+- **A failed review never blocks a merge** — it is a second opinion, not a
+  check. The four jobs above remain the gate.
+- `.pr_agent.toml` is read from the **default branch**, not from the PR branch.
+  A config merged in the same PR as the workflow therefore has no effect until
+  it lands — the first run will still use the shipped default model and fail
+  looking for an OpenAI key. Merge, then re-run.
+- Deliberately **not pinned** to a SHA or tag. The action's Dockerfile is a
+  single `FROM pragent/pr-agent:github_action`, so pinning the wrapper would
+  pin the wrapper and not the code that runs. It posts comments; it is nowhere
+  near the deploy path.
+- Free-tier caveat: Google's terms allow free-tier content to be used to
+  improving their products. Both repositories are public, so the exposure is
+  low — but it is the reason this is not the default for private work.
+
 Not yet: an `argocd app diff --local` job for apps that have cluster access.
 
 CI deliberately holds **no cluster credentials**. The other half of "docs match
@@ -182,7 +204,7 @@ gate.
 |---|---|---|---|
 | 0. Upgrade | k3s, Longhorn, MetalLB, Traefik, monitoring charts | Argo CD's tested k8s range is met; volumes healthy | ✅ done 2026-11-16 |
 | 1. Pilot | Bootstrap Argo CD; adopt one stateless app (`whoami`) with manual sync | `argocd app diff` is empty; no surprise mutations | ✅ done 2026-11-17 |
-| 2. Workloads | `apps/` for mysite, jekyll, whoami, dashboards, DNS; sealed secrets | Apps auto-sync with self-heal; Grafana is code, not UI state | not started |
+| 2. Workloads | `apps/` for mysite, jekyll, whoami, dashboards, DNS; sealed secrets | Apps auto-sync with self-heal; Grafana is code, not UI state | ✅ done 2026-11-17 |
 | 3. Addons | Traefik, Prometheus, Grafana as Helm Applications; Argo CD self-managed | Addons sync manually; bootstrap script only installs Argo CD | not started |
 | 4. CI | kustomize/kubeconform/gitleaks gates; image pipeline | A bad manifest cannot merge | **in progress** — gates live 2026-11-17; image pipeline shipped in Ephesus |
 
