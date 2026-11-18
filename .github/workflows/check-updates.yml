@@ -1,0 +1,86 @@
+name: Check for updates
+
+# Monthly version-pin audit. Runs scripts/check-updates.sh and turns a
+# non-zero result into a GitHub issue rather than a failed build: an available
+# update is information, not a broken pull request, and a red X on a schedule
+# teaches people to ignore red Xes.
+#
+# Exit codes from the script:
+#   0  everything current      -> no issue
+#   1  updates or a blocked one -> issue
+#   2  a check could not run    -> issue (a silent pass here would be worse
+#                                   than a noisy one: "we could not tell"
+#                                   must never read as "nothing to do")
+#
+# Schedule: 09:00 UTC on the first of each month. GitHub only runs scheduled
+# workflows from the default branch, and disables them after 60 days without
+# repository activity.
+
+on:
+  schedule:
+    - cron: '0 9 1 * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # The script also audits Ephesus when it can find it. A workflow cannot
+      # write outside GITHUB_WORKSPACE, so check it out inside the workspace
+      # and point EPHESUS_DIR at it.
+      - name: Checkout Ephesus
+        uses: actions/checkout@v7
+        with:
+          repository: flakeman2/Ephesus
+          path: ephesus
+
+      - name: Run check-updates.sh
+        id: check
+        run: |
+          set +e
+          EPHESUS_DIR=ephesus ./scripts/check-updates.sh | tee report.txt
+          echo "exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Write the step summary
+        if: always()
+        run: cat report.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or update the issue
+        if: steps.check.outputs.exit != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          {
+            echo "Monthly run of \`scripts/check-updates.sh\` — exit code **${{ steps.check.outputs.exit }}**."
+            echo
+            echo "Exit 1 means updates are available (or one is blocked by a"
+            echo "compatibility constraint); exit 2 means a check could not run,"
+            echo "which is not the same as \"nothing to do\"."
+            echo
+            echo '```'
+            cat report.txt
+            echo '```'
+            echo
+            echo "Close this once the updates are applied, or the remaining pins"
+            echo "are deliberately held — say why in a comment so the next run"
+            echo "does not reopen the same debate."
+          } > body.md
+
+          TITLE="Version updates from check-updates.sh"
+          EXISTING=$(gh issue list --state open \
+            --search "in:title \"$TITLE\"" --json number --jq '.[0].number // empty')
+
+          if [ -n "$EXISTING" ]; then
+            gh issue edit "$EXISTING" --body-file body.md
+            echo "updated existing issue #$EXISTING"
+          else
+            gh issue create --title "$TITLE" --body-file body.md
+          fi
