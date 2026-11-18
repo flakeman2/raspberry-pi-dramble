@@ -28,6 +28,21 @@ fail() { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; FAIL=$((FAIL + 1)); }
 
 count() { kubectl get "$1" -A --no-headers 2>/dev/null | grep -c . || true; }
 
+# Job-owned pods (CronJob and Job output) come and go with
+# successfulJobsHistoryLimit, so an exact TOTAL pod count is inherently
+# unstable — it drifts every time a scheduled job runs and its predecessor is
+# evicted. That is what made this check fail at 66 vs 65 with no real change:
+# the workload count had been 64 the whole time. Assert on workload pods.
+count_workload_pods() {
+  kubectl get pods -A -o json 2>/dev/null | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(sum(1 for p in d['items']
+          if not any(o.get('kind') == 'Job'
+                     for o in (p['metadata'].get('ownerReferences') or []))))
+"
+}
+
 echo "== 1. cluster-status.md totals vs live =="
 # shellcheck disable=SC2016
 DOC_TOTALS=$(python3 - <<'PY'
@@ -49,7 +64,7 @@ if [ "$DOC_TOTALS" = "PARSE_ERROR" ] || [ -z "$DOC_TOTALS" ]; then
   fail "could not parse the Totals line in docs/cluster-status.md"
 else
   declare -A LIVE=(
-    [pods]="$(count pods)"
+    [pods]="$(count_workload_pods)"
     [namespaces]="$(count ns)"
     [Deployments]="$(count deploy)"
     [DaemonSets]="$(count ds)"

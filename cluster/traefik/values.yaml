@@ -1,7 +1,7 @@
-# Traefik values for chart `traefik` 42.4.0 (app v3.7.18).
+# Traefik values for chart `traefik` 42.4.1 (app v3.7.19).
 #
 #   helm upgrade --install traefik traefik/traefik \
-#     --namespace traefik --version 42.4.0 \
+#     --namespace traefik --version 42.4.1 \
 #     -f cluster/traefik/values.yaml
 #
 # The chart's values schema sets `additionalProperties: false` at the top
@@ -14,11 +14,24 @@
 # Certificates are issued by Traefik's built-in ACME (TLS-ALPN challenge) and
 # stored in /data/acme.json on the `traefik` Longhorn PVC.
 
+# Recreate, not RollingUpdate. The acme.json PVC is ReadWriteOnce, so a surge
+# pod cannot attach a volume the old pod still holds while maxUnavailable: 0
+# keeps the old pod alive — a deadlock that hit twice during the 2026-10-15
+# rebuild and needed a manual pod delete each time.
+#
+# The chart key is `updateStrategy`, not `deployment.strategy` (there is no
+# such key, and the schema would reject it). Setting the type here means the
+# chart RENDERS Recreate directly, so there is no window during an upgrade in
+# which RollingUpdate is live — which is what made the old
+# patch-after-upgrade dance in install-addons.sh fragile.
+updateStrategy:
+  type: Recreate
+
 deployment:
   replicas: 1
   initContainers:
   - name: volume-permissions
-    image: busybox:1.37.0
+    image: busybox:1.38.0
     # Chart 42 sets a pod-level securityContext of runAsUser/runAsGroup 65532
     # with runAsNonRoot, which the init container would otherwise inherit. It
     # must run as root to prepare the Longhorn volume (root:root, drwxr-xr-x),

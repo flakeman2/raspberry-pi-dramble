@@ -143,14 +143,21 @@ No under-voltage or thermal throttling on any node.
 | whoami | `whoami` | 2/2 | `traefik/whoami` |
 | default | `dyn-dns-*` CronJobs | Complete | `curlimages/curl:7.81.0` |
 
-Totals: **66 pods**, 12 namespaces, 23 Deployments, 5 DaemonSets, 2
+Totals: **64 pods**, 12 namespaces, 23 Deployments, 5 DaemonSets, 2
 StatefulSets, 2 CronJobs, 27 Services, 12 IngressRoutes, 5 Middlewares, 1
 TLSOption, 6 PDBs, 10 NetworkPolicies (6 Longhorn's own, 4 Argo CD's).
 
-The deltas from the 2026-11-16 rebuild snapshot are all Argo CD (+1 namespace,
-+5 pods, +4 Deployments, +1 StatefulSet, +5 Services, +4 NetworkPolicies, +3
-IngressRoutes from `prometheus` and the two `argocd` routes) plus Sealed
-Secrets (+1 pod, +1 Deployment, +2 Services).
+The workload count deliberately **excludes Job-owned pods** (CronJob and Job
+output). Those come and go with `successfulJobsHistoryLimit`, so a total pod
+count drifts every time a scheduled job runs and its predecessor is evicted —
+which is exactly how this line was caught reading 66 while the cluster sat at
+65 with nothing actually changed. `scripts/verify-docs.sh` asserts the same
+workload-only number.
+
+The workload deltas from the 2026-11-16 rebuild snapshot are all Argo CD (+1
+namespace, +5 pods, +4 Deployments, +1 StatefulSet, +5 Services, +4
+NetworkPolicies, +3 IngressRoutes from `prometheus` and the two `argocd`
+routes) plus Sealed Secrets (+1 pod, +1 Deployment, +2 Services).
 
 These numbers are asserted against the live cluster by
 [`scripts/verify-docs.sh`](../scripts/verify-docs.sh); run it after changing

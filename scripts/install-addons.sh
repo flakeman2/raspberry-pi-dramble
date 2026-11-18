@@ -17,9 +17,9 @@ cd "$(dirname "$0")/.."
 
 : "${KUBECONFIG:?set KUBECONFIG to the cluster kubeconfig}"
 
-TRAEFIK_CHART_VERSION=42.4.0
+TRAEFIK_CHART_VERSION=42.4.1
 PROMETHEUS_CHART_VERSION=29.47.2
-GRAFANA_CHART_VERSION=14.4.1
+GRAFANA_CHART_VERSION=14.5.0
 LONGHORN_VERSION=1.13.0
 METALLB_VERSION=0.16.2
 
@@ -116,11 +116,15 @@ echo "==> Traefik ${TRAEFIK_CHART_VERSION}"
 helm upgrade --install traefik traefik/traefik \
   --namespace traefik --version "${TRAEFIK_CHART_VERSION}" \
   -f cluster/traefik/values.yaml --wait --timeout 10m
-# Chart 42 exposes no `deployment.strategy` key (its values schema rejects
-# unknown keys), and the default RollingUpdate deadlocks against the RWO
-# acme.json PVC: the new pod waits for a detach that never comes while
-# maxUnavailable keeps the old pod alive. Hit twice during the 2026-11-15
-# rebuild; each time it needed a manual pod delete. Recreate avoids it.
+# Chart 42 has no `deployment.strategy` key and its schema rejects unknown
+# keys, so the Recreate strategy is set via `updateStrategy.type` in
+# cluster/traefik/values.yaml — which means the chart renders it directly and
+# there is no window during an upgrade where RollingUpdate is live against the
+# RWO acme.json PVC. The patch below is kept as a belt-and-braces fallback for
+# the case where that value is ever removed: the default RollingUpdate
+# deadlocks (new pod waits for a detach that never comes while maxUnavailable
+# keeps the old one alive), hit twice during the 2026-10-15 rebuild, each time
+# needing a manual pod delete.
 kubectl -n traefik patch deploy traefik --type json \
   -p '[{"op":"replace","path":"/spec/strategy","value":{"type":"Recreate"}}]'
 
