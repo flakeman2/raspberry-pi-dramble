@@ -12,8 +12,19 @@ spec:
   # sealed-secrets app succeeded against this project with the suffix on the
   # Application and absent here), but spelling them identically removes an
   # ambiguity that reads as a bug on every future PR.
+  #
+  # The Helm repositories follow: an Application whose chart comes from a Helm
+  # repo is rejected without one, which is exactly how traefik adoption was
+  # stopped with "application repo https://traefik.github.io/charts is not
+  # permitted in project 'drumble'". These are the same repositories
+  # install-addons.sh registers, plus argo-helm for phase 3 when Argo CD
+  # manages its own release.
   sourceRepos:
     - https://github.com/flakeman2/raspberry-pi-dramble.git
+    - https://traefik.github.io/charts
+    - https://prometheus-community.github.io/helm-charts
+    - https://grafana-community.github.io/helm-charts
+    - https://argoproj.github.io/argo-helm
 
   destinations:
     - server: https://kubernetes.default.svc
@@ -27,14 +38,18 @@ spec:
   #   metallb   Namespace, CustomResourceDefinition (9), ClusterRole,
   #             ClusterRoleBinding, ValidatingWebhookConfiguration
   #   sealed    CustomResourceDefinition, ClusterRole, ClusterRoleBinding
+  #   traefik   IngressClass, CustomResourceDefinition, ClusterRole,
+  #             ClusterRoleBinding
   #
   # Longhorn's `longhorn` StorageClass is NOT listed: it lives inside a
   # ConfigMap (`storageclass.yaml`) and is created by the Longhorn manager at
   # runtime, so no Application ever applies it.
   #
-  # The earlier draft of this file omitted PriorityClass and
-  # ValidatingWebhookConfiguration, which would have blocked Phase 3 adoption
-  # of Longhorn and MetalLB.
+  # The earlier drafts of this file omitted PriorityClass, then
+  # ValidatingWebhookConfiguration, then IngressClass — each one blocking the
+  # adoption of an addon (Longhorn, MetalLB, Traefik). The list is now derived
+  # by scanning every vendored manifest AND rendering every Helm chart, so the
+  # next addon cannot hit a fourth surprise.
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
@@ -48,6 +63,8 @@ spec:
       kind: PriorityClass
     - group: admissionregistration.k8s.io
       kind: ValidatingWebhookConfiguration
+    - group: networking.k8s.io
+      kind: IngressClass
 
   # Nothing in this cluster uses quotas or limit ranges; denying them stops an
   # Application from quietly introducing one.

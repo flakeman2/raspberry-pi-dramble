@@ -3,9 +3,17 @@
 Third-party components, each as one Argo CD `Application` wrapping its Helm
 chart with a committed values file.
 
-**Applied so far:** `sealed-secrets/` and `metallb/` (2026-11-18) — both
-registered with sync disabled first, diffed, and only then given automation.
-**Not yet applied:** `longhorn/`, `traefik/`, `monitoring/`.
+**Applied so far:** `sealed-secrets/`, `metallb/` and `traefik/` +
+`traefik-config/` (2026-11-18) — each registered with sync disabled first,
+diffed, and only then given automation. **Not yet applied:** `longhorn/`,
+`monitoring/`.
+
+Traefik is two Applications rather than one: an Application is either a
+Helm chart or a directory of manifests, never both. `traefik/` is the
+release (multi-source: chart from the Traefik Helm repo, values from this
+repository), `traefik-config/` is the CRs, built by
+[../../cluster/traefik/kustomization.yaml](../../cluster/traefik/kustomization.yaml)
+because that directory also holds `values.yaml`, which is not a manifest.
 
 Migration notes per component are in
 [../../docs/upgrade.md](../../docs/upgrade.md) and
