@@ -54,7 +54,20 @@ All four gates below are **satisfied** — evidence in
 | Ingress | `argocd.devinflake.com` via `IngressRoute`, TLS-ALPN, server runs `--insecure` |
 | Storage | none (emptyDir caches); no PVC |
 | Git source | this repository, path `gitops/`, `targetRevision: dev` |
-| Sync policy | automated + self-heal for apps; manual for addons |
+| Sync policy | automated + self-heal for **all** Applications, addons included |
+
+**Sync policy — decided 2026-11-17.** Addons were originally planned as
+*manual* sync, on the reasoning that they own CRDs, RBAC and storage, so a bad
+chart bump should not reach the cluster without a human clicking Sync. That
+reasoning still holds; it is being **accepted deliberately** in favour of
+consistency with the phase-2 apps: a merged pin change deploys on its own, and
+the gate is the pull request plus CI rather than a button.
+
+The compensating control is `prune`, which is enabled per Application **only
+after its diff is proven empty** — never on the strength of an assumption. The
+one case where that mattered was Sealed Secrets, where the failure mode is
+unrecoverable; see `gitops/addons/sealed-secrets/application.yaml` for how
+prune was shown not to reach the controller's private key.
 
 Argo CD adds a controller, repo-server, Redis, and API server to a cluster of
 four 4 GB nodes. That is affordable but not free: give every component explicit
@@ -205,7 +218,7 @@ gate.
 | 0. Upgrade | k3s, Longhorn, MetalLB, Traefik, monitoring charts | Argo CD's tested k8s range is met; volumes healthy | ✅ done 2026-11-16 |
 | 1. Pilot | Bootstrap Argo CD; adopt one stateless app (`whoami`) with manual sync | `argocd app diff` is empty; no surprise mutations | ✅ done 2026-11-17 |
 | 2. Workloads | `apps/` for mysite, jekyll, whoami, dashboards, DNS; sealed secrets | Apps auto-sync with self-heal; Grafana is code, not UI state | ✅ done 2026-11-17 |
-| 3. Addons | Traefik, Prometheus, Grafana as Helm Applications; Argo CD self-managed | Addons sync manually; bootstrap script only installs Argo CD | not started |
+| 3. Addons | Traefik, Prometheus, Grafana as Helm Applications; Argo CD self-managed | Addons sync automatically with self-heal; bootstrap script only installs Argo CD | **in progress** — AppProject + sealed-secrets adopted 2026-11-17 |
 | 4. CI | kustomize/kubeconform/gitleaks gates; image pipeline | A bad manifest cannot merge | **in progress** — gates live 2026-11-17; image pipeline shipped in Ephesus |
 
 Keep the rebuild path working throughout: `scripts/install-addons.sh` remains
