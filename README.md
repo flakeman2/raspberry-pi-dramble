@@ -120,7 +120,10 @@ gh pr create --base dev --fill
 
 Merge the topic branch into `dev` once it looks right. CI runs four jobs on the
 PR — manifests, secrets, docs, workflows — and a green check is the review
-record.
+record. PR-Agent additionally posts an AI `/describe` and `/review` on every
+opened PR, on Google's free Gemini tier; that is advisory second opinion, not a
+gate, and a failed review never blocks a merge (see
+[docs/gitops.md](docs/gitops.md#pr-agent--advisory-not-a-gate)).
 
 Repository settings back this up: `dev` rejects force-pushes and deletion. Head
 branches are deleted automatically when a pull request merges
