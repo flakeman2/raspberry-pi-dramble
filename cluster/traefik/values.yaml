@@ -18,7 +18,7 @@ deployment:
   replicas: 1
   initContainers:
   - name: volume-permissions
-    image: busybox:1.37.0
+    image: busybox:1.38.0
     # Chart 42 sets a pod-level securityContext of runAsUser/runAsGroup 65532
     # with runAsNonRoot, which the init container would otherwise inherit. It
     # must run as root to prepare the Longhorn volume (root:root, drwxr-xr-x),
