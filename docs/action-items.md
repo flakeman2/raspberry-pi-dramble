@@ -77,8 +77,10 @@ kubectl get svc -A --no-headers | awk '$3=="LoadBalancer" {print $1"/"$2, $5}'
 The rebuild replaced the frozen 2021 stack (k3s 1.22 EOL, Longhorn 1.2.3,
 MetalLB 0.11.0, Traefik 2.5.6) with k3s `v1.36.6+k3s1`, Longhorn `1.13.0`,
 MetalLB `0.16.2` (CRD pool), Traefik `v3.7.18` / chart `42.4.0`, Prometheus
-`3.16.0` / chart `29.47.2`, and Grafana `13.3.1` / chart `14.4.1` — all live,
-all verified against A4.
+`3.16.0` / chart `29.47.2`, and Grafana `13.3.1` / chart `14.4.1` — all live
+and verified against A4. Traefik and Grafana have since been bumped to chart
+`42.4.1` / `v3.7.19` and `14.5.0` (2026-11-18); the current inventory is
+[cluster-status.md](cluster-status.md).
 
 - Plan, gates and the in-place alternative: [upgrade.md](upgrade.md)
 - Post-rebuild snapshot **and the rebuild history**: [cluster-status.md](cluster-status.md)
@@ -149,7 +151,8 @@ answered. Cleared in three passes:
 ### 9. ~~Pin image tags~~ — done 2026-11-17
 
 The live cluster used floating tags for `nginx:latest` and `traefik/whoami`
-(`curlimages/curl` was already pinned to `7.81.0` in the DNS manifests).
+(`curlimages/curl` was already pinned in the DNS manifests; that pin is
+now `8.23.0`).
 
 Pinned to **`nginx:1.31.8`** and **`traefik/whoami:v1.12.0`**, chosen by
 matching the *running* container's index digest against the registry rather
@@ -243,8 +246,17 @@ and prune. Each was registered with sync disabled first, diffed, and only then
 given automation, per the convention that prune stays off until an app's diff
 is clean. Sealed Secrets landed the same day and closed this item's blocker.
 
-**Remaining:** addons as Argo Applications (3) and the rest of CI (4).
-Conventions: [gitops.md](gitops.md) and [../gitops/README.md](../gitops/README.md).
+**Phase 3 (2026-11-17/18):** the `drumble` AppProject, then Sealed Secrets,
+MetalLB and Traefik — the last as two Applications, `traefik` (the Helm
+release) and `traefik-config` (the CRs), because an Application is either a
+chart or a directory of manifests, never both. Every one followed the same
+register-diff-then-automate discipline, and the AppProject whitelist was
+widened three times by the adoptions themselves: `PriorityClass` for Longhorn,
+`ValidatingWebhookConfiguration` for MetalLB, `IngressClass` for Traefik.
+
+**Remaining:** monitoring and Longhorn as Argo Applications, the root
+app-of-apps, then `install-addons.sh` shrinks to bootstrap-only. Conventions:
+[gitops.md](gitops.md) and [../gitops/README.md](../gitops/README.md).
 
 ### 16. ~~Restore host tuning: Wi-Fi, Bluetooth, and the overclock~~ — done 2026-11-16
 

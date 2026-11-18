@@ -89,9 +89,9 @@ it — `mysite-content` is RWX.
 | k3s | `v1.36.6+k3s1` | `scripts/install-server.sh` / `install-agent.sh` |
 | Longhorn | `1.13.0` | upstream `deploy/longhorn.yaml` |
 | MetalLB | `0.16.2` | vendored native manifest + `IPAddressPool`/`L2Advertisement` |
-| Traefik | chart `42.4.0` / app `v3.7.18` | Helm release `traefik` |
+| Traefik | chart `42.4.1` / app `v3.7.19` | Helm release `traefik` |
 | Prometheus | chart `29.47.2` / app `3.16.0` | Helm release `prometheus` |
-| Grafana | chart `14.4.1` / app `13.3.1` | Helm release `grafana` (grafana-community repo) |
+| Grafana | chart `14.5.0` / app `13.3.1` | Helm release `grafana` (grafana-community repo) |
 | metrics-server | `v0.9.0` | k3s add-on |
 | CoreDNS | `1.14.7` | k3s add-on |
 | containerd | `2.3.7-k3s1.36` | bundled |
@@ -132,7 +132,7 @@ No under-voltage or thermal throttling on any node.
 | longhorn-system | `longhorn-driver-deployer`, `longhorn-global-manager`, `longhorn-ui` | 1/1, 3/3, 2/2 | Longhorn `1.13.0` |
 | longhorn-system | CSI sidecars (`attacher`/`provisioner`/`resizer`/`snapshotter`) | 3/3 each | Longhorn CSI |
 | longhorn-system | `share-manager-*` (one per RWX volume) | 1/1 | Longhorn NFS server |
-| traefik | `traefik` | 1/1 | `docker.io/traefik:v3.7.18`, strategy **`Recreate`** |
+| traefik | `traefik` | 1/1 | `docker.io/traefik:v3.7.19`, strategy **`Recreate`** |
 | monitoring | `prometheus-server` | 1/1 | `quay.io/prometheus/prometheus:v3.16.0` |
 | monitoring | `prometheus-alertmanager` (StatefulSet) | 1/1 | Alertmanager (chart default) |
 | monitoring | `prometheus-kube-state-metrics` / `pushgateway` | 1/1 each | chart defaults |
@@ -141,7 +141,7 @@ No under-voltage or thermal throttling on any node.
 | mysite-nginx | `mysite-nginx` | 1/1 | `nginx:latest` |
 | jekyll | `jekyll-website` | 3/3 | `flakeman2/jekyll:1.0.6` |
 | whoami | `whoami` | 2/2 | `traefik/whoami` |
-| default | `dyn-dns-*` CronJobs | Complete | `curlimages/curl:7.81.0` |
+| default | `dyn-dns-*` CronJobs | Complete | `curlimages/curl:8.23.0` |
 
 Totals: **64 pods**, 12 namespaces, 23 Deployments, 5 DaemonSets, 2
 StatefulSets, 2 CronJobs, 27 Services, 12 IngressRoutes, 5 Middlewares, 1

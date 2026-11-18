@@ -6,9 +6,9 @@ reproduces the stack pinned in this repository:
 - k3s `v1.36.6+k3s1`, single server
 - MetalLB `0.16.2` (vendored native manifest + `IPAddressPool`/`L2Advertisement` CRs)
 - Longhorn `1.13.0`
-- Traefik chart `42.4.0` (app `v3.7.18`) with ACME
+- Traefik chart `42.4.1` (app `v3.7.19`) with ACME
 - Prometheus chart `29.47.2` (app `3.16.0`)
-- Grafana chart `14.4.1` (app `13.3.1`), from the `grafana-community` Helm repo
+- Grafana chart `14.5.0` (app `13.3.1`), from the `grafana-community` Helm repo
 - Workloads in `cluster/workloads/`
 
 > **Note:** these pins replaced the 2021 stack (k3s `v1.22.5+k3s1`, Traefik
@@ -253,9 +253,9 @@ The script performs, in order:
 1. MetalLB namespace, manifest, and address pool
 2. Longhorn manifest, waits for the driver deployer and manager
 3. Helm repo setup
-4. Traefik chart `42.4.0` with `cluster/traefik/values.yaml`
+4. Traefik chart `42.4.1` with `cluster/traefik/values.yaml`
 5. Prometheus chart `29.47.2` with chart defaults
-6. Grafana chart `14.4.1` with `cluster/monitoring/grafana-values.yaml`
+6. Grafana chart `14.5.0` with `cluster/monitoring/grafana-values.yaml`
 7. Traefik `TLSOption`, `Middleware`, and `IngressRoute` objects
 8. Workloads (`cluster/workloads/`)
 9. Dashboard `IngressRoute`s
@@ -282,11 +282,11 @@ helm repo add prometheus-community https://prometheus-community.github.io/helm-c
 helm repo add grafana https://grafana-community.github.io/helm-charts
 helm repo update
 
-helm install traefik traefik/traefik -n traefik --version 42.4.0 \
+helm install traefik traefik/traefik -n traefik --version 42.4.1 \
   -f cluster/traefik/values.yaml
 helm install prometheus prometheus-community/prometheus -n monitoring --version 29.47.2 \
   -f cluster/monitoring/prometheus-values.yaml
-helm install grafana grafana/grafana -n monitoring --version 14.4.1 \
+helm install grafana grafana/grafana -n monitoring --version 14.5.0 \
   -f cluster/monitoring/grafana-values.yaml
 
 kubectl wait --for condition=established --timeout=60s \
