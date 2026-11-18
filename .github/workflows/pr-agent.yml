@@ -45,6 +45,11 @@ on:
   pull_request:
     types: [opened, reopened, ready_for_review, synchronize]
   issue_comment:
+    # Only NEW comments. Omitting `types` defaults to
+    # [created, edited, deleted], so editing an existing comment would
+    # re-trigger a review for free; a command is posted once, so `created` is
+    # all we need.
+    types: [created]
 
 permissions:
   contents: read
@@ -62,9 +67,14 @@ concurrency:
 jobs:
   pr_agent_job:
     runs-on: ubuntu-latest
-    # Never let the bot act on its own comments — issue_comment fires for
-    # every comment, including the ones PR-Agent posts.
-    if: ${{ github.event.sender.type != 'Bot' }}
+    # Two guards:
+    #  - never act on the bot's own comments: issue_comment fires for every
+    #    comment, including the ones PR-Agent posts;
+    #  - issue_comment also fires for regular GitHub issues, where the review
+    #    commands do not apply, so require that the target is a pull request.
+    #    On pull_request events github.event.issue is undefined, so
+    #    !github.event.issue is true and that clause short-circuits.
+    if: ${{ github.event.sender.type != 'Bot' && (!github.event.issue || github.event.issue.pull_request) }}
     steps:
       - name: PR Agent
         uses: the-pr-agent/pr-agent@main
