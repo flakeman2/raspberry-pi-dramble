@@ -10,7 +10,9 @@
 | **A3** restore + verify | 2026-11-16 | content restored byte-identical; certificates re-issued for all 11 hostnames then in service once the router returned to `.201` (14 today) |
 | **A4** exit criteria | 2026-11-16 | all six criteria met — see [cluster-status.md](cluster-status.md) for the post-rebuild snapshot **and the rebuild history**, including the five defects the rebuild surfaced |
 
-Version data was checked on 2026-11-14; the pins above are what is now running.
+Version data was checked on 2026-11-14; the pins above are what the rebuild
+installed, and Traefik (`42.4.1`) and Grafana (`14.5.0`) were bumped again on
+2026-11-18 — [cluster-status.md](cluster-status.md) is the current inventory.
 Still open after the rebuild: the Park-Your-Domain rotation
 ([secrets.md](secrets.md#rotation-decisions-2026-11-14)), host tuning
 ([action-items.md](action-items.md) item 16), and Argo CD
@@ -27,9 +29,9 @@ after this work; see [gitops.md](gitops.md).
 | k3s / Kubernetes | `v1.22.5+k3s1` | `v1.36.6+k3s1` | Newest minor tested by both Longhorn 1.13 (`1.33–1.36`) and Argo CD 3.6 (`1.34–1.37`); `1.36.6` was current on 2026-11-14 |
 | Longhorn | `1.2.3` | `1.13.0` | Tested on k8s 1.33–1.36 |
 | MetalLB | `0.11.0` | `0.16.2` (vendored native manifest) | CRD-based configuration since 0.13; no Helm chart needed |
-| Traefik | `2.5.6`, chart `10.9.1` | `3.7.18`, chart `42.4.0` | Chart requires k8s ≥ 1.30; its values schema rejects unknown keys |
+| Traefik | `2.5.6`, chart `10.9.1` | `3.7.19`, chart `42.4.1` | Chart requires k8s ≥ 1.30; its values schema rejects unknown keys |
 | Prometheus | `2.31.1`, chart `15.1.3` | `3.16.0`, chart `29.47.2` | Chart requires a current k8s minor |
-| Grafana | `8.3.5`, chart `6.21.4` | `13.3.1`, chart `14.4.1` | Chart moved to the `grafana-community` Helm repo after 2026-01-30; `grafana.github.io` serves a frozen, deprecated 10.5.x line |
+| Grafana | `8.3.5`, chart `6.21.4` | `13.3.1`, chart `14.5.0` | Chart moved to the `grafana-community` Helm repo after 2026-01-30; `grafana.github.io` serves a frozen, deprecated 10.5.x line |
 | metrics-server | `0.5.0` | k3s-bundled | Nothing to install; confirm `kubectl top` afterwards |
 | CoreDNS | `1.8.4` | k3s bundled | Do not manage separately |
 | Argo CD | — | `3.6.x` | Install after k8s reaches ≥ 1.34 |

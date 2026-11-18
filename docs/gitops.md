@@ -1,8 +1,10 @@
 # GitOps with Argo CD
 
-**Status:** planned. Nothing in `gitops/` is applied yet; the live cluster is
-still managed by `scripts/install-addons.sh` plus manual `kubectl`/`helm`. This
-page is the design and the staged rollout plan.
+**Status:** in progress. Phases 1 and 2 are complete, and phase 3 has adopted
+Sealed Secrets, MetalLB and Traefik (2026-11-18) — nine Applications are live
+and reconciling from `dev`. What `scripts/install-addons.sh` still installs is
+Longhorn and monitoring; it shrinks to bootstrap-only at the end of phase 3.
+This page is the design and the staged rollout plan.
 
 ## Goals
 
@@ -32,7 +34,7 @@ repository before the rebuild:
 |---|---|---|---|
 | Longhorn | 1.2.3 | Supported k8s only through ~1.24; step through minors | `1.13.0` (tested 1.33–1.36) |
 | MetalLB | 0.11.0 | ConfigMap address pool; 0.13+ requires `IPAddressPool` CRs | `0.16.2` with `IPAddressPool` + `L2Advertisement` |
-| Traefik | 2.5.6 | Manifests used `traefik.containo.us`; Traefik 3 dropped that group | `3.7.18`, chart `42.4.0`, `traefik.io` CRs |
+| Traefik | 2.5.6 | Manifests used `traefik.containo.us`; Traefik 3 dropped that group | `3.7.19`, chart `42.4.1`, `traefik.io` CRs |
 
 All four gates below are **satisfied** — evidence in
 [cluster-status.md](cluster-status.md):
@@ -90,7 +92,8 @@ gitops/
   README.md               Conventions and the app-of-apps root
   bootstrap/              Argo CD install — the only non-Git step
   projects/               AppProject boundaries
-  addons/                 MetalLB, Longhorn, Traefik, monitoring, sealed-secrets
+  addons/                 sealed-secrets, MetalLB, Traefik, traefik-config;
+                          Longhorn and monitoring still to come
   apps/                   First-party workloads (Kustomize)
 ```
 
@@ -218,7 +221,7 @@ gate.
 | 0. Upgrade | k3s, Longhorn, MetalLB, Traefik, monitoring charts | Argo CD's tested k8s range is met; volumes healthy | ✅ done 2026-11-16 |
 | 1. Pilot | Bootstrap Argo CD; adopt one stateless app (`whoami`) with manual sync | `argocd app diff` is empty; no surprise mutations | ✅ done 2026-11-17 |
 | 2. Workloads | `apps/` for mysite, jekyll, whoami, dashboards, DNS; sealed secrets | Apps auto-sync with self-heal; Grafana is code, not UI state | ✅ done 2026-11-17 |
-| 3. Addons | Traefik, Prometheus, Grafana as Helm Applications; Argo CD self-managed | Addons sync automatically with self-heal; bootstrap script only installs Argo CD | **in progress** — AppProject + sealed-secrets adopted 2026-11-17 |
+| 3. Addons | Traefik, Prometheus, Grafana as Helm Applications; Argo CD self-managed | Addons sync automatically with self-heal; bootstrap script only installs Argo CD | **in progress** — AppProject `drumble` + sealed-secrets 2026-11-17; MetalLB + Traefik 2026-11-18 |
 | 4. CI | kustomize/kubeconform/gitleaks gates; image pipeline | A bad manifest cannot merge | **in progress** — gates live 2026-11-17; image pipeline shipped in Ephesus |
 
 Keep the rebuild path working throughout: `scripts/install-addons.sh` remains
@@ -234,7 +237,7 @@ Argo CD will surface these immediately; fix them before turning on auto-sync.
   `<ErrCount>0</ErrCount>`;
 - ~~the stray `k3s.service` on kube2~~ — moot: the node was reimaged and
   `install-agent.sh` now disables any stray server unit;
-- ~~the floating `curlimages/curl` tag~~ — pinned to `7.81.0` in
+- ~~the floating `curlimages/curl` tag~~ — pinned (now `8.23.0`) in
   `cluster/dns/cronjobs.yaml`;
 - ~~Grafana's datasource~~ — already codified in
   `cluster/monitoring/grafana-values.yaml`.
@@ -255,8 +258,10 @@ Argo CD will surface these immediately; fix them before turning on auto-sync.
 - One repository (current plan) versus splitting cluster config from application
   source. Splitting buys per-repo permissions and smaller diffs; it costs a
   second repo and cross-repo PRs. At this scale, one repository wins.
-- Whether MetalLB and Longhorn should be Argo-managed or remain bootstrap-only.
-  They are CRD-heavy and upgrade-sensitive; managing them is the goal, but they
-  can be the last phase-3 migration rather than the first.
+- Whether Longhorn should be Argo-managed or remain bootstrap-only. It is
+  CRD-heavy and upgrade-sensitive, and it carries every volume on the cluster,
+  so it is the last phase-3 migration rather than the first. MetalLB answered
+  the same question on 2026-11-18: adopted, with `prune` proven safe by listing
+  what Argo tracks first.
 - ~~Sealed Secrets versus SOPS~~ — **decided 2026-11-17: Sealed Secrets**, see
   [Secrets](#secrets).

@@ -42,7 +42,7 @@ The three disabled components are replaced by explicit add-ons:
 |---|---|
 | `servicelb` (Klipper) | MetalLB 0.16.2 |
 | `local-storage` | Longhorn 1.13.0 |
-| bundled `traefik` | Traefik Helm chart 42.4.0 |
+| bundled `traefik` | Traefik Helm chart 42.4.1 |
 
 k3s still manages these add-ons in `kube-system`: `ccm`, `coredns` (k3s-bundled),
 `metrics-server` (k3s-bundled), `resource-reader`, `aggregated-metrics-reader`,
@@ -78,7 +78,7 @@ on kube2.
 
 ### Traefik
 
-- Chart `traefik` 42.4.0, application v3.7.18, one replica.
+- Chart `traefik` 42.4.1, application v3.7.19, one replica.
 - Entry points: `web` (8000→80), `websecure` (8443→443), `metrics` (9100),
   `traefik` (9000, internal API).
 - Providers: `kubernetesCRD` (with `allowCrossNamespace`) and `kubernetesIngress`.
@@ -147,7 +147,7 @@ values**. It creates:
 - pushgateway
 - configmap-reload sidecar
 
-Grafana chart 14.4.1 runs Grafana 13.3.1 with a 10 GiB Longhorn PVC, a ClusterIP
+Grafana chart 14.5.0 runs Grafana 13.3.1 with a 10 GiB Longhorn PVC, a ClusterIP
 Service on port 80, and one Prometheus datasource (`http://prometheus-server`).
 It is exposed at `grafana.devinflake.com` by an `IngressRoute` in `monitoring`.
 The live Grafana has **no dashboards** imported.

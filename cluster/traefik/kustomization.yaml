@@ -1,0 +1,16 @@
+# The Traefik CRs that configure *this* cluster, kept separate from the Helm
+# release they configure.
+#
+# Argo needs this because `cluster/traefik/` also contains values.yaml, which
+# is not a manifest — a path-based Application over the whole directory would
+# fail on it. Listing the three files explicitly means the CRs can be adopted
+# without touching the chart.
+#
+# install-addons.sh is unaffected: it applies these three files by name, never
+# `kubectl apply -R -f` over the directory.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - tlsoption.yaml
+  - middlewares.yaml
+  - ingressroutes.yaml

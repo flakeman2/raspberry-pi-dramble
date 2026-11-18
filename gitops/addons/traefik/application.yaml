@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: traefik
+  namespace: argocd
+  annotations:
+    # Phase 3 ordering: Traefik owns the .201 LoadBalancer IP and every public
+    # hostname, so it comes after the address pool (wave -5) and before the
+    # workloads that route through it (wave 1+).
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: drumble
+  # Two sources, because the chart and the values live in different places:
+  # the chart comes from the Traefik Helm repository, our values from this
+  # repository. `$values` resolves against the source carrying `ref: values`.
+  # A single-source Application cannot do this — helm.valueFiles only resolves
+  # against the chart's own package.
+  sources:
+    - repoURL: https://traefik.github.io/charts
+      chart: traefik
+      # Kept in step with TRAEFIK_CHART_VERSION in scripts/install-addons.sh;
+      # check-updates.sh reports drift between the two.
+      targetRevision: "42.4.1"
+      helm:
+        valueFiles:
+          - $values/cluster/traefik/values.yaml
+    - repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
+      targetRevision: dev
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: traefik
+
+  # Registered MANUAL first, per the phase-2 discipline: sync disabled, diff
+  # read line by line, and only then automation. The diff was empty apart
+  # from Argo's tracking-id annotations — including on the IngressClass,
+  # which a first pass reported as "Missing" purely because the AppProject
+  # rejected it (see gitops/projects/default.yaml) — so automation follows.
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+
+  # prune is enabled after checking what Argo tracks: `argocd app resources
+  # traefik` lists 32 resources and every one comes from the chart. There is
+  # no controller-generated object for a prune to reach.
+  #
+  # ONE CONDITION, recorded rather than assumed: the tracked list includes
+  # the `traefik` PersistentVolumeClaim that holds acme.json (the Let's
+  # Encrypt account key and certificates). The chart renders it with
+  # helm.sh/resource-policy: keep, but Argo's prune does NOT honour that
+  # annotation — it is Helm's, not Argo's. The PVC stays safe only as long
+  # as it remains in the desired state, i.e. while `persistence.enabled`
+  # stays true in cluster/traefik/values.yaml. Flipping it to false in a PR
+  # would prune the PVC and with it acme.json, forcing a re-issue against
+  # Let's Encrypt's rate limits. That value is committed and reviewed, so
+  # the risk is a deliberate edit away rather than an accident — but it is
+  # the one place here where prune has teeth.
