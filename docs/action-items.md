@@ -157,17 +157,48 @@ than guessing: both images' `latest` and version tags resolved to the same
 digest as what was already running, so pinning changed nothing content-wise —
 it only stops `latest` from drifting on a node restart.
 
-### 10. Backups
+### 10. Backups — state files done; Longhorn deliberately not backed up
 
-Longhorn has no backup target, no recurring jobs, and no off-cluster copy — and
-since the 2026-11-14 decision to wipe all four disks without keeping the old
-ones, **there is no rollback at all**. Today's mitigation is that the only
-irreplaceable data is `mysite-content`, which is byte-identical to
-`cluster/workloads/mysite/content/` in git, plus the off-repo secret export.
+**Decided 2026-11-18.** Two separate things, so they read separately:
 
-Before the reimage: verify the A0 gate in [upgrade.md](upgrade.md). After it:
-add an S3/NFS backup target with a recurring snapshot job and test a restore,
-so the next failure does not depend on git alone.
+**Cluster state — done.** `state.db` (plus the WAL sidecars) and the join
+token are backed up off kube1 to `dflake-nettop`. Copying `state.db` alone
+would not be enough: SQLite runs in WAL mode, so committed writes can still be
+sitting in `state.db-wal`.
+
+**Longhorn volumes — no off-cluster backup, on purpose.** The `BackupTarget`
+stays unconfigured and no snapshot job runs. What this buys and costs:
+
+- **Covered:** a single node dying. Longhorn keeps three replicas across
+  nodes, so the PVCs keep serving while the cluster rebuilds around them.
+- **Not covered:** cluster-wide loss — all four disks at once, a botched
+  reimage, or anything that destroys the cluster rather than a member of it.
+  That is exactly what happened on 2026-11-14, and it would have taken the
+  PVCs with it.
+
+The exposure is small *today*, because every PVC holds either something
+regenerable or something already in git:
+
+| PVC | If lost |
+|---|---|
+| `mysite-content` | byte-identical to `cluster/workloads/mysite/content/` in git |
+| `traefik` (`acme.json`) | Let's Encrypt re-issues |
+| `prometheus-server`, `prometheus-alertmanager` | history regenerates |
+| `monitoring/grafana` | **0 dashboards — nothing to lose yet** |
+
+**That last row is the catch.** Grafana is now the one place real work could
+accumulate with no way to recover it, so this decision makes [item
+7](#7-finish-the-grafana-setup) load-bearing: dashboards must be provisioned
+as ConfigMaps in git, never built in the UI. Same for anything else
+long-lived in a PVC.
+
+Also outstanding: the off-repo secret export still needs to live somewhere
+that survives the machine, alongside the `.kube` copies on `dflake-nettop`.
+
+Note for [upgrade.md](upgrade.md) §B0: it still lists "configure a Longhorn
+backup target" as **mandatory** before a hop, on the grounds that Longhorn
+cannot be downgraded. That instruction is unchanged by this decision — if a
+B-series upgrade ever happens, revisit it rather than skipping it silently.
 
 ### 11. Pod disruption budgets and NetworkPolicies
 
