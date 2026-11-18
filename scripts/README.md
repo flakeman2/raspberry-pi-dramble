@@ -20,6 +20,15 @@ its supported range. The range is **parsed from that table** rather than
 hardcoded, so the check corrects itself when Longhorn is upgraded — see
 `max_k8s_for_longhorn`.
 
+Several components can constrain Kubernetes at once, and the **strictest
+ceiling wins**: today Longhorn caps at `1.36` while Argo CD allows `1.37`, so
+Longhorn binds. Once Longhorn moves past `1.37`, Argo CD becomes the ceiling
+instead — adding a constraint is one line in `k8s_constraints`.
+
+If a component has no tested-range row at all, the result is an **error, not
+an absence**: the B2 table is explicitly "verified anchors, not the full
+path", so an unknown version must never read as "no constraint".
+
 All scripts honour `K3S_VERSION` (default `v1.36.6+k3s1`). See
 [../docs/redeploy.md](../docs/redeploy.md) for the full sequence and
 prerequisites.

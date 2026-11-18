@@ -92,9 +92,43 @@ for line in doc.splitlines():
         best = top if best is None else max(best, top)
 
 if best is None:
-    sys.exit(1)                                   # no row matched: say so
+    # The table is explicitly "verified anchors, not the full path", so a
+    # missing row is unknown rather than unconstrained. Returning nothing here
+    # would silently drop the guard the moment Longhorn is upgraded past the
+    # last documented version — printing a sentinel lets check_k3s report it.
+    print('unknown')
+    sys.exit(0)
 print(best)
 PY
+}
+
+# The same bound for Argo CD, read from docs/gitops.md's prerequisite section.
+# Argo CD 3.6 is tested against Kubernetes 1.34-1.37, so today Longhorn binds
+# first (1.36) - but once Longhorn moves past 1.37 this becomes the ceiling
+# instead, which is exactly the sort of constraint that gets forgotten.
+max_k8s_for_argocd() { # $1 = argo-cd chart version (unused today, kept for the message)
+  python3 - <<'PY'
+import re, sys
+doc = open('docs/gitops.md', encoding='utf-8').read()
+m = re.search(r'tested against\s+Kubernetes\s+\*\*([\d.]+)[–-]([\d.]+)\*\*', doc)
+if not m:
+    sys.exit(1)
+print(int(m.group(2).split('.')[1]))            # minor of the upper bound
+PY
+}
+
+# Every installed component that limits which Kubernetes minors we may run.
+# Prints "<label>|<max minor>" per line; add a new provider here, not in
+# check_k3s. The strictest (lowest) ceiling wins.
+k8s_constraints() {
+  local minor label
+  for spec in "Longhorn ${LONGHORN:-unknown}:$(max_k8s_for_longhorn "${LONGHORN:-}" 2>/dev/null || true)" \
+              "Argo CD ${ARGOCD:-unknown}:$(max_k8s_for_argocd 2>/dev/null || true)"; do
+    label=${spec%%:*}
+    minor=${spec##*:}
+    [ -n "$minor" ] || continue
+    printf '%s|%s\n' "$label" "$minor"
+  done
 }
 
 # Docker Hub's API wants `library/` for official images and no `docker.io/`
@@ -170,7 +204,7 @@ except Exception:
 }
 
 check_k3s() { # current
-  local current=$1 latest max_minor
+  local current=$1 latest minor ceiling="" binding=""
   # /channels/stable answers 302 -> HTML; the collection endpoint is JSON.
   latest=$(curl -fsSL --max-time 25 https://update.k3s.io/v1-release/channels 2>/dev/null \
     | python3 -c "
@@ -180,15 +214,27 @@ for c in json.load(sys.stdin).get('data', []):
         print(c['latest']); break
 " 2>/dev/null) || { row error "k3s (stable channel)" "could not read channel"; return; }
   latest=${latest%%+*}          # v1.37.2+k3s1 -> v1.37.2
-
-  # Is the newest k3s inside the range our Longhorn was tested against?
-  # Take the minor explicitly: `${latest#1.}` would give "37.2", and a
-  # non-integer test silently evaluates false.
-  max_minor=$(max_k8s_for_longhorn "${LONGHORN:-1.13.0}" 2>/dev/null || true)
   minor=$(printf '%s' "$latest" | cut -d. -f2)
-  if [ -n "$max_minor" ] && [ -n "$minor" ] && [ "$minor" -gt "$max_minor" ] 2>/dev/null; then
+
+  # The strictest ceiling across every installed component wins. Process
+  # substitution, not a pipe — the loop must set ceiling/binding in this shell.
+  while IFS='|' read -r label bound; do
+    [ -n "${bound:-}" ] || continue
+    if ! printf '%s' "$bound" | grep -qE '^[0-9]+$'; then
+      # Unknown beats silently unconstrained: without a tested-range row we
+      # cannot say the next minor is safe, so report it rather than skip it.
+      row error "k3s (stable channel)" "no tested-range row for ${label} — update docs/upgrade.md B2"
+      return
+    fi
+    if [ -z "$ceiling" ] || [ "$bound" -lt "$ceiling" ]; then
+      ceiling=$bound
+      binding=$label
+    fi
+  done < <(k8s_constraints)
+
+  if [ -n "$ceiling" ] && [ -n "$minor" ] && [ "$minor" -gt "$ceiling" ] 2>/dev/null; then
     row blocked "k3s (stable channel)" \
-      "$current -> $latest  BLOCKED: Longhorn ${LONGHORN} tested only to 1.${max_minor}"
+      "$current -> $latest  BLOCKED: ${binding} tested only to 1.${ceiling}"
     return
   fi
 
