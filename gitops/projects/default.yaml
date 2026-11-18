@@ -7,9 +7,13 @@ spec:
   description: Raspberry Pi Drumble cluster
 
   # Pinned to this repository so a compromised manifest cannot pull from
-  # anywhere else.
+  # anywhere else. The `.git` suffix matches how every Application spells its
+  # repoURL — Argo CD normalises it either way (verified: a forced sync of the
+  # sealed-secrets app succeeded against this project with the suffix on the
+  # Application and absent here), but spelling them identically removes an
+  # ambiguity that reads as a bug on every future PR.
   sourceRepos:
-    - https://github.com/flakeman2/raspberry-pi-dramble
+    - https://github.com/flakeman2/raspberry-pi-dramble.git
 
   destinations:
     - server: https://kubernetes.default.svc
