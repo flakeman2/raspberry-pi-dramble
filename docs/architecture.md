@@ -157,7 +157,7 @@ The live Grafana has **no dashboards** imported.
 | Workload | Namespace | Image | Replicas | Service |
 |---|---|---|---|---|
 | `mysite-nginx` | mysite-nginx | `nginx:latest` | 1 | ClusterIP 80/443 |
-| `jekyll-website` | jekyll | `flakeman2/jekyll:1.0.6` | 3 | ClusterIP 80 |
+| `jekyll-website` | jekyll | `flakeman2/jekyll:sha-5a803d0` | 3 | ClusterIP 80 |
 | `whoami` | whoami | `traefik/whoami` | 2 | ClusterIP 80 |
 
 `mysite-nginx` mounts the `mysite-content` RWX PVC at `/usr/share/nginx/html`
