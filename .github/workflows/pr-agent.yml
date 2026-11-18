@@ -6,6 +6,14 @@ name: PR Agent
 # default, so pushing to an open PR does not burn quota; opt in per-event via
 # github_action_config.pr_actions in .pr_agent.toml.
 #
+# `issue_comment` is what makes MANUAL commands work (/review, /describe,
+# /ask). Without it the workflow only ever sees pull_request events, so a
+# comment asking for a re-review after pushing a fix is silently ignored —
+# which is exactly what happened when a fix was pushed and nobody re-reviewed.
+# `reopened` and `ready_for_review` are in the upstream example too.
+#
+# The sender guard stops the bot reviewing its own comments (a loop).
+#
 # Deliberately NOT pinned to a SHA or tag.
 #
 # Upstream suggests pinning the action to a commit SHA, but this repo's own
@@ -35,20 +43,28 @@ name: PR Agent
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, reopened, ready_for_review, synchronize]
+  issue_comment:
 
 permissions:
   contents: read
   issues: write
   pull-requests: write
 
+# Group per PR, not per ref: for issue_comment events github.ref is the
+# default branch, so a ref-based group would make every manual command on
+# every PR cancel each other. cancel-in-progress is off for the same reason —
+# /review and /describe posted together should both run, not race.
 concurrency:
-  group: pr-agent-${{ github.ref }}
-  cancel-in-progress: true
+  group: pr-agent-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
+  cancel-in-progress: false
 
 jobs:
   pr_agent_job:
     runs-on: ubuntu-latest
+    # Never let the bot act on its own comments — issue_comment fires for
+    # every comment, including the ones PR-Agent posts.
+    if: ${{ github.event.sender.type != 'Bot' }}
     steps:
       - name: PR Agent
         uses: the-pr-agent/pr-agent@main

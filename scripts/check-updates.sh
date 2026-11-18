@@ -25,6 +25,11 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 2
 
+# Where Ephesus is checked out. Defaults to the sibling directory locally;
+# CI checks it out inside the workspace instead and points this at it, because
+# a workflow cannot write outside GITHUB_WORKSPACE.
+EPHESUS_DIR="${EPHESUS_DIR:-../Ephesus}"
+
 UPDATES=0
 ERRORS=0
 BLOCKED=0
@@ -324,15 +329,15 @@ done < <(grep -rhoE 'uses: [A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[^ ]+' .github/workfl
   | sed 's/uses: //' | grep -v 'docker://' | sort -u)
 
 # =============================================================================
-if [ -d ../Ephesus ]; then
-  echo "== Ephesus (../Ephesus) =="
+if [ -d "$EPHESUS_DIR" ]; then
+  echo "== Ephesus ($EPHESUS_DIR) =="
   while read -r image; do
     [ -n "$image" ] || continue
     check_image "${image%%:*}" "${image%%:*}" "${image##*:}"
-  done < <(grep -E '^FROM ' ../Ephesus/Dockerfile \
+  done < <(grep -E '^FROM ' "$EPHESUS_DIR/Dockerfile" \
     | sed -E 's/^FROM( --platform=[^ ]+)? //; s/ AS .*//' | sort -u)
   for gem in jekyll rouge; do
-    cur=$(grep -oE "^    $gem \([0-9.]+\)" ../Ephesus/Gemfile.lock | grep -oE '[0-9.]+' | head -1)
+    cur=$(grep -oE "^    $gem \([0-9.]+\)" "$EPHESUS_DIR/Gemfile.lock" | grep -oE '[0-9.]+' | head -1)
     latest=$(curl -fsSL --max-time 20 "https://rubygems.org/api/v1/versions/$gem/latest.json" 2>/dev/null \
       | python3 -c "import sys,json;print(json.load(sys.stdin)['version'])" 2>/dev/null || echo "")
     if [ -z "$latest" ] || [ -z "$cur" ]; then
