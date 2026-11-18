@@ -1,0 +1,54 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: drumble
+  namespace: argocd
+spec:
+  description: Raspberry Pi Drumble cluster
+
+  # Pinned to this repository so a compromised manifest cannot pull from
+  # anywhere else.
+  sourceRepos:
+    - https://github.com/flakeman2/raspberry-pi-dramble
+
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: "*"
+
+  # Cluster-scoped kinds the addons actually create, verified by scanning the
+  # vendored manifests rather than guessed:
+  #
+  #   longhorn  Namespace, CustomResourceDefinition (28), ClusterRole,
+  #             ClusterRoleBinding, PriorityClass
+  #   metallb   Namespace, CustomResourceDefinition (9), ClusterRole,
+  #             ClusterRoleBinding, ValidatingWebhookConfiguration
+  #   sealed    CustomResourceDefinition, ClusterRole, ClusterRoleBinding
+  #
+  # Longhorn's `longhorn` StorageClass is NOT listed: it lives inside a
+  # ConfigMap (`storageclass.yaml`) and is created by the Longhorn manager at
+  # runtime, so no Application ever applies it.
+  #
+  # The earlier draft of this file omitted PriorityClass and
+  # ValidatingWebhookConfiguration, which would have blocked Phase 3 adoption
+  # of Longhorn and MetalLB.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: scheduling.k8s.io
+      kind: PriorityClass
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+
+  # Nothing in this cluster uses quotas or limit ranges; denying them stops an
+  # Application from quietly introducing one.
+  namespaceResourceBlacklist:
+    - group: ""
+      kind: ResourceQuota
+    - group: ""
+      kind: LimitRange

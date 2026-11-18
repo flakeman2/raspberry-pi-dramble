@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sealed-secrets
+  namespace: argocd
+  annotations:
+    # Phase 3 ordering: the controller must exist before any SealedSecret in
+    # cluster/secrets/sealed/ can be unsealed. Waves order resources inside one
+    # Application's sync; across Applications they take effect once the root
+    # app-of-apps exists (gitops/ phase, step 4).
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  # The new AppProject, not `default` — this is the first app to exercise it,
+  # chosen because its cluster-scoped needs (CRD, ClusterRole,
+  # ClusterRoleBinding) are all in the whitelist and it is small.
+  project: drumble
+  source:
+    repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
+    targetRevision: dev
+    # Vendored release manifest, not a Helm chart: the chart repository
+    # (bitnami-labs.github.io/sealed-secrets) returns 404.
+    path: cluster/sealed-secrets
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  # Registered MANUAL first, per the phase-2 discipline: sync disabled, diff
+  # read line by line, and only then automation. The diff was empty apart from
+  # Argo's own tracking-id annotations on 10 resources, so automation follows.
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # kube-system already exists; Argo must not create or own it.
+      - CreateNamespace=false
+
+  # prune is safe here, and it was proven rather than assumed:
+  # `argocd app resources sealed-secrets` lists 11 managed resources, and the
+  # controller's generated private key (sealed-secrets-key*) is NOT one of
+  # them. Argo only prunes what it tracks, so it cannot reach the key whose
+  # loss would make every SealedSecret in git unrecoverable.
