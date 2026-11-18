@@ -19,6 +19,8 @@
 	}
 	#container {
         text-align: center;
+		display: flex;
+		flex-direction: column;
 		min-height:100%;
 		position:relative;
 	}
@@ -30,14 +32,13 @@
 	#body {
         text-align: center;
 		padding:10px;
-		padding-bottom:60px;	/* Height of the footer */
+		flex: 1 0 auto;	/* grows to push the footer down to the page bottom */
 	}
 	#footer {
         text-align: center;
-		position:absolute;
-		bottom:0;
 		width:100%;
-		height:60px;			/* Height of the footer */
+		min-height:60px;	/* grows with content: a fixed height clipped the
+							   third line of text onto white below the red */
 		background:#C51A4A;
 	}
 	/* other non-essential CSS */
@@ -97,6 +98,21 @@
         width: auto;
         height: auto;
     }
+    /* Tool links sit below the images in two columns. */
+    .tool-links {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 16px 64px;
+        margin-top: 8px;
+    }
+    .tool-links > div {
+        min-width: 170px;
+    }
+    .tool-links a {
+        display: block;
+        padding: 4px 0;
+    }
 	</style>
 
     <!-- Global site tag (gtag.js) - Google Analytics -->
@@ -125,26 +141,27 @@
 		<p>
             <a href="https://blog.devinflake.com/">Flake Blog</a>
             <br>
-            <a href="https://grafana.devinflake.com/">Grafana</a>
+            <a href="https://github.com/flakeman2/raspberry-pi-dramble">raspberry-pi-dramble on GitHub</a>
             <br>
-            <a href="https://prometheus.devinflake.com/">Prometheus</a>
+            <a href="https://github.com/flakeman2/Ephesus">Ephesus on GitHub</a>
             <br>
-            <a href="https://argocd.devinflake.com/">Argo CD</a>
-            <br>
-            <br>
+        </p>
             <span class="hero-images">
                 <img src="rpi1.jpeg" alt="Raspberry Pi logo">
                 <img src="raspberry-pi-dramble-hero-2019.jpg" alt="The Dramble: four Raspberry Pi 4 boards in an acrylic and brass rack on a PoE switch, 2019" loading="lazy">
             </span>
-            <br>
-            <br>
-            <a href="https://longhorn.devinflake.com/#/dashboard">Longhorn UI</a>
-            <br>
-            <a href="https://traefik.devinflake.com/">Traefik UI</a>
-            <br>
-            <a href="https://devinflake.com/whoami">Whoami Demo App</a>
-            <br>
-        </p>
+        <div class="tool-links">
+            <div>
+                <a href="https://grafana.devinflake.com/">Grafana</a>
+                <a href="https://prometheus.devinflake.com/">Prometheus</a>
+                <a href="https://argocd.devinflake.com/">Argo CD</a>
+            </div>
+            <div>
+                <a href="https://longhorn.devinflake.com/#/dashboard">Longhorn UI</a>
+                <a href="https://traefik.devinflake.com/">Traefik UI</a>
+                <a href="https://devinflake.com/whoami">Whoami Demo App</a>
+            </div>
+        </div>
 		<!-- Body end -->
 	</div>
 	<div id="footer">
