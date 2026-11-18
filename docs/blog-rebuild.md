@@ -9,7 +9,7 @@ repository, which is the main thing to know about.
 
 | Site | Served by | Source | Rebuildable? |
 |---|---|---|---|
-| `blog.devinflake.com` | `flakeman2/jekyll:sha-5a803d0`, content baked into the image (no volume) | [`flakeman2/Ephesus`](https://github.com/flakeman2/Ephesus) | Yes — Dockerfile, all 6 posts, full history |
+| `blog.devinflake.com` | `flakeman2/jekyll:sha-43912aa`, content baked into the image (no volume) | [`flakeman2/Ephesus`](https://github.com/flakeman2/Ephesus) | Yes — Dockerfile, all 6 posts, full history |
 | `devinflake.com` / `flakeman2.com` | `nginx:latest` + the `mysite-content` PVC | this repo, `cluster/workloads/mysite/content/` | Yes — no build step at all |
 
 ## Blog source
@@ -116,7 +116,7 @@ cd Ephesus
 git checkout master         # head == deployed; see "Which commit is deployed"
 
 docker buildx build --platform linux/arm64 \
-  -t flakeman2/jekyll:sha-5a803d0 --push .
+  -t flakeman2/jekyll:sha-43912aa --push .
 ```
 
 Three things to get right:
