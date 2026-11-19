@@ -3,17 +3,18 @@
 Third-party components, each as one Argo CD `Application` wrapping its Helm
 chart with a committed values file.
 
-**Applied so far:** `sealed-secrets/`, `metallb/` and `traefik/` +
-`traefik-config/` (2026-11-18) — each registered with sync disabled first,
-diffed, and only then given automation. **Not yet applied:** `longhorn/`,
-`monitoring/`.
+**Applied so far:** `sealed-secrets/`, `metallb/`, `traefik/` +
+`traefik-config/`, and `prometheus/` + `grafana/` (2026-11-18) — each
+registered with sync disabled first, diffed, and only then given automation.
+**Not yet applied:** `longhorn/`.
 
-Traefik is two Applications rather than one: an Application is either a
-Helm chart or a directory of manifests, never both. `traefik/` is the
-release (multi-source: chart from the Traefik Helm repo, values from this
-repository), `traefik-config/` is the CRs, built by
-[../../cluster/traefik/kustomization.yaml](../../cluster/traefik/kustomization.yaml)
+Traefik and monitoring are each split across two Applications rather than one:
+an Application is either a Helm chart or a directory of manifests, never both.
+For Traefik, `traefik/` is the release and `traefik-config/` is the CRs, built
+by [../../cluster/traefik/kustomization.yaml](../../cluster/traefik/kustomization.yaml)
 because that directory also holds `values.yaml`, which is not a manifest.
+Prometheus and Grafana are simply two independent releases in one namespace,
+so they are two Applications with no split needed.
 
 Migration notes per component are in
 [../../docs/upgrade.md](../../docs/upgrade.md) and

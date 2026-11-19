@@ -1,10 +1,10 @@
 # GitOps with Argo CD
 
 **Status:** in progress. Phases 1 and 2 are complete, and phase 3 has adopted
-Sealed Secrets, MetalLB and Traefik (2026-11-18) — nine Applications are live
+Sealed Secrets, MetalLB, Traefik and monitoring — eleven Applications are live
 and reconciling from `dev`. What `scripts/install-addons.sh` still installs is
-Longhorn and monitoring; it shrinks to bootstrap-only at the end of phase 3.
-This page is the design and the staged rollout plan.
+Longhorn; it shrinks to bootstrap-only at the end of phase 3. This page is the
+design and the staged rollout plan.
 
 ## Goals
 
@@ -92,8 +92,8 @@ gitops/
   README.md               Conventions and the app-of-apps root
   bootstrap/              Argo CD install — the only non-Git step
   projects/               AppProject boundaries
-  addons/                 sealed-secrets, MetalLB, Traefik, traefik-config;
-                          Longhorn and monitoring still to come
+  addons/                 sealed-secrets, MetalLB, Traefik, traefik-config,
+                          prometheus, grafana; Longhorn still to come
   apps/                   First-party workloads (Kustomize)
 ```
 
@@ -221,7 +221,7 @@ gate.
 | 0. Upgrade | k3s, Longhorn, MetalLB, Traefik, monitoring charts | Argo CD's tested k8s range is met; volumes healthy | ✅ done 2026-11-16 |
 | 1. Pilot | Bootstrap Argo CD; adopt one stateless app (`whoami`) with manual sync | `argocd app diff` is empty; no surprise mutations | ✅ done 2026-11-17 |
 | 2. Workloads | `apps/` for mysite, jekyll, whoami, dashboards, DNS; sealed secrets | Apps auto-sync with self-heal; Grafana is code, not UI state | ✅ done 2026-11-17 |
-| 3. Addons | Traefik, Prometheus, Grafana as Helm Applications; Argo CD self-managed | Addons sync automatically with self-heal; bootstrap script only installs Argo CD | **in progress** — AppProject `drumble` + sealed-secrets 2026-11-17; MetalLB + Traefik 2026-11-18 |
+| 3. Addons | Traefik, Prometheus, Grafana as Helm Applications; Argo CD self-managed | Addons sync automatically with self-heal; bootstrap script only installs Argo CD | **in progress** — AppProject `drumble` + sealed-secrets 2026-11-17; MetalLB + Traefik + monitoring 2026-11-18 |
 | 4. CI | kustomize/kubeconform/gitleaks gates; image pipeline | A bad manifest cannot merge | **in progress** — gates live 2026-11-17; image pipeline shipped in Ephesus |
 
 Keep the rebuild path working throughout: `scripts/install-addons.sh` remains

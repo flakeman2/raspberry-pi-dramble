@@ -1,0 +1,64 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus
+  namespace: argocd
+  annotations:
+    # Phase 3 ordering: an addon at wave 0, alongside Traefik. Nothing here
+    # depends on the ingress layer to function — the dashboards that route to
+    # it are IngressRoutes owned by the `dashboards` Application.
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: drumble
+  # Two sources, because the chart and the values live in different places:
+  # the chart comes from the prometheus-community Helm repository, our values
+  # from this repository. `$values` resolves against the source carrying
+  # `ref: values`; a single-source Application cannot do this, because
+  # helm.valueFiles only resolves against the chart's own package.
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: prometheus
+      # Kept in step with PROMETHEUS_CHART_VERSION in
+      # scripts/install-addons.sh — verify-docs.sh asserts the two agree, so a
+      # bump that updates one and not the other fails the gate rather than
+      # silently letting Argo and the install script disagree about the pin.
+      targetRevision: "29.47.2"
+      helm:
+        valueFiles:
+          - $values/cluster/monitoring/prometheus-values.yaml
+    - repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
+      targetRevision: dev
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  # Registered MANUAL first, per the phase-2 discipline: sync disabled, diff
+  # read line by line, and only then automation. The diff was empty apart
+  # from Argo's tracking-id on all 23 resources, so automation follows.
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+
+  # Both things the diff was asked to answer, now answered by observation
+  # rather than inference:
+  #
+  #   1. The `prometheus-server` PVC (8 GiB, holds the TSDB) IS tracked —
+  #      it is a standalone rendered resource — so a prune would reach it,
+  #      exactly as for Traefik's acme.json PVC. It stays safe only while it
+  #      remains in the desired state, i.e. while the chart keeps rendering
+  #      it from prometheus-values.yaml.
+  #      The alertmanager PVC is a different case: it comes from the
+  #      StatefulSet's volumeClaimTemplates, so the controller creates it,
+  #      Argo never tracks it, and deleting the StatefulSet would not delete
+  #      it either (Kubernetes retains StatefulSet PVCs by design).
+  #   2. The chart renders storageClassName unset while the live PVC reads
+  #      `longhorn` (the API defaulted it). The diff confirmed this reads as
+  #      NO change: the field is absent from the desired state, so nothing
+  #      asks for its removal under three-way merge. Assumption retired.
+  #
+  # prune reached nothing outside git: `argocd app resources prometheus`
+  # lists 23 resources and the chart renders exactly 23.
