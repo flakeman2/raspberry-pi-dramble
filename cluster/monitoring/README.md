@@ -22,9 +22,10 @@ helm upgrade --install grafana grafana/grafana \
   -f grafana-values.yaml
 ```
 
-Chart defaults create the server (15-day retention, 8 GiB Longhorn PVC),
-Alertmanager (2 GiB PVC), kube-state-metrics, node-exporter, and pushgateway;
-`prometheus-values.yaml` adds a resource budget for the server plus an explicit
+Chart defaults create the server (8 GiB Longhorn PVC), Alertmanager (2 GiB
+PVC), kube-state-metrics, node-exporter, and pushgateway;
+`prometheus-values.yaml` adds explicit 15-day retention, a resource budget for
+the server, alert rules, an ntfy.sh receiver, and an explicit
 **`metallb-metrics`** scrape job — MetalLB v0.16 serves metrics over HTTPS with
 bearer-token auth, which the chart's annotation-driven job cannot do (see
 `../metallb/README.md`). Every workload in this directory now has
@@ -70,8 +71,31 @@ Prometheus server pods in `monitoring`, and `prometheus-values.yaml` defines
 the matching static scrape job. Both are owned by the `prometheus`
 Application, so they cannot drift apart.
 
+## Alerting
+
+Five rules in `prometheus-values.yaml` (`serverFiles.alerting_rules.yml`) fire
+on: a node not Ready for 5m, a PVC not Bound for 15m, a Longhorn volume
+`degraded` or `faulted` for 5m, and a CronJob whose last schedule has no later
+success for 15m. All route to one receiver, `ntfy`, with `send_resolved: true`,
+grouping by alert name and namespace.
+
+The ntfy.sh topic is **not in git**. It is the `url` key of the SealedSecret
+`../secrets/sealed/alertmanager-ntfy.yaml`, unsealed into Secret
+`monitoring/alertmanager-ntfy` and mounted at `/etc/alertmanager/ntfy/url`.
+Alertmanager does not expand environment variables in its config, so the
+webhook uses `url_file` rather than `${NTFY_URL}`. A rebuild applies every
+sealed manifest through `scripts/install-addons.sh`; on an existing cluster,
+apply this one once with `kubectl apply -f ../secrets/sealed/alertmanager-ntfy.yaml`
+**before** the Prometheus app syncs, or the Alertmanager pod stays Pending on
+the missing volume. To subscribe, read the topic from the operator-local copy
+(`~/.kube/dramble-ntfy-topic.txt`, mode 0600); whoever holds the full URL can
+subscribe, so treat it as a bearer credential.
+
+Certificate-expiry alerts are deliberately deferred: Traefik stores its ACME
+certificate in a file on its PVC, not in a Kubernetes Secret, so there is no
+cert-manager expiration metric to alert on.
+
 ## Known gaps
 
-- Alertmanager has no receivers configured.
 - Prometheus targets are healthy after the 2026-11-14 node removal (23 targets,
   0 down); see [../../docs/cluster-status.md](../../docs/cluster-status.md).

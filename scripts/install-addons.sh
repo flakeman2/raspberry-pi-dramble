@@ -65,6 +65,9 @@ for _ in $(seq 1 30); do
   require_secret default authsecret || missing=1
   require_secret default dyn-dns-credentials || missing=1
   require_secret monitoring grafana || missing=1
+  # The Alertmanager StatefulSet mounts this Secret; without it the pod stays
+  # Pending even though the chart itself renders fine.
+  require_secret monitoring alertmanager-ntfy || missing=1
   [ "$missing" -eq 0 ] && break
   sleep 2
 done

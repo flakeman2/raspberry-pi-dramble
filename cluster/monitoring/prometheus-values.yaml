@@ -5,14 +5,20 @@
 #     --namespace monitoring --version 29.47.2 \
 #     -f cluster/monitoring/prometheus-values.yaml
 #
-# Everything else stays at chart defaults: server PVC8 GiB on Longhorn with
-# 15-day retention, Alertmanager with a 2 GiB PVC, plus kube-state-metrics,
-# node-exporter and pushgateway.
+# Everything else stays at chart defaults: server PVC 8 GiB on Longhorn,
+# Alertmanager with a 2 GiB PVC, plus kube-state-metrics, node-exporter and
+# pushgateway.
+#
+# Retention decision (2026-11-21): 15 days is enough and stays explicit below.
+# Measured TSDB blocks were ~1.8 GiB with ~99k head series on the 8 GiB PVC —
+# roughly a quarter of the volume, leaving headroom for compaction. Revisit if
+# blocks exceed 4 GiB; the next lever is `server.retentionSize: 6Gi`.
 #
 # The chart leaves `server.resources` empty by default, and the server is the
 # largest memory consumer on a 4 GB node — hence the explicit budget below.
 
 server:
+  retention: "15d"
   resources:
     requests:
       cpu: 200m
@@ -22,6 +28,80 @@ server:
       # scrape spikes (see docs/action-items.md item 6). Add one after
       # measuring, if at all.
       memory: 1Gi
+
+# Alert rules are rendered into the prometheus-server ConfigMap by the chart
+# and reloaded by configmap-reload. Every expression below was checked against
+# live metrics before it was committed; Longhorn series only appear once PR
+# #66's `longhorn-metrics` scrape is live.
+#
+# Certificate-expiry alerts are deliberately absent: Traefik keeps its ACME
+# certificate in a file on its PVC, not in a Kubernetes Secret, so there is no
+# `cert-manager_certificate_expiration_timestamp_seconds` series to alert on.
+serverFiles:
+  alerting_rules.yml:
+    groups:
+    - name: dramble.rules
+      rules:
+      - alert: NodeNotReady
+        expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node {{ $labels.node }} is NotReady"
+          description: "kubelet on {{ $labels.node }} has not reported Ready for 5 minutes."
+
+      - alert: PersistentVolumeClaimNotBound
+        expr: kube_persistentvolumeclaim_status_phase{phase="Bound"} == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} is not Bound"
+          description: "The PVC has not reached Bound for 15 minutes; check the provisioner and Longhorn."
+
+      # longhorn_volume_robustness has one series per state per volume, with
+      # value 1 only for the current state, so no `> 0` is needed.
+      - alert: LonghornVolumeDegraded
+        expr: longhorn_volume_robustness{state="degraded"} == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Longhorn volume {{ $labels.volume }} is degraded"
+          description: "A replica of {{ $labels.volume }} is unavailable; rebuild is in progress or stalled."
+
+      - alert: LonghornVolumeFaulted
+        expr: longhorn_volume_robustness{state="faulted"} == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Longhorn volume {{ $labels.volume }} is faulted"
+          description: "{{ $labels.volume }} has no healthy replica; workloads using it are at risk."
+
+      # The second branch covers a CronJob that has run but never succeeded:
+      # kube-state-metrics omits last_successful_time in that case, so a plain
+      # `>` comparison would silently produce no alert.
+      - alert: CronJobFailed
+        expr: |
+          (
+            max by (namespace, cronjob) (kube_cronjob_status_last_schedule_time)
+            >
+            max by (namespace, cronjob) (kube_cronjob_status_last_successful_time)
+          )
+          or
+          (
+            max by (namespace, cronjob) (kube_cronjob_status_last_schedule_time)
+            unless
+            max by (namespace, cronjob) (kube_cronjob_status_last_successful_time)
+          )
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CronJob {{ $labels.namespace }}/{{ $labels.cronjob }} has not succeeded"
+          description: "Its last scheduled run has no later successful run; inspect the Job pods."
 
 configmapReload:
   prometheus:
@@ -34,7 +114,10 @@ configmapReload:
         memory: 64Mi
 
 # Subchart budgets. Keys are the dependency names, not aliases; probes come
-# from each subchart's defaults.
+# from each subchart's defaults. In addition to the resource budget, this block
+# routes alerts to ntfy.sh and mounts the URL from a SealedSecret: Alertmanager
+# cannot expand ${ENV} in its config, so `url_file` is the only way to keep the
+# topic out of git while still using a webhook receiver.
 alertmanager:
   resources:
     requests:
@@ -51,6 +134,32 @@ alertmanager:
       limits:
         cpu: 100m
         memory: 64Mi
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ['alertname', 'namespace']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: ntfy
+    receivers:
+    - name: ntfy
+      webhook_configs:
+      - url_file: /etc/alertmanager/ntfy/url
+        send_resolved: true
+  extraVolumes:
+  - name: ntfy-url
+    secret:
+      secretName: alertmanager-ntfy
+      defaultMode: 0444
+      items:
+      - key: url
+        path: url
+  extraVolumeMounts:
+  - name: ntfy-url
+    mountPath: /etc/alertmanager/ntfy
+    readOnly: true
 
 kube-state-metrics:
   resources:

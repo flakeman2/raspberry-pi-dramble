@@ -145,15 +145,23 @@ enabled) and `nfs-common`.
 
 ## Monitoring
 
-The `prometheus-community/prometheus` chart 29.47.2 is installed with **default
-values**. It creates:
+The `prometheus-community/prometheus` chart 29.47.2 is installed with the
+committed values in `cluster/monitoring/prometheus-values.yaml` (resource
+budgets, two custom scrape jobs, alert rules and a receiver). It creates:
 
-- Prometheus server 3.16.0 (15-day retention, 8 GiB Longhorn PVC)
-- Alertmanager 0.23.x (2 GiB PVC)
+- Prometheus server 3.16.0 (explicit 15-day retention, 8 GiB Longhorn PVC)
+- Alertmanager 0.35.0 (2 GiB PVC)
 - kube-state-metrics
 - node-exporter (DaemonSet)
 - pushgateway
 - configmap-reload sidecar
+
+Alert rules fire on node NotReady, PVC not Bound, Longhorn degraded/faulted
+volumes and CronJob failure. Every alert routes to an ntfy.sh webhook whose URL
+is a SealedSecret (`cluster/secrets/sealed/alertmanager-ntfy.yaml`) mounted as a
+file: Alertmanager cannot expand `${ENV}` in its config, so the receiver uses
+`url_file`. Certificate-expiry alerts are deferred because Traefik's ACME
+certificate is a file on its PVC rather than a Kubernetes Secret.
 
 Grafana chart 14.5.0 runs Grafana 13.3.1 with a 10 GiB Longhorn PVC, a ClusterIP
 Service on port 80, and one Prometheus datasource (`http://prometheus-server`,

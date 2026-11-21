@@ -137,7 +137,7 @@ No under-voltage or thermal throttling on any node.
 | longhorn-system | `share-manager-*` (one per RWX volume) | 1/1 | Longhorn NFS server |
 | traefik | `traefik` | 1/1 | `docker.io/traefik:v3.7.19`, strategy **`Recreate`** |
 | monitoring | `prometheus-server` | 1/1 | `quay.io/prometheus/prometheus:v3.16.0` |
-| monitoring | `prometheus-alertmanager` (StatefulSet) | 1/1 | Alertmanager (chart default) |
+| monitoring | `prometheus-alertmanager` (StatefulSet) | 1/1 | Alertmanager (ntfy receiver) |
 | monitoring | `prometheus-kube-state-metrics` / `pushgateway` | 1/1 each | chart defaults |
 | monitoring | `prometheus-prometheus-node-exporter` (DaemonSet) | 4/4 | chart defaults |
 | monitoring | `grafana` | 1/1 | `docker.io/grafana/grafana:13.3.1-distroless`, strategy **`Recreate`** |
@@ -229,7 +229,11 @@ page, `/whoami` answering behind `PathPrefix(/whoami)`.
   `grafana-dashboards` Application); its `Prometheus` datasource
   (`http://prometheus-server`, proxy, POST, UID `prometheus`) is codified in
   `cluster/monitoring/grafana-values.yaml`.
-- Alertmanager runs with chart defaults and no receivers.
+- Alertmanager routes all alerts to an ntfy.sh webhook whose full URL is sealed
+  in `cluster/secrets/sealed/alertmanager-ntfy.yaml` and mounted via `url_file`.
+  Five rules cover node NotReady, PVC not Bound, Longhorn degraded/faulted and
+  CronJob failure; certificate-expiry alerts are deferred (Traefik's ACME
+  certificate is a file on its PVC, not a Kubernetes Secret).
 
 ### Dynamic DNS caveat
 
