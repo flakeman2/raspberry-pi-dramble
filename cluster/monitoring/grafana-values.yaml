@@ -68,15 +68,19 @@ grafana.ini:
 # The dashboard sidecar is off by default in this chart. It watches labelled
 # ConfigMaps in the monitoring namespace and writes the dashboards into the
 # Grafana database on every change, which is what makes git the source of
-# truth. Keep a small budget: item 6 is about unbudgeted containers.
+# truth. Item 6 is about *unbudgeted* containers, not tiny ones: sidecar 2.x
+# imports hundreds of kubernetes-client model modules at startup and peaked
+# above the earlier 100m CPU / 64Mi memory budget, OOM-looping before its
+# first sync. The budget below is explicit and was verified live (initial
+# sync of all four dashboards, then a healthy /healthz).
 sidecar:
   resources:
     requests:
-      cpu: 10m
-      memory: 16Mi
-    limits:
       cpu: 100m
-      memory: 64Mi
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
   dashboards:
     enabled: true
     resource: configmap
