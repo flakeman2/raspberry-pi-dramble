@@ -26,7 +26,7 @@ kubectl -n mysite-nginx cp mysite/content/. \
 
 ## jekyll
 
-`flakeman2/jekyll:sha-43912aa`, 3 replicas, ClusterIP port 80, TCP readiness and
+`flakeman2/jekyll:sha-732b174`, 3 replicas, ClusterIP port 80, TCP readiness and
 liveness probes. No PVC — the blog content is baked into the image.
 
 The image, all four posts, and their history rebuild from
