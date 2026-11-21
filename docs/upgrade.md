@@ -241,7 +241,7 @@ kubectl -n longhorn-system get volumes.longhorn.io   # wait for healthy
 Then the Kubernetes hop, server first:
 
 ```bash
-# kube1, during a window: the API is unavailable while the server restarts
+# dflake-nettop, during a window: the API is unavailable while the server restarts
 curl -sfL https://get.k3s.io | \
   INSTALL_K3S_VERSION=v1.23.x+k3s1 \
   INSTALL_K3S_EXEC="server --disable servicelb --disable local-storage --disable traefik" \
@@ -252,7 +252,7 @@ kubectl drain kube2 --ignore-daemonsets --delete-emptydir-data --timeout=10m
 # on kube2:
 curl -sfL https://get.k3s.io | \
   INSTALL_K3S_VERSION=v1.23.x+k3s1 \
-  K3S_URL=https://192.168.0.61:6443 K3S_TOKEN=... \
+  K3S_URL=https://192.168.0.44:6443 K3S_TOKEN=... \
   INSTALL_K3S_EXEC="agent" sh -
 kubectl uncordon kube2
 kubectl -n longhorn-system get volumes.longhorn.io   # healthy before the next node

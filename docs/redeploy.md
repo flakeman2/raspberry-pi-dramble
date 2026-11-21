@@ -161,9 +161,9 @@ the rebuild.
 
 ## 2. Install k3s
 
-### 2.1 Server (`kube1`)
+### 2.1 Server (`dflake-nettop`)
 
-From the repository on `kube1`:
+From the repository on the x86_64 server (the Pis are agents):
 
 ```bash
 sudo ./scripts/install-server.sh
@@ -172,7 +172,7 @@ sudo ./scripts/install-server.sh
 The script pins `v1.36.6+k3s1` and passes:
 
 ```
-server --disable servicelb --disable local-storage --disable traefik
+server --disable servicelb --disable local-storage --disable traefik --tls-san 192.168.0.44 --tls-san dflake-nettop --node-taint node-role.kubernetes.io/control-plane=true:NoSchedule
 ```
 
 Retrieve the join token:
@@ -181,12 +181,12 @@ Retrieve the join token:
 sudo cat /var/lib/rancher/k3s/server/node-token
 ```
 
-### 2.2 Agents (`kube2`–`kube4`)
+### 2.2 Agents (`kube1`–`kube4`)
 
 Copy the repository or just the script to each agent, then:
 
 ```bash
-sudo K3S_URL=https://192.168.0.61:6443 \
+sudo K3S_URL=https://192.168.0.44:6443 \
      K3S_TOKEN='<token>' \
      ./scripts/install-agent.sh
 ```
@@ -199,8 +199,8 @@ kube-vip attempt and looped ~1.58 million times.
 ### 2.3 kubeconfig on the workstation
 
 ```bash
-ssh pi@192.168.0.61 'sudo cat /etc/rancher/k3s/k3s.yaml' > ~/.kube/config-dramble-k3s
-sed -i 's/127\.0\.0\.1/192.168.0.61/' ~/.kube/config-dramble-k3s
+ssh dflake@192.168.0.44 'sudo cat /etc/rancher/k3s/k3s.yaml' > ~/.kube/config-dramble-k3s
+sed -i 's/127\.0\.0\.1/192.168.0.44/' ~/.kube/config-dramble-k3s
 chmod 600 ~/.kube/config-dramble-k3s
 export KUBECONFIG=~/.kube/config-dramble-k3s
 kubectl get nodes -o wide

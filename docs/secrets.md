@@ -125,13 +125,15 @@ The k3s kubeconfig is a client certificate/key pair with cluster-admin scope.
 Keep it outside the repository:
 
 ```bash
-ssh pi@192.168.0.61 'sudo cat /etc/rancher/k3s/k3s.yaml' > ~/.kube/config-dramble-k3s
-sed -i 's/127\.0\.0\.1/192.168.0.61/' ~/.kube/config-dramble-k3s
+ssh dflake@192.168.0.44 'sudo cat /etc/rancher/k3s/k3s.yaml' > ~/.kube/config-dramble-k3s
+sed -i 's/127\.0\.0\.1/192.168.0.44/' ~/.kube/config-dramble-k3s
 chmod 600 ~/.kube/config-dramble-k3s
 ```
 
-Re-download after any rebuild — this one was captured on 2026-11-15 for the
-new cluster, whose cluster CA is valid until **2036-11-13**. (The pre-reimage
+The 2026-11-21 control-plane move preserved the CA and client certificates,
+so only the server URL changed — no new credentials were needed. Re-download
+after any rebuild — this one was captured on 2026-11-15 for the new cluster,
+whose cluster CA is valid until **2036-11-13**. (The pre-reimage
 cluster's certificate, valid until 2027-03-05, died with it.)
 
 ## ACME state

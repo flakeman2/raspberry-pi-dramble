@@ -58,7 +58,7 @@ If the hardware is ever returned to service, reimage it and join with
 
 ### 4. ~~Control access to the cluster API~~ — verified clean 2026-11-16
 
-The k3s API is reachable on `192.168.0.61:6443` **from the LAN only**. Verified
+The k3s API is reachable on `192.168.0.44:6443` **from the LAN only** (moved from `192.168.0.61` to `dflake-nettop` on 2026-11-21; see item 17). Verified
 after the rebuild: the public IP does not answer on `6443` (the router forwards
 only 80/443), `.201` does not answer on `6443`, and the only `LoadBalancer`
 Service in the cluster is `traefik/traefik` → `192.168.0.201`. Re-check after
@@ -69,6 +69,85 @@ PUB=$(curl -s https://api.ipify.org)
 timeout 6 bash -c "exec 3<>/dev/tcp/$PUB/6443" && echo "EXPOSED" || echo "closed ✓"
 kubectl get svc -A --no-headers | awk '$3=="LoadBalancer" {print $1"/"$2, $5}'
 ```
+
+### 17. ~~Move the k3s control plane off kube1~~ — done 2026-11-21
+
+**The cluster's control plane is failing every 10–20 minutes.** By 22:00 on
+2026-11-18 k3s on kube1 had restarted **17 times** — 16 that day, against one
+the day before — and the interval had collapsed from hours to ~20 minutes.
+
+**Cause, measured rather than guessed:**
+
+```
+Slow SQL: DELETE ... name=Compact   duration=39.27s
+level=fatal  msg="Transaction commit failed: sql: transaction has already been committed or rolled back"
+```
+
+k3s uses **kine** (SQLite) as its datastore, in-process, writing to kube1's
+disk. A compaction stalled for 39 seconds, every write timed out, the
+transaction rolled back, and k3s exited `1` — systemd `Restart=always` brings
+it back, which is why the cluster keeps coming up again. On kube1: **79%
+iowait**, load **20–27 sustained** across 4 cores, 4 GB RAM with **no swap**,
+and `longhorn-manage` plus `argocd-application-controller` both in **D state**
+(uninterruptible I/O sleep). The node is I/O-starved, not CPU-starved.
+
+**Why kube1 specifically:** it runs the control plane, the Longhorn storage
+engine and the monitoring/ingress stack on one contended disk. The datastore
+sits on exactly the resource that is saturated.
+
+**Interim measure, in place 2026-11-18 → lifted 2026-11-21:** an emergency
+`syncWindows` deny window on *both* AppProjects (`drumble` in
+`gitops/projects/default.yaml`; `default` is created by Argo CD and is not in
+this repository). It denied automated sync — and therefore selfHeal — so the
+12 Applications stopped retrying against an apiserver that could not answer,
+while `manualSync` kept operator-initiated syncs working. The `drumble` block
+was never committed to `dev`, so lifting the hold needed **no git revert**: both
+projects were patched live with `{"spec":{"syncWindows":null}}` after the move.
+Note this install does not ship the `SyncWindow` CRD, so the AppProject field is
+the only way to do it.
+
+**Decision:** move the k3s control plane to a dedicated **x86_64 server —
+same LAN, always-on, fast disk**. That removes the datastore from the
+contended resource instead of tuning around it.
+
+**Sequencing, because of item 10:** there is deliberately **no off-cluster
+Longhorn backup**, and the `LonghornVolume`/`Snapshot`/`Backup` objects live
+*inside that datastore*. A control-plane migration **is** a datastore
+migration — the highest-risk operation available on this cluster, against
+five volumes with no recovery path if it is botched. Volume *data* stays on
+the Pi disks; only metadata moves, and that is exactly what must be verified.
+
+**Executed 2026-11-21** (full operator runbook:
+[control-plane-migration-nettop.md](control-plane-migration-nettop.md)):
+
+1. **Back up first**: kube1's k3s was stopped so the SQLite WAL was quiesced,
+   then `/var/lib/rancher/k3s/server` (database **and** TLS certs) was archived
+   — 12 MB, SHA-256 `b2f718ce…b616afc` — with an untouched rollback copy left
+   on kube1. Adding swap was considered but skipped: the fix was to move the
+   datastore off the contended disk, not tune around it.
+2. **New server**: `dflake-nettop` (`192.168.0.44`, x86_64, always-on, fast
+   disk) installed as a **tainted** server with `SKIP_START/SKIP_ENABLE`, the
+   datastore restored, and the apiserver cert reissued for the new IP.
+3. **Cutover**: kube1's `k3s.service` disabled and its state directory renamed
+   to `server.retired-2026-11-21`; all four Pis rejoined as agents with
+   `K3S_URL=https://192.168.0.44:6443`. The admin kubeconfig was repointed in
+   place (the CA and client certs survived, so no new credentials were needed).
+4. **Verified**: all 5 nodes `Ready`, 5/5 Longhorn volumes attached and
+   `healthy`, all PVCs Bound, no failing pods, and the public names unaffected
+   — `.201` is a MetalLB address and never moved.
+5. **Aftercare**: the Longhorn conflict loop below was cleared, then the Argo
+   holds were lifted. All 12 Applications are now Synced/Healthy with automation
+   back on.
+
+**The first surprise after the move:** nettop's CPU pegged at **99%** even
+though iowait was **0** and kine compactions were down to **104–467 ms** (from
+39.27 s on kube1). `/metrics` showed **1,518 `PUT longhorn.io/nodes` in 30 s,
+1,430 of them `409 Conflict`** — a stale-informer retry loop after the datastore
+moved, not datastore load. A rolling restart of `longhorn-manager` (one pod at a
+time) and `longhorn-global-manager` cleared it: **0 conflicts**, nettop back to
+15–23% CPU, all five volumes untouched. **Switching to etcd was considered and
+rejected** — single-node etcd adds raft and fsync work on top of the same failed
+writes, without fixing the loop.
 
 ## P1 — correctness and resilience
 
@@ -212,9 +291,9 @@ B-series upgrade ever happens, revisit it rather than skipping it silently.
 
 ### 12. Reduce single points of failure
 
-- One control-plane node (`kube1`) with embedded SQLite. Losing it stops the API.
-  An HA control plane would need three servers and an external datastore (or
-  embedded etcd).
+- One control-plane node (`dflake-nettop`) with embedded SQLite/kine. Losing
+  it still stops the API. HA would need three servers and embedded etcd —
+  deliberately not done; see item 17 and the runbook for why.
 - Longhorn runs 3 replicas across 4 nodes; losing two nodes can take a volume
   offline.
 
@@ -281,8 +360,9 @@ drives `eth0`, so nothing legitimate needs it. Verified afterwards:
 `enabled=disabled active=inactive procs=0`, default route and DNS intact,
 cluster 4/4 `Ready`, Prometheus **24 up / 0 down**.
 
-kube1 went **last** on purpose: as the only server its reboot takes the API
-down with it (single-server topology — see item 12). SSH returned after 110 s
+kube1 went **last** on purpose: at the time it was the only server, so its
+reboot took the API down with it (single-server topology — see item 12; it has
+been an agent since 2026-11-21). SSH returned after 110 s
 and the API about 15 s after that; volumes re-attached `healthy` within 80 s of
 uncordoning. The procedure is kept below for the next reimage.
 

@@ -1,0 +1,94 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: longhorn
+  namespace: argocd
+  annotations:
+    # Phase 3 ordering: CRDs and controllers belong at wave -5, with MetalLB.
+    # Everything that needs a PVC depends on this being up first.
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  project: drumble
+  source:
+    repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
+    targetRevision: dev
+    # The vendored release manifest, applied as-is. Vendored rather than
+    # fetched so a rebuild never depends on raw.githubusercontent.com being
+    # reachable while you are trying to install storage.
+    path: cluster/longhorn
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: longhorn-system
+
+  # Registered MANUAL first, per the phase-2 discipline: sync disabled, diff
+  # read line by line, and only then automation.
+  #
+  # The manifest was byte-identical to live before this Application existed:
+  # `kubectl diff -f cluster/longhorn/longhorn-v1.13.0.yaml` exited 0 with
+  # zero output, the same check that validated it when it was committed. So
+  # the expected Argo diff is Argo's own tracking-id annotations and nothing
+  # else — 62 of them.
+
+  # ---------------------------------------------------------------------------
+  # prune: FALSE, deliberately. This is the one addon where enabling it would
+  # be the wrong call, and the reason is specific rather than precautionary.
+  #
+  # `argocd app resources longhorn` would track all 62 manifest resources,
+  # and 37 of them are cluster-scoped — including 28 CustomResourceDefinitions
+  # and the longhorn-system Namespace itself. Kubernetes deletes every custom
+  # resource of a kind when its CRD is deleted, so a prune that reached a
+  # Longhorn CRD would cascade into LonghornVolume, LonghornSnapshot,
+  # RecurringJob and Backup objects across the cluster.
+  #
+  # Those objects are the cluster's only record of which volumes exist and
+  # where their data lives, and there is deliberately no off-cluster Longhorn
+  # backup (docs/action-items.md, the 2026-11-17 decision). A cascade here is
+  # therefore not recoverable — which is what separates this from MetalLB,
+  # where prune was enabled after listing what Argo tracks. MetalLB's CRs are
+  # address-pool configuration restorable from git in seconds; Longhorn's are
+  # not restorable from anywhere.
+  #
+  # What prune WOULD be unable to reach is worth stating too, because it is
+  # most of what matters: the live longhorn-webhook-validator and
+  # longhorn-webhook-mutator Validating/MutatingWebhookConfigurations are not
+  # in this manifest at all (the manifest contains zero webhook
+  # configurations) — longhorn-manager creates them at runtime. Neither are
+  # the `longhorn` and `longhorn-static` StorageClasses, which come from a
+  # ConfigMap the manager reads. None of those are tracked, so none are
+  # reachable. The CRDs are the exception, because they are in git.
+  #
+  # selfHeal stays on: it re-applies desired state and never deletes, so the
+  # cluster still converges to dev without Argo being handed a delete button
+  # on the storage layer.
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      # The manifest declares longhorn-system itself.
+      - CreateNamespace=false
+
+  # ---------------------------------------------------------------------------
+  # ServerSideApply is NOT set, and docs/gitops.md's convention saying to set
+  # it was corrected in this branch rather than followed. The stated reason —
+  # "client-side apply exceeds the annotation size limit" — does not hold for
+  # this manifest, measured rather than assumed:
+  #
+  #   largest single resource   21,419 bytes (instancemanagers CRD)
+  #   kubectl annotation limit 262,144 bytes
+  #   kubectl diff              exit 0, 0 bytes  -> client-side is a no-op
+  #   kubectl diff --server-side              exit 2, 4 conflicts with
+  #                                           kubectl-client-side-apply
+  #   kubectl diff --server-side --force      exit 1, 34 of 62 resources
+  #                                           changed, 73 KB of churn
+  #
+  # Adopting with ServerSideApply would therefore take ownership of 34
+  # resources by force — including the longhorn-manager DaemonSet's env
+  # fieldRefs — and bump generations across the storage layer, to solve a
+  # size problem that does not exist. That is exactly the surprise mutation
+  # phase 1 was set up to prevent, on the addon where a surprise costs the
+  # most.
+  #
+  # If a Longhorn custom resource is ever committed here and does exceed the
+  # limit, switch this Application to ServerSideApply then. Nothing in the
+  # current manifest needs it.

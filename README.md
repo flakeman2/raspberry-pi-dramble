@@ -35,13 +35,14 @@ pull requests are no longer opened against it. See
 
 | | |
 |---|---|
-| Distribution | k3s `v1.36.6+k3s1` (single control plane, embedded SQLite) |
-| Nodes | 4 × Raspberry Pi 4 Model B, 4 cores / 4 GB RAM each |
+| Distribution | k3s `v1.36.6+k3s1` (single control plane on `dflake-nettop`, embedded SQLite/kine) |
+| Nodes | 4 × Raspberry Pi 4 Model B (agents) + 1 × x86_64 `dflake-nettop` (tainted server) |
 | Storage | Longhorn `1.13.0`, `longhorn` default StorageClass, 3 replicas |
 | Load balancer | MetalLB `0.16.2`, L2 pool `192.168.0.201–192.168.0.250` |
-| Ingress | Traefik `3.7.18` (chart `42.4.0`) at `192.168.0.201` |
+| Ingress | Traefik `3.7.19` (chart `42.4.1`) at `192.168.0.201` — unchanged by the control-plane move |
 | TLS | Traefik built-in ACME (TLS-ALPN), Let's Encrypt production |
-| Monitoring | Prometheus `3.16.0` (chart `29.47.2`), Grafana `13.3.1` (chart `14.4.1`), Alertmanager, kube-state-metrics, node-exporter |
+| Monitoring | Prometheus `3.16.0` (chart `29.47.2`), Grafana `13.3.1` (chart `14.5.0`), Alertmanager, kube-state-metrics, node-exporter |
+| GitOps | Argo CD `v3.6.1` (chart `10.18.0`), 12 Applications tracking `dev` |
 | Metrics | metrics-server and CoreDNS, both bundled with k3s |
 | DNS | Park-Your-Domain dynamic DNS via two CronJobs |
 
@@ -86,11 +87,11 @@ gitops/                      Argo CD scaffold (not yet applied)
 The complete procedure is in [docs/redeploy.md](docs/redeploy.md). Short form:
 
 ```bash
-# On kube1, after imaging and node preparation:
+# On dflake-nettop, after OS preparation (tainted, TLS SANs for its own IP):
 sudo ./scripts/install-server.sh
 
-# On kube2–kube4:
-sudo K3S_URL=https://192.168.0.61:6443 K3S_TOKEN=... ./scripts/install-agent.sh
+# On kube1–kube4:
+sudo K3S_URL=https://192.168.0.44:6443 K3S_TOKEN=... ./scripts/install-agent.sh
 
 # From a workstation with kubectl + helm:
 export KUBECONFIG=~/.kube/config-dramble-k3s

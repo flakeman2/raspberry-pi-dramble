@@ -1,12 +1,13 @@
 # Architecture
 
-The cluster is a single-control-plane k3s cluster on four Raspberry Pi 4 nodes.
-Kubernetes objects are applied directly with `kubectl` and Helm; there is no GitOps
-controller and no Ansible.
+The cluster is a single-control-plane k3s cluster: one x86_64 server
+(`dflake-nettop`) plus four Raspberry Pi 4 agents. Kubernetes objects converge
+to `dev` through Argo CD; there is no Ansible.
 
-**Verified against the live cluster: 2026-11-16**, immediately after the
-rebuild (snapshot and rebuild history:
-[cluster-status.md](cluster-status.md)).
+**Verified against the live cluster: 2026-11-16** after the rebuild, **updated
+2026-11-21** after the control-plane move (snapshot, rebuild history and the
+migration record: [cluster-status.md](cluster-status.md),
+[control-plane-migration-nettop.md](control-plane-migration-nettop.md)).
 
 ```
                            LAN 192.168.0.0/24
@@ -31,10 +32,15 @@ rebuild (snapshot and rebuild history:
 
 | | |
 |---|---|
-| Server | `kube1` (192.168.0.61) only |
-| Datastore | embedded SQLite at `/var/lib/rancher/k3s/server/db/state.db` |
+| Server | `dflake-nettop` (192.168.0.44, x86_64) only — **tainted** `node-role.kubernetes.io/control-plane=true:NoSchedule` |
+| Agents | `kube1`–`kube4` (192.168.0.61–.64, Raspberry Pi 4) |
+| Datastore | embedded SQLite/kine at `/var/lib/rancher/k3s/server/db/state.db`, restored from kube1 on 2026-11-21 |
 | k3s version | `v1.36.6+k3s1` |
 | Server flags | `--disable servicelb --disable local-storage --disable traefik` |
+
+`192.168.0.201` is a MetalLB address announced by the Pis, not the API endpoint;
+it did not change in the move. The taint keeps workloads — including Argo CD —
+off the machine that owns the datastore.
 
 The three disabled components are replaced by explicit add-ons:
 
@@ -49,9 +55,11 @@ k3s still manages these add-ons in `kube-system`: `ccm`, `coredns` (k3s-bundled)
 `metrics-apiservice`, and the metrics-server RBAC/service objects.
 
 There is **no** kube-vip, no external etcd, no HA control plane, and no
-cert-manager. The `192.168.0.200` VIP from an old kube-vip experiment does not
-exist; see [cluster-status.md](cluster-status.md) for the residual broken unit
-on kube2.
+cert-manager. A single-node etcd was evaluated after the move and rejected: it
+adds raft and fsync overhead on top of the same API traffic without addressing
+the failure mode (see [action-items.md](action-items.md#17-move-the-k3s-control-plane-off-kube1--done-2026-11-21)).
+The `192.168.0.200` VIP from an old kube-vip experiment does not exist; see
+[cluster-status.md](cluster-status.md) for the residual broken unit on kube2.
 
 ## Namespaces
 
