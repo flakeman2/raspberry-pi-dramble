@@ -1,0 +1,25 @@
+# Kustomize lets the JSON files stay the single source of truth: each one
+# becomes a ConfigMap with the label the Grafana dashboard sidecar watches.
+# No generated YAML is committed, so editing a dashboard cannot leave a stale
+# copy behind.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+generatorOptions:
+  disableNameSuffixHash: true
+labels:
+- pairs:
+    grafana_dashboard: "1"
+configMapGenerator:
+- name: grafana-dashboard-cluster
+  files:
+  - dramble-cluster.json
+- name: grafana-dashboard-nodes
+  files:
+  - dramble-nodes.json
+- name: grafana-dashboard-traefik
+  files:
+  - dramble-traefik.json
+- name: grafana-dashboard-longhorn
+  files:
+  - dramble-longhorn.json

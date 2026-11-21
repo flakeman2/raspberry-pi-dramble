@@ -28,10 +28,16 @@ metadata:
   namespace: monitoring
 spec:
   entryPoints:
+  - web
   - websecure
   routes:
   - kind: Rule
     match: Host(`grafana.devinflake.com`) || Host(`grafana.flakeman2.com`)
+    middlewares:
+    # Without this, port 80 had no route for these hosts and returned 404
+    # while the longhorn and prometheus UIs redirected correctly.
+    - name: redirect-to-https
+      namespace: default
     services:
     - name: grafana
       port: 80

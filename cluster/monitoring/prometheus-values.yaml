@@ -88,6 +88,12 @@ prometheus-pushgateway:
 # Requires cluster/metallb/metrics-rbac.yaml (TokenReview/SAR for MetalLB,
 # `get` on /metrics for the Prometheus ServiceAccount) — both applied by
 # scripts/install-addons.sh.
+#
+# Longhorn metrics: longhorn-manager exposes Prometheus text at
+# http://longhorn-backend:9500/metrics, but its own NetworkPolicy denies
+# ingress from outside longhorn-system. cluster/monitoring/manifests/ adds the
+# narrow allow rule, owned by this Application so the scrape and its exception
+# land together. Without both, the Longhorn dashboard is empty.
 scrapeConfigs:
   metallb-metrics:
     enabled: true
@@ -119,3 +125,11 @@ scrapeConfigs:
       target_label: pod
     - source_labels: [__meta_kubernetes_pod_ip]
       target_label: instance
+
+  longhorn-metrics:
+    enabled: true
+    job_name: longhorn-metrics
+    metrics_path: /metrics
+    static_configs:
+    - targets:
+      - longhorn-backend.longhorn-system.svc.cluster.local:9500

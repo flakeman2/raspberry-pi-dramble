@@ -1,10 +1,10 @@
 # GitOps
 
-Declarative cluster state for Argo CD. **Eleven Applications are live and
-reconciling from `dev`**: the five phase-2 workloads plus Sealed Secrets,
-MetalLB, Traefik, `traefik-config`, Prometheus and Grafana (2026-11-18).
-`scripts/install-addons.sh` still installs what has not been adopted —
-Longhorn — and remains the fallback until phase 3 is complete. The design,
+Declarative cluster state for Argo CD. **Thirteen Applications are live and
+reconciling from `dev`**: the six first-party apps (including the new
+`grafana-dashboards`) plus Sealed Secrets, MetalLB, Traefik, `traefik-config`,
+Prometheus, Grafana and Longhorn (2026-11-21). `scripts/install-addons.sh`
+remains the fallback until phase 3 is complete. The design,
 phased rollout, and conventions are in [../docs/gitops.md](../docs/gitops.md);
 the component upgrade that landed first is in
 [../docs/upgrade.md](../docs/upgrade.md).
@@ -15,8 +15,9 @@ the component upgrade that landed first is in
 bootstrap/   Argo CD install and the root Application — the only non-Git step
 projects/    AppProject definitions (source and destination boundaries)
 addons/      sealed-secrets, MetalLB, Traefik, traefik-config,
-             prometheus, grafana  (Longhorn still to come)
-apps/        First-party workloads, one directory per Application (Kustomize)
+             prometheus, grafana, longhorn
+apps/        First-party workloads, one directory per Application (Kustomize);
+             grafana-dashboards renders JSON dashboards into labelled ConfigMaps
 ```
 
 ## Conventions

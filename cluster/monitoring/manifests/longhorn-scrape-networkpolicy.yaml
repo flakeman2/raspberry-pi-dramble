@@ -1,0 +1,33 @@
+# Longhorn 1.13 installs a NetworkPolicy that restricts ingress to
+# longhorn-manager. Its default allow-list contains Longhorn's own components
+# but not Prometheus, so `curl http://longhorn-backend:9500/metrics` from the
+# monitoring namespace fails with connection refused even though the Service
+# and port are correct. NetworkPolicies are additive: this one only adds an
+# exception, it does not weaken Longhorn's policy.
+#
+# Owned by the `prometheus` Application (gitops/addons/prometheus/application.yaml)
+# so the scrape config in prometheus-values.yaml and this exception cannot be
+# merged separately.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-longhorn-metrics
+  namespace: longhorn-system
+spec:
+  podSelector:
+    matchLabels:
+      app: longhorn-manager
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: monitoring
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/component: server
+          app.kubernetes.io/name: prometheus
+    ports:
+    - protocol: TCP
+      port: 9500

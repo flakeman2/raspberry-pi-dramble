@@ -1,4 +1,4 @@
-# Grafana values for chart `grafana` 14.4.1 (app 13.3.1).
+# Grafana values for chart `grafana` 14.5.0 (app 13.3.1).
 #
 # The chart moved to the grafana-community repository after 2026-01-30; the
 # old grafana.github.io endpoint still serves it but is frozen at the
@@ -9,7 +9,7 @@
 #     --from-literal=admin-password='...'
 #
 #   helm upgrade --install grafana grafana/grafana \
-#     --namespace monitoring --version 14.4.1 \
+#     --namespace monitoring --version 14.5.0 \
 #     -f cluster/monitoring/grafana-values.yaml
 #
 # `image.tag` is omitted so the chart pins its own appVersion (13.3.1).
@@ -17,7 +17,13 @@
 # though it is not listed in the chart's default values.
 #
 # The Prometheus datasource is codified here because on the live cluster it was
-# added through the UI and is not present in the stored Helm values.
+# added through the UI and is not present in the stored Helm values. Its UID is
+# fixed so the git-provisioned dashboards can reference it without templating.
+#
+# Dashboards themselves live in `dashboards/` as JSON and are delivered by
+# Kustomize ConfigMaps carrying `grafana_dashboard: "1"`. The chart's sidecar
+# watches that label and re-provisions them on every change, so nothing in the
+# ReadWriteOnce PVC is irreplaceable (action item 10).
 
 image:
   repository: grafana/grafana
@@ -49,6 +55,33 @@ service:
   type: ClusterIP
   port: 80
 
+grafana.ini:
+  server:
+    # Links, share URLs and OAuth redirects must use the public HTTPS name,
+    # not the ClusterIP the IngressRoute proxies to.
+    root_url: https://grafana.devinflake.com
+  auth.anonymous:
+    # Explicit rather than relying on the chart's default: the UI is behind
+    # Grafana's own login at the public hostname.
+    enabled: false
+
+# The dashboard sidecar is off by default in this chart. It watches labelled
+# ConfigMaps in the monitoring namespace and writes the dashboards into the
+# Grafana database on every change, which is what makes git the source of
+# truth. Keep a small budget: item 6 is about unbudgeted containers.
+sidecar:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 16Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+  dashboards:
+    enabled: true
+    resource: configmap
+    defaultFolderName: Dramble
+
 # Probes come from the chart's defaults (GET /api/health).
 resources:
   requests:
@@ -69,6 +102,7 @@ datasources:
     apiVersion: 1
     datasources:
     - name: Prometheus
+      uid: prometheus
       type: prometheus
       access: proxy
       url: http://prometheus-server

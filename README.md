@@ -42,7 +42,7 @@ pull requests are no longer opened against it. See
 | Ingress | Traefik `3.7.19` (chart `42.4.1`) at `192.168.0.201` — unchanged by the control-plane move |
 | TLS | Traefik built-in ACME (TLS-ALPN), Let's Encrypt production |
 | Monitoring | Prometheus `3.16.0` (chart `29.47.2`), Grafana `13.3.1` (chart `14.5.0`), Alertmanager, kube-state-metrics, node-exporter |
-| GitOps | Argo CD `v3.6.1` (chart `10.18.0`), 12 Applications tracking `dev` |
+| GitOps | Argo CD `v3.6.1` (chart `10.18.0`), 13 Applications tracking `dev` |
 | Metrics | metrics-server and CoreDNS, both bundled with k3s |
 | DNS | Park-Your-Domain dynamic DNS via two CronJobs |
 

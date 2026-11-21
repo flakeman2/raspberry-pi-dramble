@@ -55,7 +55,7 @@ disposable:
 |---|---|---|---|
 | `mysite-nginx/mysite-content` | 1 GiB | Website content | **Yes — back up** |
 | `traefik/traefik` | 128 MiB | `acme.json` | Optional — re-issuing is safe |
-| `monitoring/grafana` | 10 GiB | Grafana DB | No — 0 dashboards |
+| `monitoring/grafana` | 10 GiB | Grafana DB | No — dashboards now provisioned from git (item 7) |
 | `monitoring/prometheus-server` | 8 GiB | 15 days of metrics | No |
 | `monitoring/prometheus-alertmanager` | 2 GiB | Silences | No |
 

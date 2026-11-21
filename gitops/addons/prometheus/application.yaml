@@ -29,6 +29,12 @@ spec:
     - repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
       targetRevision: dev
       ref: values
+    # Plain manifests alongside the chart: the narrow NetworkPolicy that lets
+    # Prometheus reach longhorn-backend:9500. Keeping it here means the scrape
+    # config and the exception that makes it work are one Application.
+    - repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
+      targetRevision: dev
+      path: cluster/monitoring/manifests
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring

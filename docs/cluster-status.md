@@ -148,7 +148,7 @@ No under-voltage or thermal throttling on any node.
 
 Totals: **66 pods**, 12 namespaces, 23 Deployments, 5 DaemonSets, 2
 StatefulSets, 2 CronJobs, 27 Services, 12 IngressRoutes, 5 Middlewares, 1
-TLSOption, 6 PDBs, 10 NetworkPolicies (6 Longhorn's own, 4 Argo CD's).
+TLSOption, 6 PDBs, 11 NetworkPolicies (6 Longhorn's own, 4 Argo CD's).
 
 The workload count deliberately **excludes Job-owned pods** (CronJob and Job
 output). Those come and go with `successfulJobsHistoryLimit`, so a total pod
@@ -224,9 +224,11 @@ page, `/whoami` answering behind `PathPrefix(/whoami)`.
 - MetalLB metrics are scraped by an explicit job (`scheme: https`,
   `insecureSkipVerify`, bearer token, port `9120`) — v0.16 removed the plain
   HTTP endpoint and the annotation-based job cannot reach it (see defect #4).
-- Retention 15 days on the 8 GiB PVC; Grafana has **0 dashboards**; its
-  `Prometheus` datasource (`http://prometheus-server`, proxy, POST) is codified
-  in `cluster/monitoring/grafana-values.yaml`.
+- Retention 15 days on the 8 GiB PVC; the four Grafana dashboards are now
+  provisioned from git (`cluster/monitoring/dashboards/*.json` via the
+  `grafana-dashboards` Application); its `Prometheus` datasource
+  (`http://prometheus-server`, proxy, POST, UID `prometheus`) is codified in
+  `cluster/monitoring/grafana-values.yaml`.
 - Alertmanager runs with chart defaults and no receivers.
 
 ### Dynamic DNS caveat
@@ -347,7 +349,7 @@ Five PVCs `Bound`, five volumes `attached`/`healthy`, 15 replicas (5 on kube1,
 
 23 targets, 0 down after the node removal (30 targets / 7 down before it).
 Grafana had 0 dashboards; its datasource was added through the UI (now
-codified in values).
+codified in values, and dashboards are provisioned from git as of 2026-11-21).
 
 ### Security / hygiene (historical)
 
@@ -366,4 +368,5 @@ codified in values).
 3. Plan the k3s/component upgrade (1.22 is EOL). *(done — rebuild completed
    2026-11-16)*
 4. Add resource requests/limits and probes; import Grafana dashboards.
-   *(limits/probes done for repo-owned containers; dashboards still open)*
+   *(limits/probes done for repo-owned containers; dashboards provisioned from
+   git 2026-11-21)*

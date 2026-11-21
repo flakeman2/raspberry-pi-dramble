@@ -192,15 +192,26 @@ numbers are starting points — tune them from metrics after the rebuild, and do
 not add a CPU limit to Prometheus or the Longhorn managers without measuring
 first.
 
-### 7. Finish the Grafana setup
+### 7. ~~Finish the Grafana setup~~ — done in git (2026-11-21)
 
-- **0 dashboards.** Import node/cluster/Longhorn/Traefik dashboards and persist
-  them (ConfigMap + dashboard provider, or export JSON into `cluster/dashboards/`).
-- The Prometheus datasource was added through the UI; it is now codified in
-  `cluster/monitoring/grafana-values.yaml`.
-- Add an HTTP→HTTPS redirect for `grafana.devinflake.com`. Unlike the other
-  hosts it returns `404` on port 80.
-- Set a Grafana root URL and disable anonymous access if not already default.
+- **Four dashboards, authored here and persisted from git:** cluster, nodes,
+  Traefik and Longhorn. The JSON lives in `cluster/monitoring/dashboards/` and
+  Kustomize turns each file into a ConfigMap labelled `grafana_dashboard: "1"`;
+  the chart's dashboard sidecar provisions them on every change. Nothing
+  long-lived has to be built in the UI, which is what makes the no-backup
+  decision in item 10 safe for Grafana.
+- The Prometheus datasource is codified in `cluster/monitoring/grafana-values.yaml`
+  with the fixed UID `prometheus`, so the dashboards reference it without
+  templating.
+- Longhorn's own metrics were not being collected at all: its default
+  NetworkPolicy denies port 9500 from outside `longhorn-system`. Added a
+  `longhorn-metrics` scrape job plus a narrow allow rule, both owned by the
+  `prometheus` Application.
+- `grafana-dashboard` now listens on `web` as well as `websecure` and uses the
+  existing `redirect-to-https` middleware; port 80 returns a redirect rather
+  than 404.
+- `grafana.ini.server.root_url` is `https://grafana.devinflake.com` and
+  `auth.anonymous.enabled` is explicitly `false`.
 
 ### 8. ~~Remove pi-hole~~ — done (2026-11-14 → 11-16)
 
@@ -266,13 +277,13 @@ regenerable or something already in git:
 | `mysite-content` | byte-identical to `cluster/workloads/mysite/content/` in git |
 | `traefik` (`acme.json`) | Let's Encrypt re-issues |
 | `prometheus-server`, `prometheus-alertmanager` | history regenerates |
-| `monitoring/grafana` | **0 dashboards — nothing to lose yet** |
+| `monitoring/grafana` | dashboards now provisioned from git (item 7); users/preferences would be lost |
 
-**That last row is the catch.** Grafana is now the one place real work could
-accumulate with no way to recover it, so this decision makes [item
-7](#7-finish-the-grafana-setup) load-bearing: dashboards must be provisioned
-as ConfigMaps in git, never built in the UI. Same for anything else
-long-lived in a PVC.
+**That last row was the catch.** Grafana was the one place real work could
+accumulate with no way to recover it, which is why [item
+7](#7-finish-the-grafana-setup--done-in-git-2026-11-21) was load-bearing:
+dashboards are provisioned from ConfigMaps in git, never built in the UI. Same
+for anything else long-lived in a PVC.
 
 Also outstanding: the off-repo secret export still needs to live somewhere
 that survives the machine, alongside the `.kube` copies on `dflake-nettop`.
