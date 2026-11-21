@@ -310,11 +310,19 @@ B-series upgrade ever happens, revisit it rather than skipping it silently.
 
 ### 13. Monitoring gaps
 
-- Alertmanager has no receivers configured; add at least one.
-- Prometheus retention is 15 days with an 8 GiB volume. Decide whether that is
-  enough.
-- Add alerts for node NotReady, PVC/volume degraded, certificate expiry, and
-  CronJob failure.
+- ~~Alertmanager has no receivers configured; add at least one.~~ — resolved
+  2026-11-21 with an ntfy.sh webhook; the full URL (including the topic) is a
+  SealedSecret, mounted as a file and read via `url_file` because Alertmanager
+  does not expand environment variables in its config.
+- ~~Prometheus retention is 15 days with an 8 GiB volume. Decide whether that is
+  enough.~~ — 15 days kept and made explicit: measured ~1.8 GiB of TSDB blocks
+  and ~99k head series, about a quarter of the 8 GiB PVC. Revisit at 4 GiB of
+  blocks; `retentionSize: 6Gi` is the next lever.
+- ~~Add alerts for node NotReady, PVC/volume degraded, and CronJob failure.~~ —
+  five rules cover node NotReady, PVC not Bound, Longhorn degraded/faulted, and
+  CronJob failure. **Certificate expiry is deliberately deferred**: Traefik's
+  ACME certificate lives in a file on its PVC, so there is no cert-manager
+  expiration metric to alert on.
 
 ### 14. Cleanup
 
