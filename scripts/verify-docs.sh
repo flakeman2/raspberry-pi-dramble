@@ -181,7 +181,61 @@ else
   fail "versions: a documented pin does not match the live release"
 fi
 
-echo "== 5. SealedSecrets are all synced =="
+echo "== 5. addon Application chart pins vs scripts/install-addons.sh =="
+# Chart versions are now declared in two places: the install script (the
+# bootstrap path) and each Application's targetRevision (the GitOps path).
+# Neither is derived from the other, so nothing stops a bump from updating
+# one and silently leaving the other behind — and check 4 above would only
+# notice once the cluster had already moved. Assert the two agree here, where
+# the failure is still a PR rather than a surprise.
+if python3 - <<'PY'
+import glob, re, sys, yaml
+
+pins = {}
+for line in open('scripts/install-addons.sh'):
+    m = re.match(r'([A-Z_]+)_CHART_VERSION=([0-9.]+)', line)
+    if m:
+        pins[m.group(1)] = m.group(2)
+
+# chart name -> the install script's variable
+name_map = {'traefik': 'TRAEFIK', 'prometheus': 'PROMETHEUS', 'grafana': 'GRAFANA'}
+
+bad = 0
+found = 0
+for path in sorted(glob.glob('gitops/addons/*/application.yaml')):
+    doc = yaml.safe_load(open(path))
+    spec = doc.get('spec', {})
+    sources = spec.get('sources') or ([spec.get('source')] if spec.get('source') else [])
+    for src in sources:
+        chart = (src or {}).get('chart')
+        if not chart:
+            continue  # path-based Application, no chart pin to compare
+        found += 1
+        var = name_map.get(chart.lower())
+        want = pins.get(var)
+        got = src.get('targetRevision')
+        if want is None:
+            print(f'  FAIL  pins: {path} chart {chart} has no *_CHART_VERSION in install-addons.sh')
+            bad += 1
+        elif got == want:
+            print(f'  PASS  pins: {path} chart {chart} = {got}')
+        else:
+            print(f'  FAIL  pins: {path} chart {chart} Application={got} install-addons.sh={want}')
+            bad += 1
+
+if found == 0:
+    print('  FAIL  pins: no Helm-source Application found under gitops/addons/')
+    bad += 1
+
+sys.exit(1 if bad else 0)
+PY
+then
+  pass "pins: every addon Application chart pin matches install-addons.sh"
+else
+  fail "pins: an Application chart pin disagrees with install-addons.sh"
+fi
+
+echo "== 6. SealedSecrets are all synced =="
 # `get sealedsecret` shows only ns/name/age — the Synced condition needs
 # custom-columns, otherwise $NF is the age and everything looks unsynced.
 SS_STATE=$(kubectl get sealedsecret -A \
@@ -195,7 +249,7 @@ else
   fail "sealed: ${TOTAL_SS:-0} found, not synced -> ${UNSYNCED:-none}"
 fi
 
-echo "== 6. image tags in manifests vs live deployments =="
+echo "== 7. image tags in manifests vs live deployments =="
 if python3 - <<'PY'
 import re, pathlib, subprocess, sys
 def live_image(ns, name):
@@ -233,7 +287,7 @@ else
   fail "images: a manifest tag does not match the live deployment"
 fi
 
-echo "== 7. Argo CD tracks the repository default branch =="
+echo "== 8. Argo CD tracks the repository default branch =="
 # Repointing Argo by hand is exactly the kind of manual change that silently
 # drifts from the documented branching model, so assert the two agree.
 DEFAULT_BRANCH=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)

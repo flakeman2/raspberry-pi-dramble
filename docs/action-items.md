@@ -247,15 +247,17 @@ given automation, per the convention that prune stays off until an app's diff
 is clean. Sealed Secrets landed the same day and closed this item's blocker.
 
 **Phase 3 (2026-11-17/18):** the `drumble` AppProject, then Sealed Secrets,
-MetalLB and Traefik — the last as two Applications, `traefik` (the Helm
-release) and `traefik-config` (the CRs), because an Application is either a
-chart or a directory of manifests, never both. Every one followed the same
-register-diff-then-automate discipline, and the AppProject whitelist was
-widened three times by the adoptions themselves: `PriorityClass` for Longhorn,
-`ValidatingWebhookConfiguration` for MetalLB, `IngressClass` for Traefik.
+MetalLB, Traefik and monitoring — Traefik as two Applications, `traefik` (the
+Helm release) and `traefik-config` (the CRs), because an Application is either
+a chart or a directory of manifests, never both; Prometheus and Grafana as one
+each, since they are simply two independent releases in one namespace. Every
+one followed the same register-diff-then-automate discipline, and the
+AppProject whitelist was widened three times by the adoptions themselves:
+`PriorityClass` for Longhorn, `ValidatingWebhookConfiguration` for MetalLB,
+`IngressClass` for Traefik.
 
-**Remaining:** monitoring and Longhorn as Argo Applications, the root
-app-of-apps, then `install-addons.sh` shrinks to bootstrap-only. Conventions:
+**Remaining:** Longhorn as an Argo Application, the root app-of-apps, then
+`install-addons.sh` shrinks to bootstrap-only. Conventions:
 [gitops.md](gitops.md) and [../gitops/README.md](../gitops/README.md).
 
 ### 16. ~~Restore host tuning: Wi-Fi, Bluetooth, and the overclock~~ — done 2026-11-16

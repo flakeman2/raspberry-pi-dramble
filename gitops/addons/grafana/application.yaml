@@ -1,0 +1,64 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  namespace: argocd
+  annotations:
+    # Phase 3 ordering: an addon at wave 0, alongside Traefik and Prometheus.
+    # Grafana is told where Prometheus is by a datasource in its values, not
+    # by depending on the release, so it does not need a later wave.
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: drumble
+  # Two sources, because the chart and the values live in different places:
+  # the chart comes from the grafana-community Helm repository (the original
+  # grafana.github.io endpoint serves a frozen 10.5.x line), our values from
+  # this repository. `$values` resolves against the source carrying
+  # `ref: values`.
+  sources:
+    - repoURL: https://grafana-community.github.io/helm-charts
+      chart: grafana
+      # Kept in step with GRAFANA_CHART_VERSION in
+      # scripts/install-addons.sh — verify-docs.sh asserts the two agree.
+      targetRevision: "14.5.0"
+      helm:
+        valueFiles:
+          - $values/cluster/monitoring/grafana-values.yaml
+    - repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
+      targetRevision: dev
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  # Registered MANUAL first, per the phase-2 discipline: sync disabled, diff
+  # read line by line, and only then automation. The diff was empty apart
+  # from Argo's tracking-id on 7 resources, so automation follows.
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+
+  # Three things the diff was asked to answer, now answered by observation:
+  #
+  #   1. The chart renders 10 resources but Argo tracks 7. The three
+  #      excluded are `grafana-test` ServiceAccount, ConfigMap and Pod, all
+  #      carrying `helm.sh/hook: test`. Argo treats them as Helm hooks, not
+  #      normal resources: they are absent from the diff, absent from
+  #      `argocd app resources`, and a sync did not create the Pod. So
+  #      neither a sync nor a prune can reach them — they still run only on
+  #      an explicit `helm test`, exactly as Helm intends.
+  #   2. The `grafana` PVC (10 GiB, dashboards and users) IS tracked, so a
+  #      prune would reach it — the same condition as Traefik's acme.json
+  #      and Prometheus's TSDB PVCs. It is the one place here where prune
+  #      has teeth, and it is safe only while persistence stays enabled in
+  #      grafana-values.yaml. Unlike the others, storageClassName is set
+  #      explicitly there, so desired and live agree on `longhorn`.
+  #   3. No overlap with the `dashboards` Application, which tracks two
+  #      IngressRoutes in this namespace; the chart renders none.
+  #
+  # Not owned here: the `grafana` Secret is a SealedSecret from
+  # cluster/secrets/sealed/grafana.yaml. The chart does not render it, so a
+  # prune on this Application cannot reach it.

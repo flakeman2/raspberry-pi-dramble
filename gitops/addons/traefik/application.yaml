@@ -18,8 +18,10 @@ spec:
   sources:
     - repoURL: https://traefik.github.io/charts
       chart: traefik
-      # Kept in step with TRAEFIK_CHART_VERSION in scripts/install-addons.sh;
-      # check-updates.sh reports drift between the two.
+      # Kept in step with TRAEFIK_CHART_VERSION in scripts/install-addons.sh.
+      # The two are independent declarations of the same pin, so
+      # verify-docs.sh asserts they agree (check 5) — a bump that updates one
+      # and not the other fails the gate instead of drifting.
       targetRevision: "42.4.1"
       helm:
         valueFiles:

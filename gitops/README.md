@@ -1,20 +1,21 @@
 # GitOps
 
-Declarative cluster state for Argo CD. **Nine Applications are live and
+Declarative cluster state for Argo CD. **Eleven Applications are live and
 reconciling from `dev`**: the five phase-2 workloads plus Sealed Secrets,
-MetalLB, Traefik and `traefik-config` (2026-11-18). `scripts/install-addons.sh`
-still installs what has not been adopted — Longhorn and monitoring — and
-remains the fallback until phase 3 is complete. The design, phased rollout,
-and conventions are in [../docs/gitops.md](../docs/gitops.md); the component
-upgrade that landed first is in [../docs/upgrade.md](../docs/upgrade.md).
+MetalLB, Traefik, `traefik-config`, Prometheus and Grafana (2026-11-18).
+`scripts/install-addons.sh` still installs what has not been adopted —
+Longhorn — and remains the fallback until phase 3 is complete. The design,
+phased rollout, and conventions are in [../docs/gitops.md](../docs/gitops.md);
+the component upgrade that landed first is in
+[../docs/upgrade.md](../docs/upgrade.md).
 
 ## Layout
 
 ```
 bootstrap/   Argo CD install and the root Application — the only non-Git step
 projects/    AppProject definitions (source and destination boundaries)
-addons/      sealed-secrets, MetalLB, Traefik, traefik-config
-             (Longhorn and monitoring still to come)
+addons/      sealed-secrets, MetalLB, Traefik, traefik-config,
+             prometheus, grafana  (Longhorn still to come)
 apps/        First-party workloads, one directory per Application (Kustomize)
 ```
 
