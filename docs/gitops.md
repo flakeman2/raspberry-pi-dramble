@@ -1,7 +1,7 @@
 # GitOps with Argo CD
 
 **Status:** in progress. Phases 1 and 2 are complete, and phase 3 has adopted
-Sealed Secrets, MetalLB, Traefik, monitoring and Longhorn — **twelve
+Sealed Secrets, MetalLB, Traefik, monitoring and Longhorn — **thirteen
 Applications** are Synced/Healthy and reconciling from `dev`.
 `scripts/install-addons.sh` remains the bootstrap path; Longhorn's Application
 uses `prune: false` so a sync cannot delete its CRDs and orphan the volumes.
@@ -97,8 +97,9 @@ gitops/
   bootstrap/              Argo CD install — the only non-Git step
   projects/               AppProject boundaries
   addons/                 sealed-secrets, MetalLB, Traefik, traefik-config,
-                          prometheus, grafana; Longhorn still to come
-  apps/                   First-party workloads (Kustomize)
+                          prometheus, grafana, Longhorn
+  apps/                   First-party workloads (Kustomize), including the
+                          grafana-dashboards ConfigMap generator
 ```
 
 Conventions:
@@ -244,15 +245,17 @@ Argo CD will surface these immediately; fix them before turning on auto-sync.
 - ~~the floating `curlimages/curl` tag~~ — pinned (now `8.23.0`) in
   `cluster/dns/cronjobs.yaml`;
 - ~~Grafana's datasource~~ — already codified in
-  `cluster/monitoring/grafana-values.yaml`.
+  `cluster/monitoring/grafana-values.yaml`;
+- ~~Grafana's dashboards~~ — four dashboards now live in
+  `cluster/monitoring/dashboards/*.json` and are rendered to labelled ConfigMaps
+  by the `grafana-dashboards` Application (item 7), so a rebuild no longer
+  starts empty.
 
 **Still open:**
 
 - floating image tags `nginx:latest` and untagged `traefik/whoami`
   ([action-items.md](action-items.md) item 9) — pin them before adopting the
   workloads, or Argo CD will faithfully reconcile a tag someone else moved;
-- Grafana has **0 dashboards** (item 7) — provision them as ConfigMaps in
-  `gitops/apps/` *before* auto-sync, otherwise a rebuild starts empty;
 - host configuration (SSH keys, netplan, `iscsid`, `wpa_supplicant`, boot
   tuning) stays in [redeploy.md](redeploy.md) and [hardware.md](hardware.md) —
   Argo CD manages cluster objects, not nodes.

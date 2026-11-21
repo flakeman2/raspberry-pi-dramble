@@ -1,6 +1,6 @@
 # Apps
 
-First-party workloads, one directory per Argo CD `Application`. **All five are
+First-party workloads, one directory per Argo CD `Application`. **All six are
 applied**, with automated sync, self-heal and prune.
 
 | Directory | Workload | Namespace | Source path | Notes |
@@ -10,13 +10,14 @@ applied**, with automated sync, self-heal and prune.
 | `whoami/` | `whoami` (2 replicas) | `whoami` | `gitops/apps/whoami` (this dir) | Phase 1 pilot; pinned `traefik/whoami:v1.12.0` |
 | `dns/` | two DynDNS CronJobs | `default` | `cluster/dns` | Reads the sealed `dyn-dns-credentials` |
 | `dashboards/` | IngressRoutes for Grafana, Longhorn, Prometheus, Argo CD | `longhorn-system`, `monitoring` | `cluster/dashboards` | Basic auth via `authsecret` |
+| `grafana-dashboards/` | four Grafana dashboards as labelled ConfigMaps | `monitoring` | `cluster/monitoring/dashboards` | Kustomize renders JSON into ConfigMaps for the Grafana sidecar |
 
 `pi-hole` is gone: its `ExternalName` pointed at an unreachable host, and the
 whole workload was deleted from the manifests on 2026-11-14.
 
 ### Why the source paths mostly stay under `cluster/`
 
-Only `whoami/` carries its own manifests. The other four **point at the
+Only `whoami/` carries its own manifests. The other five **point at the
 existing `cluster/…` paths instead of being moved here**, because
 `scripts/install-addons.sh` applies those same files during a rebuild —
 relocating them would break path references across thirteen documents and

@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana-dashboards
+  namespace: argocd
+  annotations:
+    # Wave 1: after the addons that provide Prometheus and Grafana. The
+    # sidecar watches ConfigMaps continuously, so this is ordering for a clean
+    # first install rather than a hard dependency.
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: drumble
+  source:
+    repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
+    targetRevision: dev
+    # A Kustomization turns each JSON file into a ConfigMap labelled
+    # grafana_dashboard: "1", which the Grafana sidecar provisions.
+    path: cluster/monitoring/dashboards
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

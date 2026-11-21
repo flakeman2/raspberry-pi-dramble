@@ -382,7 +382,8 @@ from step 3.
   target never answered). Delete the `pi-hole.devinflake.com` DNS record at the
   provider if it is still there.
 - The Grafana datasource is provisioned from `cluster/monitoring/grafana-values.yaml`.
-  Grafana has no dashboards; import them after the rebuild if desired.
+  The four dashboards are provisioned from `cluster/monitoring/dashboards/*.json`
+  by the `grafana-dashboards` Application — nothing to import into the UI.
 - The Prometheus chart runs with `cluster/monitoring/prometheus-values.yaml`
   (chart defaults plus a resource budget for the server). It creates server,
   alertmanager, pushgateway, kube-state-metrics, and node-exporter.

@@ -156,9 +156,11 @@ values**. It creates:
 - configmap-reload sidecar
 
 Grafana chart 14.5.0 runs Grafana 13.3.1 with a 10 GiB Longhorn PVC, a ClusterIP
-Service on port 80, and one Prometheus datasource (`http://prometheus-server`).
-It is exposed at `grafana.devinflake.com` by an `IngressRoute` in `monitoring`.
-The live Grafana has **no dashboards** imported.
+Service on port 80, and one Prometheus datasource (`http://prometheus-server`,
+UID `prometheus`). It is exposed at `grafana.devinflake.com` by an `IngressRoute`
+in `monitoring`. Four dashboards (cluster, nodes, Traefik, Longhorn) are
+provisioned from git through labelled ConfigMaps
+(`cluster/monitoring/dashboards/`), not imported into the UI.
 
 ## Workloads
 

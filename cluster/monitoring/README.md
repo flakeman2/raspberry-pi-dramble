@@ -5,7 +5,7 @@ Two Helm releases in the `monitoring` namespace:
 | Release | Chart | App | Values |
 |---|---|---|---|
 | `prometheus` | `prometheus-community/prometheus` `29.47.2` | `3.16.0` | `prometheus-values.yaml` |
-| `grafana` | `grafana/grafana` `14.4.1` | `13.3.1` | `grafana-values.yaml` |
+| `grafana` | `grafana/grafana` `14.5.0` | `13.3.1` | `grafana-values.yaml` |
 
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -18,7 +18,7 @@ helm upgrade --install prometheus prometheus-community/prometheus \
   -f prometheus-values.yaml
 
 helm upgrade --install grafana grafana/grafana \
-  --namespace monitoring --version 14.4.1 \
+  --namespace monitoring --version 14.5.0 \
   -f grafana-values.yaml
 ```
 
@@ -56,11 +56,22 @@ kubectl -n monitoring create secret generic grafana \
 Grafana is exposed at `grafana.devinflake.com` by the IngressRoute in
 `../dashboards/ingressroutes.yaml` (ClusterIP Service, port 80 → 3000).
 
+## Dashboards and Longhorn metrics
+
+`dashboards/*.json` are the source of truth for the four dashboards (cluster,
+nodes, Traefik, Longhorn). The `grafana-dashboards` Application renders them
+through Kustomize into labelled ConfigMaps; the chart's dashboard sidecar
+provisions them into Grafana. Never build a dashboard in the UI and expect it
+to survive a PVC loss — nothing in `monitoring/grafana` is backed up.
+
+Longhorn's `/metrics` endpoint is blocked by its own NetworkPolicy by default.
+`manifests/longhorn-scrape-networkpolicy.yaml` opens port 9500 only to the
+Prometheus server pods in `monitoring`, and `prometheus-values.yaml` defines
+the matching static scrape job. Both are owned by the `prometheus`
+Application, so they cannot drift apart.
+
 ## Known gaps
 
-- Grafana currently has **no dashboards**.
-- The Prometheus datasource is codified in `grafana-values.yaml`; on the live
-  cluster it was added through the UI.
 - Alertmanager has no receivers configured.
 - Prometheus targets are healthy after the 2026-11-14 node removal (23 targets,
   0 down); see [../../docs/cluster-status.md](../../docs/cluster-status.md).
