@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# The root app-of-apps renders exactly the AppProject and the thirteen child
+# Applications. Bootstrap files (namespace, Argo CD values, ingress routes and
+# root-app.yaml itself) are deliberately excluded: Argo CD must not reconcile
+# the manifest that installs it, and bootstrap/ingressroute.yaml needs Traefik
+# CRDs that only exist after the traefik-config Application has synced.
+resources:
+  - projects/default.yaml
+
+  # Addons. Sync waves in each file order them: -5 controllers/storage/metallb,
+  # 0 charts/controllers, 1 the Traefik CRs that consume them.
+  - addons/sealed-secrets/application.yaml
+  - addons/metallb/application.yaml
+  - addons/longhorn/application.yaml
+  - addons/traefik/application.yaml
+  - addons/traefik-config/application.yaml
+  - addons/prometheus/application.yaml
+  - addons/grafana/application.yaml
+
+  # First-party workloads and dashboards.
+  - apps/dashboards/application.yaml
+  - apps/dns/application.yaml
+  - apps/grafana-dashboards/application.yaml
+  - apps/jekyll/application.yaml
+  - apps/mysite-nginx/application.yaml
+  - apps/whoami/application.yaml

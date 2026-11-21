@@ -1,7 +1,8 @@
 # Cluster manifests
 
-Everything the cluster runs, minus secrets. Apply order is handled by
-`../scripts/install-addons.sh`.
+Everything the cluster runs, minus secrets. `../scripts/install-addons.sh`
+creates namespaces, applies the sealed manifests and installs Argo CD; the root
+app-of-apps then reconciles the Applications that consume these paths.
 
 | Path | Contents |
 |---|---|

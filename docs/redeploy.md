@@ -241,62 +241,50 @@ them.
 
 > Never commit real Secret values.
 
-## 4. Install the add-ons and workloads
+## 4. Bootstrap GitOps
 
 ```bash
 export KUBECONFIG=~/.kube/config-dramble-k3s
 ./scripts/install-addons.sh
 ```
 
-The script performs, in order:
+The script is bootstrap-only. In order it:
 
-1. MetalLB namespace, manifest, and address pool
-2. Longhorn manifest, waits for the driver deployer and manager
-3. Helm repo setup
-4. Traefik chart `42.4.1` with `cluster/traefik/values.yaml`
-5. Prometheus chart `29.47.2` with chart defaults
-6. Grafana chart `14.5.0` with `cluster/monitoring/grafana-values.yaml`
-7. Traefik `TLSOption`, `Middleware`, and `IngressRoute` objects
-8. Workloads (`cluster/workloads/`)
-9. Dashboard `IngressRoute`s
-10. Dynamic DNS CronJobs
+1. restores the sealed-secrets private key from
+   `~/.kube/sealed-secrets-private-key-backup.yaml` (override with
+   `SEALED_SECRETS_KEY_BACKUP`);
+2. creates namespaces from `cluster/namespaces.yaml` and applies every sealed
+   manifest in `cluster/secrets/sealed/`;
+3. installs Argo CD from the chart pin in `gitops/bootstrap/values.yaml`;
+4. applies `gitops/bootstrap/root-app.yaml`, the root app-of-apps;
+5. waits for all Applications and the required Secrets, then applies Argo CD's
+   own `IngressRoute` — last, because it needs the Traefik CRDs installed by a
+   child.
 
-It fails fast if a required Secret is missing.
+The root creates the `drumble` AppProject at wave `-10`, then reconciles
+thirteen child Applications listed in `gitops/kustomization.yaml`: the seven
+add-ons and six first-party apps. Add-ons and workloads are no longer installed
+imperatively — a merge into `dev` is what deploys them.
+
+It fails if a required Secret never unseals.
 
 ### Manual equivalent
 
-If you prefer to run the steps yourself:
+For a broken-install recovery only; prefer the script when it works:
 
 ```bash
-kubectl apply -f cluster/metallb/metallb-v0.16.2.yaml
-kubectl -n metallb-system rollout status deploy/controller --timeout=5m
-kubectl wait --for condition=established --timeout=60s \
-  crd/ipaddresspools.metallb.io crd/l2advertisements.metallb.io
-kubectl apply -f cluster/metallb/config.yaml
+kubectl apply -f ~/.kube/sealed-secrets-private-key-backup.yaml
+kubectl apply -f cluster/namespaces.yaml
+kubectl apply -f cluster/secrets/sealed/
 
-kubectl apply -f cluster/longhorn/longhorn-v1.13.0.yaml
-kubectl -n longhorn-system rollout status deploy/longhorn-driver-deployer --timeout=15m
-
-helm repo add traefik https://traefik.github.io/charts
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo add grafana https://grafana-community.github.io/helm-charts
+helm repo add argo https://argoproj.github.io/argo-helm
 helm repo update
+helm upgrade --install argocd argo/argo-cd -n argocd \
+  --version 10.18.0 -f gitops/bootstrap/values.yaml --wait
 
-helm install traefik traefik/traefik -n traefik --version 42.4.1 \
-  -f cluster/traefik/values.yaml
-helm install prometheus prometheus-community/prometheus -n monitoring --version 29.47.2 \
-  -f cluster/monitoring/prometheus-values.yaml
-helm install grafana grafana/grafana -n monitoring --version 14.5.0 \
-  -f cluster/monitoring/grafana-values.yaml
-
-kubectl wait --for condition=established --timeout=60s \
-  crd/ingressroutes.traefik.io crd/middlewares.traefik.io crd/tlsoptions.traefik.io
-kubectl apply -f cluster/traefik/tlsoption.yaml
-kubectl apply -f cluster/traefik/middlewares.yaml
-kubectl apply -f cluster/traefik/ingressroutes.yaml
-kubectl apply -R -f cluster/workloads
-kubectl apply -f cluster/dashboards/ingressroutes.yaml
-kubectl apply -f cluster/dns/cronjobs.yaml
+kubectl apply -f gitops/bootstrap/root-app.yaml
+# after the Applications are Synced/Healthy:
+kubectl apply -f gitops/bootstrap/ingressroute.yaml
 ```
 
 ## 5. Restore the static site content

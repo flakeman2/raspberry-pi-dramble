@@ -18,14 +18,16 @@ whole workload was deleted from the manifests on 2026-11-14.
 ### Why the source paths mostly stay under `cluster/`
 
 Only `whoami/` carries its own manifests. The other five **point at the
-existing `cluster/…` paths instead of being moved here**, because
-`scripts/install-addons.sh` applies those same files during a rebuild —
-relocating them would break path references across thirteen documents and
-create two sources for one workload.
+existing `cluster/…` paths instead of being moved here**: the `Application`
+manifests live in this repository and the root app-of-apps discovers them, but
+the workload payloads stay where they have always been. Moving them would break
+path references across thirteen documents and create two sources for one
+workload.
 
-The `Application` manifests live here so the future app-of-apps root (which
-points at `gitops/`) can discover them. Moving the workloads themselves into
-`gitops/apps/` belongs with **phase 3**, when the addons move too.
+The root Application (`gitops/bootstrap/root-app.yaml`) discovers these through
+the explicit list in `gitops/kustomization.yaml`. There is no automatic
+directory generator; adding a sixth first-party app means adding one line to
+that list in the same PR.
 
 ### Conventions
 

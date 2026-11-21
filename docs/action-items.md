@@ -335,7 +335,7 @@ B-series upgrade ever happens, revisit it rather than skipping it silently.
 - Remove the abandoned kube-vip, cert-manager, ghost-blog, and
   kubernetes-dashboard material from any remaining notes or scripts.
 
-### 15. Adopt Argo CD — phases 1–2 done; 3–4 remain
+### 15. ~~Adopt Argo CD — phases 1–4~~ — done 2026-11-21
 
 **Phase 1 (2026-11-17):** Argo CD bootstrapped from `gitops/`, the `whoami`
 pilot adopted, `argocd app diff` empty, reconciling from `dev`.
@@ -356,8 +356,14 @@ AppProject whitelist was widened three times by the adoptions themselves:
 `PriorityClass` for Longhorn, `ValidatingWebhookConfiguration` for MetalLB,
 `IngressClass` for Traefik.
 
-**Remaining:** Longhorn as an Argo Application, the root app-of-apps, then
-`install-addons.sh` shrinks to bootstrap-only. Conventions:
+**Phase 3 completion (2026-11-21):** Longhorn joined as an Application with
+`prune: false` and no `ServerSideApply` (measured rather than assumed — see the
+comments in its `application.yaml`). The root app-of-apps then landed: one
+root `Application` on the `default` project owns the `drumble` AppProject at
+wave `-10` and thirteen children through an explicit `gitops/kustomization.yaml`.
+`install-addons.sh` is bootstrap-only, with `--print-pins` keeping CI and
+`check-updates.sh` on the same version pins. **Phase 4** gates are live and the
+image pipeline ships in Ephesus. Conventions:
 [gitops.md](gitops.md) and [../gitops/README.md](../gitops/README.md).
 
 ### 16. ~~Restore host tuning: Wi-Fi, Bluetooth, and the overclock~~ — done 2026-11-16

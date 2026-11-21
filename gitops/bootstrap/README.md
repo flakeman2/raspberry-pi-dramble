@@ -13,12 +13,14 @@ Argo CD 3.6's tested range; see
 |---|---|
 | `namespace.yaml` | the `argocd` namespace — the one namespace Argo cannot create for itself |
 | `values.yaml` | chart `argo-cd` **10.18.0** (app `v3.6.1`), pinned: single replicas, Dex and notifications off, bundled Redis (not `redis-ha`), explicit budgets on every component, `server.insecure`, bcrypt admin password |
+| `root-app.yaml` | the root `Application`: `path: gitops/`, project `default`, automated prune/self-heal, wave `-10` |
 | `ingressroute.yaml` | `argocd.devinflake.com` — redirect on `web`, TLS-ALPN via `letsencrypt` on `websecure` |
 
-`root-app.yaml` is deliberately **not** here yet: with no `Application`
-manifests anywhere in `gitops/`, an app-of-apps root would be empty and would
-fail to sync. It arrives in phase 2, once `apps/` and `addons/` hold real
-Applications (see the phased rollout in `docs/gitops.md`).
+The root uses the `default` project because it creates the `drumble` AppProject
+itself. It is excluded from the `gitops/kustomization.yaml` it points at, so
+Argo CD never manages the manifest that installs it. `ingressroute.yaml` is
+excluded for a different reason: it needs Traefik CRDs that only exist after the
+`traefik-config` child has synced.
 
 ## Install
 
@@ -30,8 +32,20 @@ kubectl apply -f gitops/bootstrap/namespace.yaml
 helm upgrade --install argocd argo/argo-cd \
   --namespace argocd --version 10.18.0 \
   -f gitops/bootstrap/values.yaml --wait
+
+# The root owns the AppProject and all thirteen child Applications.
+kubectl apply -f gitops/bootstrap/root-app.yaml
+
+# LAST: these routes use Traefik CRDs installed by the traefik-config child.
+kubectl wait --for condition=established --timeout=60s \
+  crd/ingressroutes.traefik.io crd/middlewares.traefik.io crd/tlsoptions.traefik.io
 kubectl apply -f gitops/bootstrap/ingressroute.yaml
 ```
+
+`scripts/install-addons.sh` performs this whole sequence, preceded by the
+sealed-secrets key restore, namespace creation and sealed manifests. On an
+existing cluster, apply `root-app.yaml` once by hand; after that, changes to the
+Application set are ordinary git commits.
 
 The admin password in `values.yaml` is already a **bcrypt hash** of the unified
 cluster password (same credential as Grafana and the Traefik/Longhorn/Prometheus
@@ -57,10 +71,10 @@ four 4 GB nodes also run Longhorn, Prometheus and Grafana.
 
 ## After bootstrap
 
-1. **Adopt the pilot app** (`gitops/apps/whoami/`) with *manual* sync and
-   confirm `argocd app diff whoami` is empty before any auto-sync exists — that
-   is phase 1's exit criterion.
-2. Keep `scripts/install-addons.sh` working as the fallback until phase 3.
-3. Bootstrap Sealed Secrets before phase 2 consumes sealed manifests, and back
-   up its private key — losing it makes every sealed secret in git
-   unrecoverable.
+1. Confirm the root is `Synced/Healthy` and owns all thirteen children:
+   `kubectl -n argocd get applications`.
+2. Verify it created the project, not the other way round:
+   `kubectl -n argocd get appproject drumble`.
+3. Back up the sealed-secrets private key. The controller is now a child
+   Application, but losing its key still makes every sealed secret in git
+   unrecoverable — see [../../cluster/secrets/README.md](../../cluster/secrets/README.md).

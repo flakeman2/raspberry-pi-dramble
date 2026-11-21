@@ -4,7 +4,7 @@
 |---|---|---|
 | `install-server.sh` | `dflake-nettop` | Install pinned, tainted k3s server with servicelb/local-storage/traefik disabled |
 | `install-agent.sh` | `kube1`–`kube4` | Install pinned k3s agent and disable any stray server unit |
-| `install-addons.sh` | workstation | MetalLB, Longhorn, Traefik, Prometheus, Grafana, CRs, workloads, DNS |
+| `install-addons.sh` | workstation | Bootstrap only: restore sealed-secrets key, create namespaces, apply sealed manifests, install Argo CD, apply the root app-of-apps; `--print-pins` exposes the version pins for CI |
 | `verify-docs.sh` | workstation (needs `KUBECONFIG`) | Assert documented numbers against the **live** cluster — 18 checks. Not CI: it needs cluster credentials |
 | `check-updates.sh` | anywhere with `gh` + network | Compare every version pin against upstream and report what is newer. Not a merge gate: it needs the network, so a flaky upstream must not block a PR |
 
