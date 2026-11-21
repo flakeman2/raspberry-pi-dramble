@@ -53,4 +53,5 @@ removed). Two consequences, both handled here:
   `../monitoring/prometheus-values.yaml` (`metallb-metrics`: `scheme: https`,
   `insecureSkipVerify`, bearer token, discovered by label).
 
-Both are applied by `scripts/install-addons.sh`.
+Both are applied by the `metallb` Application in
+[../../gitops/addons/metallb/application.yaml](../../gitops/addons/metallb/application.yaml).

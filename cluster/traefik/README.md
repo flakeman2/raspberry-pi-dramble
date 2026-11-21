@@ -46,8 +46,8 @@ See [../../docs/secrets.md](../../docs/secrets.md).
 
 ## Notes
 
-- The Deployment runs with strategy **`Recreate`**, patched in
-  `scripts/install-addons.sh` right after the Helm install. Chart 42 has no
+- The Deployment runs with strategy **`Recreate`**, set in `values.yaml` via
+  `updateStrategy.type` so the chart renders it directly. Chart 42 has no
   `deployment.strategy` value (its `values.schema.json` rejects unknown keys),
   and the default `RollingUpdate` deadlocks against the `acme.json` PVC: the
   new pod waits for a volume detach the old pod never makes while

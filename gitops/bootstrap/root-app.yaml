@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  annotations:
+    # The root is applied once by the bootstrap script, before any child
+    # Application exists. -10 matches the AppProject and stays ahead of every
+    # child wave (-5/0/1) if Argo ever syncs it as part of a wider set.
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  # `default`, not `drumble`: the root creates the drumble AppProject, so it
+  # cannot depend on that project already existing.
+  project: default
+  source:
+    repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
+    targetRevision: dev
+    # gitops/kustomization.yaml lists the AppProject and the thirteen child
+    # Applications explicitly. Pointing at the directory without that
+    # kustomization would also pick up bootstrap/values.yaml, README files and
+    # this self-referencing manifest, none of which are Kubernetes objects.
+    path: gitops/
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      # The root owns the Application set. Prune is what removes a child whose
+      # manifest is deleted from git; self-heal recreates one deleted by hand.
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

@@ -1,48 +1,34 @@
 # Projects
 
-`AppProject` definitions that bound what each `Application` may touch.
-**Not yet applied.**
+`AppProject` definitions that bound what each `Application` may touch. The
+`drumble` project in `default.yaml` is live and is created by the root
+app-of-apps at wave `-10`, before any child Application that uses it.
 
 There is one tenant today: the repository owner. Keep one project with a tight
 source and destination allow-list instead of relying on the `default` project,
-which permits every repository and every namespace.
+which permits every repository and every namespace. The root itself is the one
+exception: it must use `default` because `drumble` does not exist until the root
+creates it.
 
-Planned `default.yaml`:
+`default.yaml` pins:
 
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: AppProject
-metadata:
-  name: drumble
-  namespace: argocd
-spec:
-  description: Raspberry Pi Drumble cluster
-  sourceRepos:
-    - https://github.com/flakeman2/raspberry-pi-dramble
-  destinations:
-    - server: https://kubernetes.default.svc
-      namespace: "*"
-  clusterResourceWhitelist:
-    - group: ""
-      kind: Namespace
-    - group: apiextensions.k8s.io
-      kind: CustomResourceDefinition
-    - group: rbac.authorization.k8s.io
-      kind: ClusterRole
-    - group: rbac.authorization.k8s.io
-      kind: ClusterRoleBinding
-  namespaceResourceBlacklist:
-    - group: ""
-      kind: ResourceQuota
-    - group: ""
-      kind: LimitRange
-```
+- `sourceRepos` — this repository plus the Helm repositories the charts come
+  from. An Application whose chart comes from a Helm repo is rejected without
+  one.
+- `destinations` — the in-cluster API server, any namespace. This is pragmatic
+  for one tenant; narrow it if a second appears.
+- `clusterResourceWhitelist` — the cluster-scoped kinds the add-ons actually
+  create, derived by scanning the vendored manifests and rendering every Helm
+  chart. Missing entries have blocked adoptions before (`PriorityClass` for
+  Longhorn, `ValidatingWebhookConfiguration` for MetalLB, `IngressClass` for
+  Traefik), so extend it from evidence, not memory.
+- `namespaceResourceBlacklist` — no `ResourceQuota` or `LimitRange` anywhere.
 
 Notes:
 
-- The namespace wildcard is a pragmatic choice for one tenant. Narrow it per app
-  if a second tenant ever appears.
 - Do not grant `cluster-admin` to an `Application`; the project's allow-lists are
   the boundary.
-- `sourceRepos` must stay pinned to this repository so a compromised manifest
-  cannot pull from elsewhere.
+- Adding a Helm repository here without registering it in CI's render step just
+  moves the failure from Argo CD to the manifests job. Update both.
+- The emergency sync window used during the 2026-11-18 apiserver failures is
+  gone; do not reintroduce a deny window without an explicit incident record.

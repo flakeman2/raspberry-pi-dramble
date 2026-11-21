@@ -133,14 +133,15 @@ jobs:
       - name: Render Kustomize
         run: |
           set -euo pipefail
-          # Every directory under gitops/apps/ that has a kustomization.yaml must
-          # build — a typo'd resource reference would otherwise only surface at
-          # sync time. Phase 2 adds the rest here automatically.
+          # Every kustomization must build — a typo'd resource reference would
+          # otherwise only surface at sync time. gitops/ is the root
+          # app-of-apps: it must render exactly the AppProject plus the child
+          # Applications, and never the bootstrap files it does not own.
           mkdir -p rendered
           count=0
-          for dir in gitops/apps/*/; do
-            [ -f "${dir}kustomization.yaml" ] || continue
-            name=$(basename "$dir")
+          for dir in gitops gitops/apps/*/; do
+            [ -f "${dir%/}/kustomization.yaml" ] || continue
+            name=$(basename "${dir%/}")
             kubectl kustomize "$dir" > "rendered/kustomize-${name}.yaml"
             printf '  %-24s %s resources\n' "$name" "$(grep -c '^kind:' "rendered/kustomize-${name}.yaml")"
             count=$((count + 1))

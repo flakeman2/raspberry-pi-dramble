@@ -3,6 +3,11 @@ kind: AppProject
 metadata:
   name: drumble
   namespace: argocd
+  annotations:
+    # The root app-of-apps creates this project and the Applications that use
+    # it in one sync. -10 runs before every child wave (-5, 0, 1) so no child
+    # can be rejected as "project not permitted" on a fresh install.
+    argocd.argoproj.io/sync-wave: "-10"
 spec:
   description: Raspberry Pi Drumble cluster
 
