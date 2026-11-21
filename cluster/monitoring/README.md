@@ -65,6 +65,12 @@ through Kustomize into labelled ConfigMaps; the chart's dashboard sidecar
 provisions them into Grafana. Never build a dashboard in the UI and expect it
 to survive a PVC loss — nothing in `monitoring/grafana` is backed up.
 
+The PVC still held a UI-created Prometheus datasource with a generated UID.
+Grafana 13 cannot change a datasource's UID in place and failed startup with
+`Datasource provisioning error: data source not found` when the provisioned
+file pinned `prometheus`. The provisioning file therefore deletes the old
+datasource by name and recreates it with the stable UID the dashboards use.
+
 Longhorn's `/metrics` endpoint is blocked by its own NetworkPolicy by default.
 `manifests/longhorn-scrape-networkpolicy.yaml` opens port 9500 only to the
 Prometheus server pods in `monitoring`, and `prometheus-values.yaml` defines
