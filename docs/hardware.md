@@ -43,7 +43,8 @@ rebuild; see [upgrade.md](upgrade.md).
 
 | Hostname | IP | Role | State |
 |---|---|---|---|
-| `kube1` | 192.168.0.61 | k3s server (control plane) | **Ready**, `v1.36.6+k3s1` |
+| `dflake-nettop` | 192.168.0.44 | k3s server (control plane), x86_64, tainted | **Ready**, `v1.36.6+k3s1` |
+| `kube1` | 192.168.0.61 | k3s agent (was the control plane until 2026-11-21) | **Ready**, `v1.36.6+k3s1` |
 | `kube2` | 192.168.0.62 | k3s agent | **Ready**, `v1.36.6+k3s1` (only `k3s-agent.service` exists now) |
 | `kube3` | 192.168.0.63 | k3s agent | **Ready**, `v1.36.6+k3s1` |
 | `kube4` | 192.168.0.64 | k3s agent | **Ready**, `v1.36.6+k3s1` |
@@ -56,6 +57,7 @@ All four current nodes use the same `/etc/hosts` mapping. It was recreated on
 resolve each other by name:
 
 ```
+192.168.0.44 dflake-nettop dflake-nettop.devinflake.com
 192.168.0.61 kube1 kube1.devinflake.com
 192.168.0.62 kube2 kube2.devinflake.com
 192.168.0.63 kube3 kube3.devinflake.com

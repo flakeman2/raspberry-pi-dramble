@@ -1,9 +1,13 @@
 # GitOps with Argo CD
 
 **Status:** in progress. Phases 1 and 2 are complete, and phase 3 has adopted
-Sealed Secrets, MetalLB, Traefik and monitoring — eleven Applications are live
-and reconciling from `dev`. What `scripts/install-addons.sh` still installs is
-Longhorn; it shrinks to bootstrap-only at the end of phase 3. This page is the
+Sealed Secrets, MetalLB, Traefik, monitoring and Longhorn — **twelve
+Applications** are Synced/Healthy and reconciling from `dev`.
+`scripts/install-addons.sh` remains the bootstrap path; Longhorn's Application
+uses `prune: false` so a sync cannot delete its CRDs and orphan the volumes.
+The emergency Argo sync hold used during the 2026-11-18 kube1 apiserver
+failures was lifted on 2026-11-21 once the control plane had moved to
+`dflake-nettop` and the Longhorn conflict loop was cleared. This page is the
 design and the staged rollout plan.
 
 ## Goals

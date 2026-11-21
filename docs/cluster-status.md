@@ -1,6 +1,8 @@
 # Cluster status snapshot
 
 **Captured:** 2026-11-16 via `~/.kube/config-dramble-k3s` and SSH to each node.
+**Updated:** 2026-11-21 after the control-plane move to `dflake-nettop`;
+the node table and pod totals below reflect the live cluster.
 **Scope:** first snapshot of the **rebuilt** cluster. The snapshot taken before
 the rebuild is preserved verbatim at the bottom of this page.
 **Related:** [architecture.md](architecture.md) (design),
@@ -103,7 +105,8 @@ Operator CRDs, no `ServiceMonitor` objects.
 
 | Node | IP | Role | Status | Notes |
 |---|---|---|---|---|
-| `kube1` | 192.168.0.61 | control-plane | **Ready** | k3s server; also announces `.201` (MetalLB speaker hold) |
+| `dflake-nettop` | 192.168.0.44 | control-plane | **Ready** | x86_64 server, tainted; owns kine/SQLite datastore |
+| `kube1` | 192.168.0.61 | agent | **Ready** | old server disabled; `server.retired-2026-11-21` retained; still a MetalLB speaker |
 | `kube2` | 192.168.0.62 | node | **Ready** | stray-unit bug gone: only `k3s-agent.service` exists |
 | `kube3` | 192.168.0.63 | node | **Ready** | |
 | `kube4` | 192.168.0.64 | node | **Ready** | |
@@ -143,7 +146,7 @@ No under-voltage or thermal throttling on any node.
 | whoami | `whoami` | 2/2 | `traefik/whoami` |
 | default | `dyn-dns-*` CronJobs | Complete | `curlimages/curl:8.23.0` |
 
-Totals: **64 pods**, 12 namespaces, 23 Deployments, 5 DaemonSets, 2
+Totals: **66 pods**, 12 namespaces, 23 Deployments, 5 DaemonSets, 2
 StatefulSets, 2 CronJobs, 27 Services, 12 IngressRoutes, 5 Middlewares, 1
 TLSOption, 6 PDBs, 10 NetworkPolicies (6 Longhorn's own, 4 Argo CD's).
 

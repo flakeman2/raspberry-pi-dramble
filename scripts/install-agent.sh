@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Install a k3s agent node (kube2, kube3, kube4).
+# Install a k3s agent node (kube1, kube2, kube3, kube4).
 #
 # Run on each freshly imaged agent as a user with sudo:
-#   sudo K3S_URL=https://192.168.0.61:6443 \
+#   sudo K3S_URL=https://192.168.0.44:6443 \
 #     K3S_TOKEN="$(sudo cat /var/lib/rancher/k3s/server/node-token)" \
 #     ./scripts/install-agent.sh
 #
@@ -20,11 +20,11 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 if [ -z "${K3S_URL:-}" ]; then
-  echo "K3S_URL is required, e.g. https://192.168.0.61:6443" >&2
+  echo "K3S_URL is required, e.g. https://192.168.0.44:6443" >&2
   exit 1
 fi
 if [ -z "${K3S_TOKEN:-}" ]; then
-  echo "K3S_TOKEN is required (from /var/lib/rancher/k3s/server/node-token on kube1)" >&2
+  echo "K3S_TOKEN is required (from /var/lib/rancher/k3s/server/node-token on dflake-nettop)" >&2
   exit 1
 fi
 
