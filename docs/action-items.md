@@ -207,9 +207,11 @@ first.
   NetworkPolicy denies port 9500 from outside `longhorn-system`. Added a
   `longhorn-metrics` scrape job plus a narrow allow rule, both owned by the
   `prometheus` Application.
-- `grafana-dashboard` now listens on `web` as well as `websecure` and uses the
-  existing `redirect-to-https` middleware; port 80 returns a redirect rather
-  than 404.
+- Grafana now has two IngressRoutes: `grafana-dashboard` (TLS on `websecure`)
+  and `grafana-dashboard-redirect` (plain `web` with the existing
+  `redirect-to-https` middleware). Traefik applies `tls` at router level, so
+  the earlier single TLS router never matched port 80 and returned 404; the
+  split makes port 80 return a 301 instead.
 - `grafana.ini.server.root_url` is `https://grafana.devinflake.com` and
   `auth.anonymous.enabled` is explicitly `false`.
 

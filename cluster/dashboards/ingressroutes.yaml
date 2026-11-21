@@ -27,22 +27,40 @@ metadata:
   name: grafana-dashboard
   namespace: monitoring
 spec:
+  # Traefik applies `tls` to the whole router, so a router carrying `tls` is
+  # HTTPS-only even when `web` is listed. Keeping `web` here made port 80
+  # return 404 despite the redirect middleware. Two routers — one TLS on
+  # websecure, one plain HTTP on web with redirect-to-https — are required.
   entryPoints:
-  - web
   - websecure
   routes:
   - kind: Rule
     match: Host(`grafana.devinflake.com`) || Host(`grafana.flakeman2.com`)
-    middlewares:
-    # Without this, port 80 had no route for these hosts and returned 404
-    # while the longhorn and prometheus UIs redirected correctly.
-    - name: redirect-to-https
-      namespace: default
     services:
     - name: grafana
       port: 80
   tls:
     certResolver: letsencrypt
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: grafana-dashboard-redirect
+  namespace: monitoring
+spec:
+  entryPoints:
+  - web
+  routes:
+  - kind: Rule
+    match: Host(`grafana.devinflake.com`) || Host(`grafana.flakeman2.com`)
+    middlewares:
+    - name: redirect-to-https
+      namespace: default
+    # Unused: the redirect middleware short-circuits before the service is
+    # called, but IngressRoute requires a service on every route.
+    services:
+    - name: grafana
+      port: 80
 ---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute

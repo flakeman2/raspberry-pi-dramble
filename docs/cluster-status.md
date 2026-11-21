@@ -147,7 +147,7 @@ No under-voltage or thermal throttling on any node.
 | default | `dyn-dns-*` CronJobs | Complete | `curlimages/curl:8.23.0` |
 
 Totals: **66 pods**, 12 namespaces, 23 Deployments, 5 DaemonSets, 2
-StatefulSets, 2 CronJobs, 27 Services, 12 IngressRoutes, 5 Middlewares, 1
+StatefulSets, 2 CronJobs, 27 Services, 13 IngressRoutes, 5 Middlewares, 1
 TLSOption, 6 PDBs, 11 NetworkPolicies (6 Longhorn's own, 4 Argo CD's).
 
 The workload count deliberately **excludes Job-owned pods** (CronJob and Job
@@ -159,8 +159,9 @@ workload-only number.
 
 The workload deltas from the 2026-11-16 rebuild snapshot are all Argo CD (+1
 namespace, +5 pods, +4 Deployments, +1 StatefulSet, +5 Services, +4
-NetworkPolicies, +3 IngressRoutes from `prometheus` and the two `argocd`
-routes) plus Sealed Secrets (+1 pod, +1 Deployment, +2 Services).
+NetworkPolicies, +4 IngressRoutes from `prometheus`, the two `argocd` routes,
+and Grafana's separate HTTP redirect) plus Sealed Secrets (+1 pod, +1
+Deployment, +2 Services).
 
 These numbers are asserted against the live cluster by
 [`scripts/verify-docs.sh`](../scripts/verify-docs.sh); run it after changing
@@ -194,7 +195,7 @@ Note the alertmanager PVC name changed with chart 29 (`prometheus-alertmanager`
   `metallb.universe.tf/loadBalancerIPs` and announced by whichever speaker
   holds it — currently **kube1's MAC `dc:a6:32:96:f9:49`** (the MAC is not
   fixed; it follows the speaker).
-- No `Ingress` objects; 12 `IngressRoute` objects; `TLSOption/default`
+- No `Ingress` objects; 13 `IngressRoute` objects; `TLSOption/default`
   `minVersion: VersionTLS12`.
 - ACME store `/data/acme.json`: **7 certificates covering all fourteen public
   names**. Five were re-issued 2026-11-16 when the router returned to `.201`;

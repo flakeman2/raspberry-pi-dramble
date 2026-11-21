@@ -54,8 +54,12 @@ kubectl -n monitoring create secret generic grafana \
 
 ## Access
 
-Grafana is exposed at `grafana.devinflake.com` by the IngressRoute in
-`../dashboards/ingressroutes.yaml` (ClusterIP Service, port 80 → 3000).
+Grafana is exposed at `grafana.devinflake.com` by two IngressRoutes in
+`../dashboards/ingressroutes.yaml`: `grafana-dashboard` terminates TLS on
+`websecure`, and `grafana-dashboard-redirect` sends plain HTTP to HTTPS. They
+must be separate because Traefik's `tls` setting applies to the whole router —
+a single TLS router does not match the `web` entrypoint. Both front the
+ClusterIP Service on port 80 → 3000.
 
 ## Dashboards and Longhorn metrics
 
