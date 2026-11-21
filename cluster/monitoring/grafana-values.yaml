@@ -100,6 +100,14 @@ admin:
 datasources:
   datasources.yaml:
     apiVersion: 1
+    # Grafana 13 cannot change the UID of an existing datasource. The one in
+    # the PVC was created through the UI with a generated UID, so pinning
+    # `prometheus` below makes provisioning fail at startup with "Datasource
+    # provisioning error: data source not found". Delete by name first, then
+    # recreate it with the stable UID the git-authored dashboards reference.
+    deleteDatasources:
+    - name: Prometheus
+      orgId: 1
     datasources:
     - name: Prometheus
       uid: prometheus
