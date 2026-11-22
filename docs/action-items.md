@@ -362,6 +362,10 @@ B-series upgrade ever happens, revisit it rather than skipping it silently.
   manifests, scripts, files, namespaces, issuers or RBAC remain. Content and
   filename searches find only historical notes explaining that these designs
   were never adopted; those stay as context.
+- The gitignored `config.yml` left by the 2021 upstream fork (legacy plaintext
+  Drupal/MySQL/registry passwords, never committed, unused by the cluster) was
+  deleted locally on 2026-11-22; see
+  [docs/secrets.md](secrets.md#legacy-configyml--removed-2026-11-22).
 
 ### 15. ~~Adopt Argo CD — phases 1–4~~ — done 2026-11-21
 

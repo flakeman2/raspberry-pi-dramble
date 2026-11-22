@@ -13,7 +13,6 @@ cluster needs, how to create it, and how to rotate it.
 | k3s join token | node filesystem | `/var/lib/rancher/k3s/server/node-token`, `k3s-agent.service.env` | k3s agents |
 | kubeconfig | workstation | client cert/key | `kubectl` / Helm |
 | ACME account + certs | `traefik` PVC | `/data/acme.json` | Traefik |
-| `config.yml` | working tree | legacy DB/Drupal passwords | nothing (gitignored) |
 
 Kubernetes also creates service-account token Secrets automatically; they are
 not managed here.
@@ -143,16 +142,13 @@ Traefik writes account keys and certificates to `/data/acme.json` on the
 Secret and must never be committed. The file on the live cluster is ~79 KB and
 holds six certificates.
 
-## Legacy `config.yml`
+## Legacy `config.yml` — removed 2026-11-22
 
-The working tree contains an untracked `config.yml` with plaintext database and
-Drupal passwords from the upstream Ansible project. It is listed in
-`.gitignore` and is not used by the cluster. Delete it from your workstation if
-you do not need it locally:
-
-```bash
-rm config.yml
-```
+The 2021 upstream fork left an untracked `config.yml` in the working tree with
+plaintext Drupal, MySQL and registry passwords. It was gitignored, unused by
+the cluster, and deleted locally on 2026-11-22. Its values were never committed;
+the allowlists in [../.gitleaks.toml](../.gitleaks.toml) cover only the older
+`example.config.yml` in inherited upstream history.
 
 ## Backups between the workstation and dflake-nettop
 
