@@ -196,17 +196,22 @@ staged tree is packed as `~/.kube/dramble-backup/nettop/k3s-<date>.tar.gz` on
 the workstation, verified by hash, and archives older than `KEEP_DAYS` (30) are
 deleted.
 
-Check and schedule it on nettop:
+Check and schedule it on nettop as `dflake` (not root):
 
 ```bash
 ./scripts/backup-nettop.sh --preflight   # tools, sudo, SSH, source paths
 ./scripts/backup-nettop.sh --dry-run
-# root's crontab, daily 03:00:
-# 0 3 * * * /home/dflake/github.com/raspberry-pi-dramble/scripts/backup-nettop.sh >> /var/log/dramble-backup.log 2>&1
+sudo -n true && echo 'passwordless sudo OK'
+# dflake's crontab, daily 03:00:
+# 0 3 * * * /home/dflake/github.com/raspberry-pi-dramble/scripts/backup-nettop.sh >> /home/dflake/backup-nettop.log 2>&1
 ```
 
-It needs key-based SSH from nettop to `192.168.0.54` (`WORKSTATION_HOST`) and
-passwordless `sudo -n` unless run as root. To inspect or restore an archive:
+It needs key-based SSH from nettop to `192.168.0.54` (`WORKSTATION_HOST`) plus
+passwordless `sudo -n` to read the root-owned k3s files. If `sudo -n true`
+fails, add a NOPASSWD rule on nettop for `python3`, `install`, `chown`, `tar`
+and `test` — note that allowing `python3` as root is effectively
+root-equivalent, so a narrower root-owned staging helper is the alternative if
+that matters. To inspect or restore an archive:
 
 ```bash
 tar -tzf ~/.kube/dramble-backup/nettop/k3s-<date>.tar.gz
