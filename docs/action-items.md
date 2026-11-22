@@ -297,10 +297,13 @@ B-series upgrade ever happens, revisit it rather than skipping it silently.
 
 ### 11. Pod disruption budgets and NetworkPolicies
 
-- No application PDBs. The 12 existing PDBs are Longhorn's auto-created
-  `instance-manager` PDBs.
-- No NetworkPolicies. At minimum, restrict ingress to `monitoring`, `traefik`,
-  and `longhorn-system`, and egress from the DNS CronJobs.
+- No first-party application PDBs. The six PDBs are all Longhorn's own: four
+  `instance-manager` PDBs plus `csi-attacher` and `csi-provisioner`.
+- Eleven NetworkPolicies exist: four shipped by the Argo CD chart and seven in
+  `longhorn-system` (including `allow-prometheus-longhorn-metrics`, which lets
+  Prometheus scrape Longhorn over HTTPS). None yet restrict first-party
+  workloads. At minimum, restrict ingress to `monitoring`, `traefik`, and
+  `longhorn-system`, and egress from the DNS CronJobs.
 
 ### 12. Reduce single points of failure
 

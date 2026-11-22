@@ -268,15 +268,18 @@ Argo CD will surface these immediately; fix them before turning on auto-sync.
   tuning) stays in [redeploy.md](redeploy.md) and [hardware.md](hardware.md) —
   Argo CD manages cluster objects, not nodes.
 
-## Open questions
+## Decisions
 
-- One repository (current plan) versus splitting cluster config from application
-  source. Splitting buys per-repo permissions and smaller diffs; it costs a
-  second repo and cross-repo PRs. At this scale, one repository wins.
-- Whether Longhorn should be Argo-managed or remain bootstrap-only. It is
-  CRD-heavy and upgrade-sensitive, and it carries every volume on the cluster,
-  so it is the last phase-3 migration rather than the first. MetalLB answered
-  the same question on 2026-11-18: adopted, with `prune` proven safe by listing
-  what Argo tracks first.
-- ~~Sealed Secrets versus SOPS~~ — **decided 2026-11-17: Sealed Secrets**, see
-  [Secrets](#secrets).
+- **One repository** (2026-11-21). Splitting cluster config from application
+  source would buy per-repo permissions and smaller diffs, but cost a second
+  repo and cross-repo PRs. At this scale, one repository wins.
+- **Longhorn is Argo-managed** (2026-11-21). It is CRD-heavy, upgrade-sensitive,
+  and carries every volume, so it was the last phase-3 migration rather than the
+  first. It is now one of the root app's thirteen children with `prune: false`
+  and no `ServerSideApply`; MetalLB set the precedent on 2026-11-18 with
+  `prune` proven safe by listing what Argo tracks.
+- **Sealed Secrets over SOPS** (2026-11-17), see [Secrets](#secrets).
+- **No off-cluster Longhorn backup** (2026-11-18): three replicas cover node
+  loss; cluster-wide loss is accepted, and every PVC holds regenerable or
+  git-backed data. See
+  [action-items.md](action-items.md#10-backups--state-files-done-longhorn-deliberately-not-backed-up).
