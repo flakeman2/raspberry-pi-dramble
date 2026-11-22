@@ -33,7 +33,7 @@ helm upgrade --install argocd argo/argo-cd \
   --namespace argocd --version 10.18.0 \
   -f gitops/bootstrap/values.yaml --wait
 
-# The root owns the AppProject and all thirteen child Applications.
+# The root owns the AppProject and all fourteen child Applications.
 kubectl apply -f gitops/bootstrap/root-app.yaml
 
 # LAST: these routes use Traefik CRDs installed by the traefik-config child.
@@ -71,7 +71,7 @@ four 4 GB nodes also run Longhorn, Prometheus and Grafana.
 
 ## After bootstrap
 
-1. Confirm the root is `Synced/Healthy` and owns all thirteen children:
+1. Confirm the root is `Synced/Healthy` and owns all fourteen children:
    `kubectl -n argocd get applications`.
 2. Verify it created the project, not the other way round:
    `kubectl -n argocd get appproject drumble`.
