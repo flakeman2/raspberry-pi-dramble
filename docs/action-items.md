@@ -292,8 +292,9 @@ The two machines now mirror each other (2026-11-22). Workstation → nettop:
 key, ntfy topic, unified admin password and kubeconfig to
 `dflake-nettop:/home/dflake/.kube/dramble-backup/` at `0600`. Nettop →
 workstation: [`scripts/backup-nettop.sh`](../scripts/backup-nettop.sh), meant
-for root's crontab, stages a consistent `state.db` snapshot plus the full k3s
-recovery set and drops a dated tar.gz in `~/.kube/dramble-backup/nettop/` on
+for `dflake`'s crontab (passwordless `sudo -n` for the root-owned k3s files),
+stages a consistent `state.db` snapshot plus the full k3s recovery set and
+drops a dated tar.gz in `~/.kube/dramble-backup/nettop/` on
 the workstation. Both verify by hash and print only PASS/FAIL; both use
 explicit include lists so workstation-only files (e.g. `gemini_api_key.txt`)
 and the incoming archive never cross. The local key was confirmed

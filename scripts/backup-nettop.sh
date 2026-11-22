@@ -16,10 +16,9 @@
 #
 # Hash comparisons print only PASS/FAIL — never a hash or a secret value.
 #
-# Cron (root's crontab, daily 03:00):
-#   0 3 * * * /home/dflake/github.com/raspberry-pi-dramble/scripts/backup-nettop.sh >> /var/log/dramble-backup.log 2>&1
-# Running as dflake works too, but needs passwordless `sudo -n` for the
-# root-owned k3s files.
+# Cron (dflake's crontab, daily 03:00) — needs passwordless `sudo -n` for the
+# root-owned k3s files:
+#   0 3 * * * /home/dflake/github.com/raspberry-pi-dramble/scripts/backup-nettop.sh >> /home/dflake/backup-nettop.log 2>&1
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -71,6 +70,8 @@ K3S_DIRS=(
   /var/lib/rancher/k3s/server/manifests
 )
 K3S_DB=/var/lib/rancher/k3s/server/db/state.db
+# Resolve python3 now: under `sudo -n` the secure_path may not include ~/.local/bin.
+PYTHON_BIN=$(command -v python3 || true)
 
 log()  { printf '%s\n' "$*"; }
 fail() { printf '%s\n' "$*" >&2; exit 1; }
@@ -98,7 +99,7 @@ preflight() {
   elif sudo -n true 2>/dev/null; then
     log "OK  passwordless sudo -n"
   else
-    log "MISSING passwordless sudo -n (or run from root's crontab)"; ok=1
+    log "MISSING passwordless sudo -n — needed to read root-owned k3s files from dflake's crontab"; ok=1
   fi
 
   for p in "$K3S_DB" "${K3S_FILES[@]}" "${K3S_DIRS[@]}"; do
@@ -124,7 +125,7 @@ preflight() {
 # SQLite's online backup API gives a consistent snapshot without stopping k3s.
 snapshot_db() {
   local out=$1
-  root_run python3 - "$K3S_DB" "$out" <<'PY'
+  root_run "$PYTHON_BIN" - "$K3S_DB" "$out" <<'PY'
 import sqlite3, sys
 src = sqlite3.connect("file:" + sys.argv[1] + "?mode=ro", uri=True)
 dst = sqlite3.connect(sys.argv[2])
