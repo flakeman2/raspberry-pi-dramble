@@ -6,3 +6,4 @@ kind: Kustomization
 resources:
   - ingress.yaml
   - dns-egress.yaml
+  - longhorn-ingress.yaml

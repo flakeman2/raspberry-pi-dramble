@@ -148,7 +148,7 @@ No under-voltage or thermal throttling on any node.
 
 Totals: **66 pods**, 12 namespaces, 23 Deployments, 5 DaemonSets, 2
 StatefulSets, 2 CronJobs, 27 Services, 13 IngressRoutes, 5 Middlewares, 1
-TLSOption, 14 PDBs, 16 NetworkPolicies (7 Longhorn's own, 4 Argo CD's, 5 first-party; 8 of the PDBs are first-party).
+TLSOption, 14 PDBs, 17 NetworkPolicies (7 Longhorn's own, 4 Argo CD's, 6 first-party; 8 of the PDBs are first-party).
 
 The workload count deliberately **excludes Job-owned pods** (CronJob and Job
 output). Those come and go with `successfulJobsHistoryLimit`, so a total pod
@@ -258,8 +258,8 @@ rotation history and the two-key design are in
   probes** — before the rebuild it was 1 of 64 and 37 of 73. The remaining
   unlimited containers are k3s-bundled add-ons and Longhorn/CSI internals
   (action item #6 is done for everything this repo owns).
-- 16 NetworkPolicies exist: seven Longhorn's own, four from the Argo CD chart,
-  and five first-party added 2026-11-22 (action item #11).
+- 17 NetworkPolicies exist: seven Longhorn's own, four from the Argo CD chart,
+  and six first-party added 2026-11-22 (action item #11).
 - Application PDBs: eight first-party, fourteen in total including Longhorn's
   own (action item #11).
 - Secrets are plain Kubernetes `Secret` objects — no Sealed Secrets/SOPS yet

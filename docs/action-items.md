@@ -330,14 +330,18 @@ B-series upgrade ever happens, revisit it rather than skipping it silently.
   2-replica whoami, and `maxUnavailable: 1` for the six single-replica
   workloads — never `minAvailable: 1` there, which would wedge every drain.
   The new `poddisruptionbudgets` Application reconciles them.
-- Sixteen NetworkPolicies exist: four shipped by the Argo CD chart, seven in
+- Seventeen NetworkPolicies exist: four shipped by the Argo CD chart, seven in
   `longhorn-system` (including `allow-prometheus-longhorn-metrics`, which lets
-  Prometheus scrape Longhorn over HTTPS), and five first-party policies added
+  Prometheus scrape Longhorn over HTTPS), and six first-party policies added
   2026-11-22. Ingress allow-lists isolate `monitoring`, `mysite-nginx`, `jekyll`
   and `whoami` to node IPs (kubelet probes and SNAT'd Traefik traffic), the
   `traefik` namespace and the `monitoring` namespace. The DynDNS CronJobs in
-  `default` are isolated to DNS (53) and HTTPS (443) egress. Still open:
-  ingress policy for `longhorn-system` beyond its own seven.
+  `default` are isolated to DNS (53) and HTTPS (443) egress. A sixth first-party
+  policy selects every pod in `longhorn-system`, closing the gap for the UI,
+  CSI sidecars/plugin, share-manager, global-manager and engine-image pods that
+  Longhorn's component policies do not select. Its allow-list is same-namespace
+  pods, the five node IPs, `traefik` and `monitoring`; the seven Longhorn rules
+  remain additive. Item 11 is now complete.
 
 ### 12. Reduce single points of failure
 

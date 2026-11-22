@@ -16,8 +16,10 @@
 #   * monitoring namespace — Prometheus scrapes, and Grafana queries Prometheus.
 #
 # Longhorn and Argo CD manage their own policies and are deliberately not
-# touched here. Egress is unrestricted in these namespaces: Prometheus must be
-# able to scrape across namespace boundaries.
+# touched here. The additional `longhorn-ingress.yaml` in this directory covers
+# the Longhorn pods that Longhorn's own component policies do not select.
+# Egress is unrestricted in these namespaces: Prometheus must be able to scrape
+# across namespace boundaries.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
