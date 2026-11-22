@@ -6,7 +6,8 @@
 | `install-agent.sh` | `kube1`–`kube4` | Install pinned k3s agent and disable any stray server unit |
 | `install-addons.sh` | workstation | Bootstrap only: restore sealed-secrets key, create namespaces, apply sealed manifests, install Argo CD, apply the root app-of-apps; `--print-pins` exposes the version pins for CI |
 | `backup-secrets.sh` | workstation (SSH to `dflake-nettop`) | Copy the small `.kube` secret artifacts to nettop at `0600` and verify by hash without printing values; `--dry-run` shows the commands |
-| `backup-nettop.sh` | `dflake-nettop` (cron) | Bidirectional backup: consistent k3s recovery set → workstation, workstation secrets → nettop. Explicit include lists enforce exclusions; `--preflight` and `--dry-run` |
+| `stage-k3s-snapshot.sh` | `dflake-nettop`, **root cron** | Stage a consistent k3s recovery set into a dflake-owned tree with a `READY` marker; no SSH involved |
+| `backup-nettop.sh` | `dflake-nettop`, **dflake cron** | Ship a `READY` staged tree to the workstation, then pull the four `.kube` secrets back. No sudo; explicit include lists enforce exclusions; `--preflight` and `--dry-run` |
 | `verify-docs.sh` | workstation (needs `KUBECONFIG`) | Assert documented numbers against the **live** cluster — 18 checks. Not CI: it needs cluster credentials |
 | `check-updates.sh` | anywhere with `gh` + network | Compare every version pin against upstream and report what is newer. Not a merge gate: it needs the network, so a flaky upstream must not block a PR |
 

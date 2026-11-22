@@ -164,7 +164,7 @@ is brute-forceable).
 
 | Direction | Script | Runs on | Payload |
 |---|---|---|---|
-| nettop → workstation | [`backup-nettop.sh`](../scripts/backup-nettop.sh) | nettop (cron) | consistent `state.db` snapshot, `node-token`, `k3s.yaml`, `tls/`, `manifests/`, optional `token`/`config.yaml`, `SHA256SUMS` |
+| nettop → workstation | [`stage-k3s-snapshot.sh`](../scripts/stage-k3s-snapshot.sh) + [`backup-nettop.sh`](../scripts/backup-nettop.sh) | nettop: root, then dflake | consistent `state.db` snapshot, `node-token`, `k3s.yaml`, `tls/`, `manifests/`, optional `token`/`config.yaml`, `SHA256SUMS` |
 | workstation → nettop | [`backup-secrets.sh`](../scripts/backup-secrets.sh) | workstation | the four files below |
 
 ### Workstation → nettop
@@ -187,31 +187,41 @@ It requires `0600` sources, creates a `0700` remote directory, and overwrites in
 place. Override `NETTOP_USER`, `NETTOP_HOST`, `REMOTE_DIR` or `SOURCE_DIR` if the
 defaults are wrong.
 
-### Nettop → workstation
+### Nettop → workstation (two crontabs, no sudo)
 
-`backup-nettop.sh` stages the k3s recovery set in a temporary directory. The
-database copy uses SQLite's online `backup()` API, so k3s keeps running —
-copying `state.db` and its WAL sidecars from a live server is not reliable. The
-staged tree is packed as `~/.kube/dramble-backup/nettop/k3s-<date>.tar.gz` on
-the workstation, verified by hash, and archives older than `KEEP_DAYS` (30) are
-deleted.
+Reading `/var/lib/rancher/k3s/server` needs root; reaching the workstation
+needs dflake's SSH key. Rather than grant dflake passwordless sudo, split the
+job:
 
-Check and schedule it on nettop as `dflake` (not root):
+1. **root, 02:55** — `stage-k3s-snapshot.sh` takes a consistent SQLite
+   `backup()` snapshot of `state.db` (k3s keeps running — copying `state.db`
+   and its WAL sidecars from a live server is not reliable), collects the
+   recovery set, and writes a dflake-owned tree at
+   `/home/dflake/.kube/dramble-backup/staging/` with `SHA256SUMS` and a `READY`
+   marker written last.
+2. **dflake, 03:00** — `backup-nettop.sh` ships only a tree carrying `READY`,
+   verifies it, then clears the marker. If the marker is absent it skips leg 1,
+   so re-runs and out-of-order crons are harmless.
 
 ```bash
-./scripts/backup-nettop.sh --preflight   # tools, sudo, SSH, source paths
-./scripts/backup-nettop.sh --dry-run
-sudo -n true && echo 'passwordless sudo OK'
-# dflake's crontab, daily 03:00:
+# root's crontab:
+# 55 2 * * * /home/dflake/github.com/raspberry-pi-dramble/scripts/stage-k3s-snapshot.sh >> /var/log/dramble-stage-k3s.log 2>&1
+# dflake's crontab:
 # 0 3 * * * /home/dflake/github.com/raspberry-pi-dramble/scripts/backup-nettop.sh >> /home/dflake/backup-nettop.log 2>&1
 ```
 
-It needs key-based SSH from nettop to `192.168.0.54` (`WORKSTATION_HOST`) plus
-passwordless `sudo -n` to read the root-owned k3s files. If `sudo -n true`
-fails, add a NOPASSWD rule on nettop for `python3`, `install`, `chown`, `tar`
-and `test` — note that allowing `python3` as root is effectively
-root-equivalent, so a narrower root-owned staging helper is the alternative if
-that matters. To inspect or restore an archive:
+Check both before scheduling:
+
+```bash
+sudo /home/dflake/github.com/raspberry-pi-dramble/scripts/stage-k3s-snapshot.sh --dry-run
+/home/dflake/github.com/raspberry-pi-dramble/scripts/backup-nettop.sh --preflight
+/home/dflake/github.com/raspberry-pi-dramble/scripts/backup-nettop.sh --dry-run
+```
+
+The dflake script needs only key-based SSH to `192.168.0.54`
+(`WORKSTATION_HOST`). Archives land in
+`~/.kube/dramble-backup/nettop/k3s-<date>.tar.gz` on the workstation; those
+older than `KEEP_DAYS` (30) are deleted. To inspect or restore:
 
 ```bash
 tar -tzf ~/.kube/dramble-backup/nettop/k3s-<date>.tar.gz
