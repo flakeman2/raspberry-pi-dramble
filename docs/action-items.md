@@ -323,16 +323,21 @@ B-series upgrade ever happens, revisit it rather than skipping it silently.
 
 ### 11. Pod disruption budgets and NetworkPolicies
 
-- No first-party application PDBs. The six PDBs are all Longhorn's own: four
-  `instance-manager` PDBs plus `csi-attacher` and `csi-provisioner`.
+- **First-party PDBs added 2026-11-22.** Fourteen total: eight owned here and
+  six Longhorn's own (four `instance-manager` PDBs plus `csi-attacher` and
+  `csi-provisioner`). [`cluster/poddisruptionbudgets/`](../cluster/poddisruptionbudgets/)
+  sets `minAvailable: 2` for the 3-replica Jekyll pod, `minAvailable: 1` for the
+  2-replica whoami, and `maxUnavailable: 1` for the six single-replica
+  workloads — never `minAvailable: 1` there, which would wedge every drain.
+  The new `poddisruptionbudgets` Application reconciles them.
 - Sixteen NetworkPolicies exist: four shipped by the Argo CD chart, seven in
   `longhorn-system` (including `allow-prometheus-longhorn-metrics`, which lets
   Prometheus scrape Longhorn over HTTPS), and five first-party policies added
   2026-11-22. Ingress allow-lists isolate `monitoring`, `mysite-nginx`, `jekyll`
   and `whoami` to node IPs (kubelet probes and SNAT'd Traefik traffic), the
   `traefik` namespace and the `monitoring` namespace. The DynDNS CronJobs in
-  `default` are isolated to DNS (53) and HTTPS (443) egress. Still open: first-
-  party PDBs, and ingress policy for `longhorn-system` beyond its own seven.
+  `default` are isolated to DNS (53) and HTTPS (443) egress. Still open:
+  ingress policy for `longhorn-system` beyond its own seven.
 
 ### 12. Reduce single points of failure
 
@@ -400,7 +405,7 @@ AppProject whitelist was widened three times by the adoptions themselves:
 `prune: false` and no `ServerSideApply` (measured rather than assumed — see the
 comments in its `application.yaml`). The root app-of-apps then landed: one
 root `Application` on the `default` project owns the `drumble` AppProject at
-wave `-10` and fourteen children through an explicit `gitops/kustomization.yaml`.
+wave `-10` and fifteen children through an explicit `gitops/kustomization.yaml`.
 `install-addons.sh` is bootstrap-only, with `--print-pins` keeping CI and
 `check-updates.sh` on the same version pins. **Phase 4** gates are live and the
 image pipeline ships in Ephesus. Conventions:

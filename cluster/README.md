@@ -14,6 +14,8 @@ app-of-apps then reconciles the Applications that consume these paths.
 | `dns/` | Dynamic DNS CronJobs |
 | `workloads/` | mysite, jekyll, whoami |
 | `dashboards/` | Grafana/Longhorn UI IngressRoutes |
+| `networkpolicies/` | Ingress/egress allow-lists for first-party namespaces |
+| `poddisruptionbudgets/` | Eight first-party PDBs for orderly node drains |
 | `secrets/` | Required Secrets and placeholder examples |
 
 These pins are the **target** stack: the repository was retargeted on

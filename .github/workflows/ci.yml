@@ -139,9 +139,9 @@ jobs:
           # Applications, and never the bootstrap files it does not own.
           mkdir -p rendered
           count=0
-          # cluster/networkpolicies is the source for a plain Application
-          # (no Helm), so build it here rather than only at sync time.
-          for dir in gitops gitops/apps/*/ cluster/networkpolicies/; do
+          # The cluster/policy directories are sources for plain Applications
+          # (no Helm), so build them here rather than only at sync time.
+          for dir in gitops gitops/apps/*/ cluster/networkpolicies/ cluster/poddisruptionbudgets/; do
             [ -f "${dir%/}/kustomization.yaml" ] || continue
             name=$(basename "${dir%/}")
             kubectl kustomize "$dir" > "rendered/kustomize-${name}.yaml"

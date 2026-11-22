@@ -262,8 +262,9 @@ The script is bootstrap-only. In order it:
    child.
 
 The root creates the `drumble` AppProject at wave `-10`, then reconciles
-fourteen child Applications listed in `gitops/kustomization.yaml`: the seven
-add-ons, six first-party apps and one cluster-policy app. Add-ons and workloads are no longer installed
+fifteen child Applications listed in `gitops/kustomization.yaml`: the seven
+add-ons, six first-party apps and two cluster-policy apps (NetworkPolicies and
+PodDisruptionBudgets). Add-ons and workloads are no longer installed
 imperatively — a merge into `dev` is what deploys them.
 
 It fails if a required Secret never unseals.
