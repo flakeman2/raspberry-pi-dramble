@@ -358,14 +358,22 @@ B-series upgrade ever happens, revisit it rather than skipping it silently.
   ACME certificate lives in a file on its PVC, so there is no cert-manager
   expiration metric to alert on.
 
-### 14. Cleanup
+### 14. ~~Cleanup~~ — verified done 2026-11-22
 
-- Delete completed CronJob pods if they accumulate faster than the history
-  limits allow (the live jobs had 6).
-- The `kube-root-ca.crt` "not registered" FailedMount warnings on DynDNS jobs
-  are transient and harmless; they disappear once the ConfigMap is cached.
-- Remove the abandoned kube-vip, cert-manager, ghost-blog, and
-  kubernetes-dashboard material from any remaining notes or scripts.
+- Completed CronJob pods are within the history limits: two `Completed` pods,
+  one per DynDNS job, with `successfulJobsHistoryLimit: 1` and
+  `failedJobsHistoryLimit: 3` on each CronJob. No manual deletion needed.
+- The transient `kube-root-ca.crt` "not registered" FailedMount warnings on
+  DynDNS jobs are gone; `kubectl get events -A --field-selector
+  reason=FailedMount` is empty.
+- No abandoned kube-vip, cert-manager, ghost-blog or kubernetes-dashboard
+  manifests, scripts, files, namespaces, issuers or RBAC remain. Content and
+  filename searches find only historical notes explaining that these designs
+  were never adopted; those stay as context.
+- The gitignored `config.yml` left by the 2021 upstream fork (legacy plaintext
+  Drupal/MySQL/registry passwords, never committed, unused by the cluster) was
+  deleted locally on 2026-11-22; see
+  [docs/secrets.md](secrets.md#legacy-configyml--removed-2026-11-22).
 
 ### 15. ~~Adopt Argo CD — phases 1–4~~ — done 2026-11-21
 
