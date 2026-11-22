@@ -43,7 +43,10 @@ controller:
   replicas: 1
   resources:
     requests: {cpu: 100m, memory: 128Mi}
-    limits: {cpu: 500m, memory: 512Mi}
+    # 500m was too tight: a 15-App root sync drove the controller to ~457m,
+    # its /healthz probe timed out, and the sync wedged until a pod restart.
+    # Steady state is ~300m, so this is burst headroom, not a reservation.
+    limits: {cpu: 1000m, memory: 512Mi}
 
 server:
   resources:
