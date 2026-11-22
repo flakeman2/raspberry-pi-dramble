@@ -1,0 +1,60 @@
+# Namespace-wide ingress allow-list for longhorn-system.
+#
+# Longhorn ships seven Ingress NetworkPolicies, each scoped to one component
+# (manager, instance-manager, backing-image-*, recovery-backend, webhook) plus
+# the Prometheus scrape rule. Pods matching none of those selectors — the UI,
+# CSI sidecars and plugin, share-manager, global-manager, engine-image —
+# currently accept ingress from anywhere in the cluster.
+#
+# This policy selects EVERY pod in the namespace, so those pods become
+# default-deny except for the sources below. NetworkPolicy rules are additive:
+# the seven existing allow-lists keep working unchanged for the pods they
+# already select, and this policy only closes the gap for the rest.
+#
+# Allowed sources:
+#   * all pods in longhorn-system — Longhorn components talk to each other;
+#   * the five node IPs — kubelet liveness/CSI calls, iSCSI (3260), NFS mounts
+#     to share-manager (2049), and public traffic SNAT'd by Traefik because its
+#     LoadBalancer uses externalTrafficPolicy: Cluster;
+#   * the traefik namespace — Traefik proxies to the longhorn-frontend Service;
+#   * the monitoring namespace — Prometheus scrapes Longhorn metrics.
+#
+# Egress stays unrestricted here, as in the other first-party policies:
+# Longhorn must reach the API server, kubelet and the nodes.
+#
+# Future caveat: host-to-remote-pod-IP traffic that bypasses a ClusterIP would
+# source from that node's flannel.1 address (10.42.<node>.0), not its LAN IP.
+# No such flow exists today — NFS and webhooks go to ClusterIPs (source = node
+# LAN IP), and iSCSI/probes are node-local — but add those addresses here if a
+# workload ever starts connecting directly to a Longhorn pod IP on another node.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-approved-ingress-longhorn-system
+  namespace: longhorn-system
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+    - from:
+        - ipBlock:
+            cidr: 192.168.0.44/32 # dflake-nettop (control plane)
+        - ipBlock:
+            cidr: 192.168.0.61/32 # kube1
+        - ipBlock:
+            cidr: 192.168.0.62/32 # kube2
+        - ipBlock:
+            cidr: 192.168.0.63/32 # kube3
+        - ipBlock:
+            cidr: 192.168.0.64/32 # kube4
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
