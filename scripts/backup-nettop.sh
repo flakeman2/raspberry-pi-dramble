@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Bidirectional backup between dflake-nettop (this host) and the workstation.
-# Designed to run from cron on nettop; also safe to run interactively.
+# Runs as dflake from dflake's crontab — no sudo is needed or used.
 #
-#   ./scripts/backup-nettop.sh --preflight   # check tools, SSH, paths; no changes
+#   ./scripts/backup-nettop.sh --preflight   # check tools, SSH, staged tree; no changes
 #   ./scripts/backup-nettop.sh --dry-run     # print the plan, change nothing
 #   ./scripts/backup-nettop.sh               # run both legs
 #
-# Leg 1 (nettop -> workstation): a *consistent* SQLite snapshot of state.db
-#   plus the full k3s recovery set, packed as one dated tar.gz.
+# Leg 1 (nettop -> workstation): ships the root-staged k3s recovery set
+#   (scripts/stage-k3s-snapshot.sh) as a dated tar.gz, then clears the READY
+#   marker. A tree without READY is skipped — that means root's cron has not
+#   produced a new set, or this script already shipped it.
 # Leg 2 (workstation -> nettop): the four small .kube secret artifacts.
 #
 # Both legs use explicit include lists rather than globs. That is the exclusion
@@ -16,9 +18,9 @@
 #
 # Hash comparisons print only PASS/FAIL — never a hash or a secret value.
 #
-# Cron (dflake's crontab, daily 03:00) — needs passwordless `sudo -n` for the
-# root-owned k3s files:
-#   0 3 * * * /home/dflake/github.com/raspberry-pi-dramble/scripts/backup-nettop.sh >> /home/dflake/backup-nettop.log 2>&1
+# Two crontabs, five minutes apart:
+#   root:    55 2 * * * /home/dflake/github.com/raspberry-pi-dramble/scripts/stage-k3s-snapshot.sh >> /var/log/dramble-stage-k3s.log 2>&1
+#   dflake:   0 3 * * * /home/dflake/github.com/raspberry-pi-dramble/scripts/backup-nettop.sh >> /home/dflake/backup-nettop.log 2>&1
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -28,7 +30,8 @@ WORKSTATION_HOST="${WORKSTATION_HOST:-192.168.0.54}"
 WORKSTATION_TARGET="${WORKSTATION_USER}@${WORKSTATION_HOST}"
 # Where the k3s archive lands on the workstation.
 WORKSTATION_BACKUP_DIR="${WORKSTATION_BACKUP_DIR:-/home/${WORKSTATION_USER}/.kube/dramble-backup/nettop}"
-# Where the workstation's secrets land on nettop (same as backup-secrets.sh).
+# Where root stages the k3s tree, and where the workstation secrets land.
+STAGING_DIR="${STAGING_DIR:-/home/dflake/.kube/dramble-backup/staging}"
 LOCAL_BACKUP_DIR="${LOCAL_BACKUP_DIR:-/home/dflake/.kube/dramble-backup}"
 KEEP_DAYS="${KEEP_DAYS:-30}"
 LOCK_DIR="${LOCK_DIR:-/tmp/dramble-backup.lock}"
@@ -52,35 +55,14 @@ SECRET_FILES=(
   config-dramble-k3s
 )
 
-# Nettop files deliberately NOT pushed to the workstation:
-#   db/state.db-wal, db/state.db-shm  raw WAL sidecars; a consistent .backup()
-#                                    snapshot supersedes them (copying the WAL
-#                                    files from a running k3s is not reliable)
+# Nettop staging files deliberately NOT pushed to the workstation:
+#   db/state.db-wal, db/state.db-shm  raw WAL sidecars; the consistent snapshot
+#                                    in db/state.db supersedes them
 #   agent/, logs/, data/              regenerable agent/runtime state
-K3S_FILES=(
-  /var/lib/rancher/k3s/server/node-token
-  /etc/rancher/k3s/k3s.yaml
-)
-K3S_OPTIONAL_FILES=(
-  /var/lib/rancher/k3s/server/token
-  /etc/rancher/k3s/config.yaml
-)
-K3S_DIRS=(
-  /var/lib/rancher/k3s/server/tls
-  /var/lib/rancher/k3s/server/manifests
-)
-K3S_DB=/var/lib/rancher/k3s/server/db/state.db
-# Resolve python3 now: under `sudo -n` the secure_path may not include ~/.local/bin.
-PYTHON_BIN=$(command -v python3 || true)
+# These are produced by stage-k3s-snapshot.sh, never by this script.
 
 log()  { printf '%s\n' "$*"; }
 fail() { printf '%s\n' "$*" >&2; exit 1; }
-
-if [ "$(id -u)" -eq 0 ]; then
-  root_run() { "$@"; }
-else
-  root_run() { sudo -n "$@"; }
-fi
 
 # SC2029: callers intentionally pass an already-quoted remote command string.
 # shellcheck disable=SC2029
@@ -91,24 +73,21 @@ preflight() {
   for p in ssh scp tar sha256sum find stat mktemp install; do
     command -v "$p" >/dev/null || { log "MISSING local tool: $p"; ok=1; }
   done
-  python3 -c 'import sqlite3' 2>/dev/null \
-    || { log "MISSING python3 sqlite3 (needed for the consistent DB snapshot)"; ok=1; }
 
-  if [ "$(id -u)" -eq 0 ]; then
-    log "OK  running as root"
-  elif sudo -n true 2>/dev/null; then
-    log "OK  passwordless sudo -n"
-  else
-    log "MISSING passwordless sudo -n — needed to read root-owned k3s files from dflake's crontab"; ok=1
-  fi
-
-  for p in "$K3S_DB" "${K3S_FILES[@]}" "${K3S_DIRS[@]}"; do
-    if root_run test -r "$p" 2>/dev/null; then
-      log "OK  readable: $p"
+  if [ -d "$STAGING_DIR" ]; then
+    if [ -r "$STAGING_DIR" ]; then
+      log "OK  staging tree: ${STAGING_DIR}"
     else
-      log "MISSING/UNREADABLE: $p"; ok=1
+      log "UNREADABLE staging tree: ${STAGING_DIR}"; ok=1
     fi
-  done
+    if [ -f "$STAGING_DIR/READY" ]; then
+      log "OK  READY marker present — leg 1 has a new set to ship"
+    else
+      log "INFO no READY marker — leg 1 will skip (root cron has not staged a new set)"
+    fi
+  else
+    log "INFO staging tree absent — root cron has not run yet; leg 1 will skip"
+  fi
 
   if ssh_w true 2>/dev/null; then
     log "OK  SSH to ${WORKSTATION_TARGET}"
@@ -120,48 +99,6 @@ preflight() {
     fail "preflight failed — fix the above before scheduling cron"
   fi
   log "preflight OK"
-}
-
-# SQLite's online backup API gives a consistent snapshot without stopping k3s.
-snapshot_db() {
-  local out=$1
-  root_run "$PYTHON_BIN" - "$K3S_DB" "$out" <<'PY'
-import sqlite3, sys
-src = sqlite3.connect("file:" + sys.argv[1] + "?mode=ro", uri=True)
-dst = sqlite3.connect(sys.argv[2])
-with dst:
-    src.backup(dst)
-src.close()
-dst.close()
-PY
-  root_run chown "$(id -u):$(id -g)" "$out"
-}
-
-stage_k3s() {
-  local tree=$1 src base
-  mkdir -p "$tree/db"
-  snapshot_db "$tree/db/state.db"
-
-  for src in "${K3S_FILES[@]}"; do
-    base=$(basename "$src")
-    root_run install -m 0600 "$src" "$tree/$base"
-  done
-  for src in "${K3S_OPTIONAL_FILES[@]}"; do
-    if root_run test -r "$src" 2>/dev/null; then
-      root_run install -m 0600 "$src" "$tree/$(basename "$src")"
-    fi
-  done
-  for src in "${K3S_DIRS[@]}"; do
-    if root_run test -d "$src" 2>/dev/null; then
-      base=$(basename "$src")
-      mkdir -p "$tree/$base"
-      # --no-same-owner keeps the staged tree readable by the invoking user.
-      root_run tar -C "$(dirname "$src")" -cf - "$base" | tar -C "$tree" -xf - --no-same-owner
-    fi
-  done
-
-  root_run chown -R "$(id -u):$(id -g)" "$tree"
-  (cd "$tree" && find . -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
 }
 
 verify_pair() {
@@ -179,15 +116,17 @@ verify_pair() {
 
 leg_k3s_to_workstation() {
   local stage archive name remote_path fail=0
+
+  if [ ! -f "$STAGING_DIR/READY" ]; then
+    log "==> no READY marker in ${STAGING_DIR} — nothing new to ship, skipping"
+    return 0
+  fi
+
   stage=$(mktemp -d)
   STAGE=$stage
-
-  log "==> staging k3s recovery set"
-  stage_k3s "$stage/tree"
-
   name="k3s-$(date -u +%F).tar.gz"
   archive="$stage/$name"
-  tar -czf "$archive" -C "$stage/tree" .
+  tar -czf "$archive" -C "$STAGING_DIR" .
 
   log "==> pushing ${name} to ${WORKSTATION_TARGET}:${WORKSTATION_BACKUP_DIR}"
   # SC2029: ${WORKSTATION_BACKUP_DIR} is intentionally expanded on the client;
@@ -199,7 +138,13 @@ leg_k3s_to_workstation() {
   # shellcheck disable=SC2029
   scp -q -p "$archive" "${WORKSTATION_TARGET}:${remote_path}" \
     || fail "scp failed for ${name}"
-  verify_pair "$archive" "$remote_path" "$name" || fail=1
+
+  if verify_pair "$archive" "$remote_path" "$name"; then
+    # Only clear READY after a verified copy; a failure leaves it for the next run.
+    rm -f "$STAGING_DIR/READY"
+  else
+    fail=1
+  fi
 
   # Keep only recent daily archives; print what is removed.
   # shellcheck disable=SC2029
@@ -245,6 +190,7 @@ case "$MODE" in
     ;;
   --dry-run)
     log "DRY RUN — no changes."
+    log "  root staging -> ${STAGING_DIR}/ (separate root cron, 02:55)"
     log "  k3s -> ${WORKSTATION_TARGET}:${WORKSTATION_BACKUP_DIR}/k3s-<date>.tar.gz"
     log "        contains: state.db (consistent snapshot), node-token, k3s.yaml,"
     log "        optional token/config.yaml, tls/, manifests/, SHA256SUMS"
