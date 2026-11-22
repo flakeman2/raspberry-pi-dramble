@@ -40,7 +40,18 @@ KEEP_DAYS="${KEEP_DAYS:-30}"
 RETRIES="${RETRIES:-3}"
 RETRY_DELAY="${RETRY_DELAY:-5}"
 LOCK_DIR="${LOCK_DIR:-/tmp/dramble-backup.lock}"
-SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10)
+# The workstation runs `ufw limit ssh`, which rejects the 6th new connection
+# from a source inside 30 seconds (kernel log: [UFW LIMIT BLOCK]). That is why
+# the first live run lost leg 2 after five successful calls. Multiplex every
+# ssh/scp call onto one control connection so a whole cron run counts as one.
+CONTROL_PATH="${CONTROL_PATH:-/tmp/dramble-backup-ctl-%r@%h:%p}"
+SSH_OPTS=(
+  -o BatchMode=yes
+  -o ConnectTimeout=10
+  -o ControlMaster=auto
+  -o "ControlPath=${CONTROL_PATH}"
+  -o ControlPersist=60
+)
 
 MODE="${1:-run}"
 case "$MODE" in
@@ -89,7 +100,7 @@ ssh_retry() {
 scp_retry() {
   local n=1
   while :; do
-    if scp -q -p "$@"; then return 0; fi
+    if scp "${SSH_OPTS[@]}" -q -p "$@"; then return 0; fi
     if [ "$n" -ge "$RETRIES" ]; then return 1; fi
     printf '  scp failed (attempt %s/%s); retrying in %ss\n' "$n" "$RETRIES" "$RETRY_DELAY" >&2
     sleep "$RETRY_DELAY"
