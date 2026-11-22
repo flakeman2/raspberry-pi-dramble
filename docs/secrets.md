@@ -203,6 +203,11 @@ job:
    verifies it, then clears the marker. If the marker is absent it skips leg 1,
    so re-runs and out-of-order crons are harmless.
 
+Remote calls retry on transient failure (`RETRIES=3`, `RETRY_DELAY=5` by
+default). Leg 2 reads all four files in one SSH call before a single `scp`, so
+a brief sshd restart or suspended workstation does not get misreported as
+"missing" files.
+
 ```bash
 # root's crontab:
 # 55 2 * * * /home/dflake/github.com/raspberry-pi-dramble/scripts/stage-k3s-snapshot.sh >> /var/log/dramble-stage-k3s.log 2>&1
