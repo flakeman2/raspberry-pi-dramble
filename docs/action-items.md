@@ -303,9 +303,17 @@ byte-identical to live `sealed-secrets-keyn74k5` before either script was
 written. The plaintext export directory from 2026-11-14 is gone, which is fine
 — those values are in git as SealedSecrets, recoverable with that key.
 
-Neither script has been run by this repo change: both still need host-side
-execution and a `--preflight`/`--dry-run` check first. This is still not an
-off-site backup — see the caveat in
+Both scripts were run live on 2026-11-22. `sudo ~/stage-k3s-snapshot.sh`
+staged the full recovery set (with `READY` written last); `~/backup-nettop.sh`
+then shipped `k3s-2026-11-22.tar.gz` to the workstation, hash-verified it and
+cleared the marker. Leg 2 reported 4×PASS for the four secret artifacts at
+`0600`, so both legs copied and verified. The first attempt exposed a
+`ufw limit ssh` rule on the workstation: the 6th new connection from one IP
+inside 30 s was rejected as `Connection refused`, which the client misread as
+missing files. All remote calls now share one multiplexed SSH connection, so
+a whole run stays under that limit. This is still **not an off-site backup** —
+both machines are in the same house, on the same LAN and power — see the
+caveat in
 [docs/secrets.md](secrets.md#backups-between-the-workstation-and-dflake-nettop).
 
 Note for [upgrade.md](upgrade.md) §B0: it still lists "configure a Longhorn
