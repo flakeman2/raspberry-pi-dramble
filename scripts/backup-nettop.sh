@@ -17,6 +17,9 @@
 # cross. See the EXCLUDED comments below for the rationale.
 #
 # Hash comparisons print only PASS/FAIL — never a hash or a secret value.
+# Remote calls retry on transient failure (the workstation is a laptop that can
+# suspend or restart sshd mid-run); leg 2 uses one SSH call for the manifest and
+# one scp for all files, instead of several connections per file.
 #
 # Two crontabs, five minutes apart:
 #   root:    55 2 * * * /home/dflake/github.com/raspberry-pi-dramble/scripts/stage-k3s-snapshot.sh >> /var/log/dramble-stage-k3s.log 2>&1
@@ -34,8 +37,21 @@ WORKSTATION_BACKUP_DIR="${WORKSTATION_BACKUP_DIR:-/home/${WORKSTATION_USER}/.kub
 STAGING_DIR="${STAGING_DIR:-/home/dflake/.kube/dramble-backup/staging}"
 LOCAL_BACKUP_DIR="${LOCAL_BACKUP_DIR:-/home/dflake/.kube/dramble-backup}"
 KEEP_DAYS="${KEEP_DAYS:-30}"
+RETRIES="${RETRIES:-3}"
+RETRY_DELAY="${RETRY_DELAY:-5}"
 LOCK_DIR="${LOCK_DIR:-/tmp/dramble-backup.lock}"
-SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10)
+# The workstation runs `ufw limit ssh`, which rejects the 6th new connection
+# from a source inside 30 seconds (kernel log: [UFW LIMIT BLOCK]). That is why
+# the first live run lost leg 2 after five successful calls. Multiplex every
+# ssh/scp call onto one control connection so a whole cron run counts as one.
+CONTROL_PATH="${CONTROL_PATH:-/tmp/dramble-backup-ctl-%r@%h:%p}"
+SSH_OPTS=(
+  -o BatchMode=yes
+  -o ConnectTimeout=10
+  -o ControlMaster=auto
+  -o "ControlPath=${CONTROL_PATH}"
+  -o ControlPersist=60
+)
 
 MODE="${1:-run}"
 case "$MODE" in
@@ -68,6 +84,30 @@ fail() { printf '%s\n' "$*" >&2; exit 1; }
 # shellcheck disable=SC2029
 ssh_w() { ssh "${SSH_OPTS[@]}" "$WORKSTATION_TARGET" "$@"; }
 
+# Retry remote calls: a refused connection is not evidence that a file is
+# missing, and the workstation can be briefly unavailable mid-cron.
+ssh_retry() {
+  local n=1
+  while :; do
+    if ssh_w "$@"; then return 0; fi
+    if [ "$n" -ge "$RETRIES" ]; then return 1; fi
+    printf '  remote call failed (attempt %s/%s); retrying in %ss\n' "$n" "$RETRIES" "$RETRY_DELAY" >&2
+    sleep "$RETRY_DELAY"
+    n=$((n + 1))
+  done
+}
+
+scp_retry() {
+  local n=1
+  while :; do
+    if scp "${SSH_OPTS[@]}" -q -p "$@"; then return 0; fi
+    if [ "$n" -ge "$RETRIES" ]; then return 1; fi
+    printf '  scp failed (attempt %s/%s); retrying in %ss\n' "$n" "$RETRIES" "$RETRY_DELAY" >&2
+    sleep "$RETRY_DELAY"
+    n=$((n + 1))
+  done
+}
+
 preflight() {
   local ok=0 p
   for p in ssh scp tar sha256sum find stat mktemp install; do
@@ -89,7 +129,7 @@ preflight() {
     log "INFO staging tree absent — root cron has not run yet; leg 1 will skip"
   fi
 
-  if ssh_w true 2>/dev/null; then
+  if ssh_retry true 2>/dev/null; then
     log "OK  SSH to ${WORKSTATION_TARGET}"
   else
     log "FAIL SSH to ${WORKSTATION_TARGET} (need BatchMode key auth)"; ok=1
@@ -103,9 +143,10 @@ preflight() {
 
 verify_pair() {
   # $1 local path, $2 remote path, $3 label. Prints only PASS/FAIL.
+  # Returns 2 for a transport failure, 1 for a hash mismatch.
   local local_hash remote_hash
-  local_hash=$(sha256sum "$1" | cut -d' ' -f1)
-  remote_hash=$(ssh_w "sha256sum '$2'" | cut -d' ' -f1)
+  local_hash=$(sha256sum "$1" | cut -d' ' -f1) || return 2
+  remote_hash=$(ssh_retry "sha256sum '$2'" | cut -d' ' -f1) || return 2
   if [ "$local_hash" = "$remote_hash" ]; then
     printf '  \033[32mPASS\033[0m  %s (hash matches, values not shown)\n' "$3"
     return 0
@@ -126,29 +167,36 @@ leg_k3s_to_workstation() {
   STAGE=$stage
   name="k3s-$(date -u +%F).tar.gz"
   archive="$stage/$name"
-  tar -czf "$archive" -C "$STAGING_DIR" .
+  tar --exclude=READY -czf "$archive" -C "$STAGING_DIR" .
+  chmod 600 "$archive"
 
   log "==> pushing ${name} to ${WORKSTATION_TARGET}:${WORKSTATION_BACKUP_DIR}"
   # SC2029: ${WORKSTATION_BACKUP_DIR} is intentionally expanded on the client;
   # the remote shell receives an already-literal, single-quoted path.
   # shellcheck disable=SC2029
-  ssh_w "umask 077; mkdir -p '${WORKSTATION_BACKUP_DIR}' && chmod 700 '${WORKSTATION_BACKUP_DIR}'"
+  ssh_retry "umask 077; mkdir -p '${WORKSTATION_BACKUP_DIR}' && chmod 700 '${WORKSTATION_BACKUP_DIR}'" \
+    || fail "cannot prepare ${WORKSTATION_TARGET}:${WORKSTATION_BACKUP_DIR}"
   remote_path="${WORKSTATION_BACKUP_DIR}/${name}"
   # SC2029: same intentional client-side expansion as above.
   # shellcheck disable=SC2029
-  scp -q -p "$archive" "${WORKSTATION_TARGET}:${remote_path}" \
-    || fail "scp failed for ${name}"
+  scp_retry "$archive" "${WORKSTATION_TARGET}:${remote_path}" \
+    || fail "scp failed for ${name} after ${RETRIES} attempts"
 
   if verify_pair "$archive" "$remote_path" "$name"; then
     # Only clear READY after a verified copy; a failure leaves it for the next run.
     rm -f "$STAGING_DIR/READY"
   else
+    rc=$?
+    if [ "$rc" -eq 2 ]; then
+      printf '  \033[31mFAIL\033[0m  %s (workstation unreachable for verification)\n' "$name"
+    fi
     fail=1
   fi
 
   # Keep only recent daily archives; print what is removed.
   # shellcheck disable=SC2029
-  ssh_w "find '${WORKSTATION_BACKUP_DIR}' -maxdepth 1 -name 'k3s-*.tar.gz' -mtime +${KEEP_DAYS} -print -delete"
+  ssh_retry "find '${WORKSTATION_BACKUP_DIR}' -maxdepth 1 -name 'k3s-*.tar.gz' -mtime +${KEEP_DAYS} -print -delete" \
+    || log "WARN retention cleanup failed on ${WORKSTATION_HOST}"
 
   rm -rf "$stage"
   STAGE=""
@@ -156,32 +204,72 @@ leg_k3s_to_workstation() {
 }
 
 leg_secrets_to_nettop() {
-  local f remote_src fail=0 mode
+  local manifest line name mode remote_hash local_hash f remote_dir remote_list="" failed=0
+  declare -A expect=()
   mkdir -p "$LOCAL_BACKUP_DIR"
   chmod 700 "$LOCAL_BACKUP_DIR"
+  remote_dir="/home/${WORKSTATION_USER}/.kube"
 
   for f in "${SECRET_FILES[@]}"; do
-    remote_src="/home/${WORKSTATION_USER}/.kube/${f}"
-    log "==> pulling ${f}"
-    # shellcheck disable=SC2029
-    if ! ssh_w "test -f '${remote_src}'"; then
-      printf '  \033[31mFAIL\033[0m  %s (missing on workstation)\n' "$f"
-      fail=1
-      continue
-    fi
-    # shellcheck disable=SC2029
-    mode=$(ssh_w "stat -c '%a' '${remote_src}'")
-    if [ "$mode" != 600 ]; then
-      printf '  \033[31mFAIL\033[0m  %s (mode %s on workstation, expected 600)\n' "$f" "$mode"
-      fail=1
-      continue
-    fi
-    scp -q -p "${WORKSTATION_TARGET}:${remote_src}" "${LOCAL_BACKUP_DIR}/${f}" \
-      || { printf '  \033[31mFAIL\033[0m  %s (scp failed)\n' "$f"; fail=1; continue; }
-    # Here the workstation is the source; compare the local copy against it.
-    verify_pair "${LOCAL_BACKUP_DIR}/${f}" "$remote_src" "$f" || fail=1
+    remote_list+=" '${f}'"
   done
-  return "$fail"
+
+  log "==> reading workstation secret manifest (one SSH call)"
+  # One remote call for all four files: name, mode, sha256 — or MISSING.
+  # SC2029: ${remote_dir} and ${remote_list} intentionally expand client-side;
+  # the \$f escapes are for the remote shell's loop variable.
+  # shellcheck disable=SC2029
+  if ! manifest=$(ssh_retry "cd '${remote_dir}' || exit 1; for f in ${remote_list}; do if [ -f \"\$f\" ]; then printf '%s %s %s\\n' \"\$f\" \"\$(stat -c %a \"\$f\")\" \"\$(sha256sum \"\$f\" | cut -d' ' -f1)\"; else printf '%s MISSING -\\n' \"\$f\"; fi; done"); then
+    fail "workstation unreachable for the secrets leg — check sshd on ${WORKSTATION_HOST}"
+  fi
+
+  for f in "${SECRET_FILES[@]}"; do
+    line=$(printf '%s\n' "$manifest" | awk -v want="$f" '$1 == want { print; exit }')
+    if [ -z "$line" ]; then
+      printf '  \033[31mFAIL\033[0m  %s (no manifest entry — workstation unreachable or file vanished)\n' "$f"
+      failed=1
+      continue
+    fi
+    read -r name mode remote_hash <<< "$line"
+    if [ "$mode" = "MISSING" ]; then
+      printf '  \033[31mFAIL\033[0m  %s (missing on workstation)\n' "$f"
+      failed=1
+      continue
+    fi
+    if [ "$mode" != "600" ]; then
+      printf '  \033[31mFAIL\033[0m  %s (mode %s on workstation, expected 600)\n' "$f" "$mode"
+      failed=1
+      continue
+    fi
+    expect["$f"]="$remote_hash"
+  done
+
+  if [ "${#expect[@]}" -eq 0 ]; then
+    return "$failed"
+  fi
+
+  log "==> pulling ${#expect[@]} file(s) (one scp)"
+  sources=()
+  for f in "${!expect[@]}"; do
+    sources+=("${WORKSTATION_TARGET}:${remote_dir}/${f}")
+  done
+  if ! scp_retry "${sources[@]}" "${LOCAL_BACKUP_DIR}/"; then
+    for f in "${!expect[@]}"; do
+      printf '  \033[31mFAIL\033[0m  %s (scp failed after %s attempts)\n' "$f" "$RETRIES"
+    done
+    return 1
+  fi
+
+  for f in "${!expect[@]}"; do
+    local_hash=$(sha256sum "${LOCAL_BACKUP_DIR}/${f}" | cut -d' ' -f1)
+    if [ "$local_hash" = "${expect[$f]}" ]; then
+      printf '  \033[32mPASS\033[0m  %s (hash matches, values not shown)\n' "$f"
+    else
+      printf '  \033[31mFAIL\033[0m  %s (local hash differs from workstation manifest)\n' "$f"
+      failed=1
+    fi
+  done
+  return "$failed"
 }
 
 case "$MODE" in
@@ -198,6 +286,7 @@ case "$MODE" in
     log "  excluded: WAL/SHM sidecars, agent/logs/data, gemini_api_key.txt,"
     log "            config-dramble-k3s.bak, cache/, k3s_state/, dramble-backup/"
     log "  retention: delete workstation archives older than ${KEEP_DAYS} days"
+    log "  retries: ${RETRIES} attempts, ${RETRY_DELAY}s apart"
     ;;
   run)
     if ! mkdir "$LOCK_DIR" 2>/dev/null; then

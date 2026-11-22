@@ -203,6 +203,19 @@ job:
    verifies it, then clears the marker. If the marker is absent it skips leg 1,
    so re-runs and out-of-order crons are harmless.
 
+Remote calls retry on transient failure (`RETRIES=3`, `RETRY_DELAY=5` by
+default). Leg 2 reads all four files in one SSH call before a single `scp`, so
+a brief sshd restart or suspended workstation does not get misreported as
+"missing" files.
+
+The first live run exposed a second constraint: the workstation runs
+`ufw limit ssh`, which rejects the 6th new connection from one source inside
+30 seconds (`[UFW LIMIT BLOCK]` in `dmesg`, seen by the client as
+`Connection refused`). All ssh and scp calls in `backup-nettop.sh` now share a
+single multiplexed control connection (`ControlMaster=auto`), so one full run
+counts as one connection. Alternatively, allow nettop's IP without a limit in
+UFW on the workstation.
+
 ```bash
 # root's crontab:
 # 55 2 * * * /home/dflake/github.com/raspberry-pi-dramble/scripts/stage-k3s-snapshot.sh >> /var/log/dramble-stage-k3s.log 2>&1
