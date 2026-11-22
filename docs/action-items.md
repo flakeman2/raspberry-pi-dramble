@@ -287,8 +287,15 @@ accumulate with no way to recover it, which is why [item
 dashboards are provisioned from ConfigMaps in git, never built in the UI. Same
 for anything else long-lived in a PVC.
 
-Also outstanding: the off-repo secret export still needs to live somewhere
-that survives the machine, alongside the `.kube` copies on `dflake-nettop`.
+The off-workstation copy is now scripted (2026-11-22):
+[`scripts/backup-secrets.sh`](../scripts/backup-secrets.sh) copies the sealed
+key, ntfy topic, unified admin password and kubeconfig to
+`dflake-nettop:/home/dflake/.kube/dramble-backup/` at `0600`, and verifies each
+copy by hash without printing values. The local key was confirmed byte-identical
+to the live `sealed-secrets-keyn74k5` before writing the script. The plaintext
+export directory from 2026-11-14 is gone, which is fine — those values are in
+git as SealedSecrets, recoverable with that key. The script itself still has to
+be **run on the workstation**; this repo change does not touch nettop.
 
 Note for [upgrade.md](upgrade.md) §B0: it still lists "configure a Longhorn
 backup target" as **mandatory** before a hop, on the grounds that Longhorn

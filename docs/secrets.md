@@ -154,6 +154,37 @@ you do not need it locally:
 rm config.yml
 ```
 
+## Durable backup (off-workstation)
+
+The workstation is a single point of failure for four files. `dflake-nettop`
+(`192.168.0.44`) already holds the k3s datastore backup; keep the small `.kube`
+secrets beside it:
+
+| File | Why it matters |
+|---|---|
+| `sealed-secrets-private-key-backup.yaml` | without it every SealedSecret in git is unrecoverable |
+| `dramble-ntfy-topic.txt` | the full ntfy URL is the capability — anyone holding it can post |
+| `unified-admin-password.txt` | cluster admin password |
+| `config-dramble-k3s` | client cert/key; regenerable, but convenient after a machine loss |
+
+Run on the workstation, not on nettop:
+
+```bash
+./scripts/backup-secrets.sh --dry-run   # show the commands, change nothing
+./scripts/backup-secrets.sh             # copy to nettop and verify
+```
+
+The script requires each source file to be mode `0600`, creates the remote
+directory `0700`, copies with `scp -p`, and compares SHA-256 values on both
+sides. It prints only PASS/FAIL — never a hash or a secret value, since even a
+hash of a short password is brute-forceable. Override `NETTOP_USER`,
+`NETTOP_HOST`, `REMOTE_DIR` or `SOURCE_DIR` through the environment if the
+defaults are wrong. Re-run it any time; it overwrites in place.
+
+The SealedSecret values themselves need no separate plaintext export: they are
+in git, encrypted to this key. Losing the key is the failure mode; losing the
+old `~/.kube/dramble-secrets-2026-11-14/` export directory is not.
+
 ## Scanning before you commit
 
 ```bash
