@@ -74,6 +74,11 @@ git.
 - k3s join token / kubeconfig: regenerate during a rebuild.
 - `acme.json`: lives on the Traefik PVC; restoring it is optional (Let's
   Encrypt will re-issue).
-- Sealed-secrets private key: backed up off-repo at `0600`.
+- Sealed-secrets private key: backed up off-repo at `0600`. Use
+  [`../../scripts/backup-secrets.sh`](../../scripts/backup-secrets.sh) to copy
+  it (and the other small `.kube` secrets) to `dflake-nettop` and verify the
+  copies by hash. The reverse direction (k3s recovery set → workstation) is
+  [`../../scripts/backup-nettop.sh`](../../scripts/backup-nettop.sh); both are
+  described in [../../docs/secrets.md#backups-between-the-workstation-and-dflake-nettop](../../docs/secrets.md#backups-between-the-workstation-and-dflake-nettop).
 
 Full creation and rotation instructions: [../../docs/secrets.md](../../docs/secrets.md).

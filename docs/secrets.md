@@ -154,6 +154,83 @@ you do not need it locally:
 rm config.yml
 ```
 
+## Backups between the workstation and dflake-nettop
+
+The two machines now mirror each other. Both scripts use **explicit include
+lists** rather than globs — that is the exclusion mechanism: a file that belongs
+on only one host is never named, so it cannot cross. Both compare SHA-256 and
+print only PASS/FAIL, never a hash or a value (even a hash of a short password
+is brute-forceable).
+
+| Direction | Script | Runs on | Payload |
+|---|---|---|---|
+| nettop → workstation | [`backup-nettop.sh`](../scripts/backup-nettop.sh) | nettop (cron) | consistent `state.db` snapshot, `node-token`, `k3s.yaml`, `tls/`, `manifests/`, optional `token`/`config.yaml`, `SHA256SUMS` |
+| workstation → nettop | [`backup-secrets.sh`](../scripts/backup-secrets.sh) | workstation | the four files below |
+
+### Workstation → nettop
+
+| File | Why it matters |
+|---|---|
+| `sealed-secrets-private-key-backup.yaml` | without it every SealedSecret in git is unrecoverable |
+| `dramble-ntfy-topic.txt` | the full ntfy URL is the capability — anyone holding it can post |
+| `unified-admin-password.txt` | cluster admin password |
+| `config-dramble-k3s` | client cert/key; regenerable, but convenient after a machine loss |
+
+Run on the workstation:
+
+```bash
+./scripts/backup-secrets.sh --dry-run   # show the commands, change nothing
+./scripts/backup-secrets.sh             # copy to nettop and verify
+```
+
+It requires `0600` sources, creates a `0700` remote directory, and overwrites in
+place. Override `NETTOP_USER`, `NETTOP_HOST`, `REMOTE_DIR` or `SOURCE_DIR` if the
+defaults are wrong.
+
+### Nettop → workstation
+
+`backup-nettop.sh` stages the k3s recovery set in a temporary directory. The
+database copy uses SQLite's online `backup()` API, so k3s keeps running —
+copying `state.db` and its WAL sidecars from a live server is not reliable. The
+staged tree is packed as `~/.kube/dramble-backup/nettop/k3s-<date>.tar.gz` on
+the workstation, verified by hash, and archives older than `KEEP_DAYS` (30) are
+deleted.
+
+Check and schedule it on nettop:
+
+```bash
+./scripts/backup-nettop.sh --preflight   # tools, sudo, SSH, source paths
+./scripts/backup-nettop.sh --dry-run
+# root's crontab, daily 03:00:
+# 0 3 * * * /home/dflake/github.com/raspberry-pi-dramble/scripts/backup-nettop.sh >> /var/log/dramble-backup.log 2>&1
+```
+
+It needs key-based SSH from nettop to `192.168.0.54` (`WORKSTATION_HOST`) and
+passwordless `sudo -n` unless run as root. To inspect or restore an archive:
+
+```bash
+tar -tzf ~/.kube/dramble-backup/nettop/k3s-<date>.tar.gz
+# extract into a scratch dir, then follow docs/control-plane-migration-nettop.md
+```
+
+### Deliberately excluded
+
+- Nettop → workstation: `db/state.db-wal` and `db/state.db-shm` (the consistent
+  snapshot replaces them), plus `agent/`, `logs/` and `data/` (regenerable).
+- Workstation → nettop: `gemini_api_key.txt` (workstation-only tool credential),
+  `config-dramble-k3s.bak`, `cache/`, `k3s_state/` and `dramble-backup/`. The last
+  one matters most: it is the incoming nettop archive and must not be shuttled
+  back.
+
+### What this still does not cover
+
+Both machines are in the same house, on the same power and LAN. This protects
+against losing one machine, not against site loss (fire, theft, surge) or
+lateral ransomware. There is still no off-site copy. The SealedSecret values
+need no plaintext export — they are in git, encrypted to the private key; that
+key is the load-bearing file. The old `~/.kube/dramble-secrets-2026-11-14/`
+directory is gone and that is fine.
+
 ## Scanning before you commit
 
 ```bash

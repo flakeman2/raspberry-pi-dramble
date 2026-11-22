@@ -287,8 +287,24 @@ accumulate with no way to recover it, which is why [item
 dashboards are provisioned from ConfigMaps in git, never built in the UI. Same
 for anything else long-lived in a PVC.
 
-Also outstanding: the off-repo secret export still needs to live somewhere
-that survives the machine, alongside the `.kube` copies on `dflake-nettop`.
+The two machines now mirror each other (2026-11-22). Workstation → nettop:
+[`scripts/backup-secrets.sh`](../scripts/backup-secrets.sh) copies the sealed
+key, ntfy topic, unified admin password and kubeconfig to
+`dflake-nettop:/home/dflake/.kube/dramble-backup/` at `0600`. Nettop →
+workstation: [`scripts/backup-nettop.sh`](../scripts/backup-nettop.sh), meant
+for root's crontab, stages a consistent `state.db` snapshot plus the full k3s
+recovery set and drops a dated tar.gz in `~/.kube/dramble-backup/nettop/` on
+the workstation. Both verify by hash and print only PASS/FAIL; both use
+explicit include lists so workstation-only files (e.g. `gemini_api_key.txt`)
+and the incoming archive never cross. The local key was confirmed
+byte-identical to live `sealed-secrets-keyn74k5` before either script was
+written. The plaintext export directory from 2026-11-14 is gone, which is fine
+— those values are in git as SealedSecrets, recoverable with that key.
+
+Neither script has been run by this repo change: both still need host-side
+execution and a `--preflight`/`--dry-run` check first. This is still not an
+off-site backup — see the caveat in
+[docs/secrets.md](secrets.md#backups-between-the-workstation-and-dflake-nettop).
 
 Note for [upgrade.md](upgrade.md) §B0: it still lists "configure a Longhorn
 backup target" as **mandatory** before a hop, on the grounds that Longhorn
