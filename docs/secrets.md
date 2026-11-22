@@ -154,11 +154,20 @@ you do not need it locally:
 rm config.yml
 ```
 
-## Durable backup (off-workstation)
+## Backups between the workstation and dflake-nettop
 
-The workstation is a single point of failure for four files. `dflake-nettop`
-(`192.168.0.44`) already holds the k3s datastore backup; keep the small `.kube`
-secrets beside it:
+The two machines now mirror each other. Both scripts use **explicit include
+lists** rather than globs — that is the exclusion mechanism: a file that belongs
+on only one host is never named, so it cannot cross. Both compare SHA-256 and
+print only PASS/FAIL, never a hash or a value (even a hash of a short password
+is brute-forceable).
+
+| Direction | Script | Runs on | Payload |
+|---|---|---|---|
+| nettop → workstation | [`backup-nettop.sh`](../scripts/backup-nettop.sh) | nettop (cron) | consistent `state.db` snapshot, `node-token`, `k3s.yaml`, `tls/`, `manifests/`, optional `token`/`config.yaml`, `SHA256SUMS` |
+| workstation → nettop | [`backup-secrets.sh`](../scripts/backup-secrets.sh) | workstation | the four files below |
+
+### Workstation → nettop
 
 | File | Why it matters |
 |---|---|
@@ -167,23 +176,60 @@ secrets beside it:
 | `unified-admin-password.txt` | cluster admin password |
 | `config-dramble-k3s` | client cert/key; regenerable, but convenient after a machine loss |
 
-Run on the workstation, not on nettop:
+Run on the workstation:
 
 ```bash
 ./scripts/backup-secrets.sh --dry-run   # show the commands, change nothing
 ./scripts/backup-secrets.sh             # copy to nettop and verify
 ```
 
-The script requires each source file to be mode `0600`, creates the remote
-directory `0700`, copies with `scp -p`, and compares SHA-256 values on both
-sides. It prints only PASS/FAIL — never a hash or a secret value, since even a
-hash of a short password is brute-forceable. Override `NETTOP_USER`,
-`NETTOP_HOST`, `REMOTE_DIR` or `SOURCE_DIR` through the environment if the
-defaults are wrong. Re-run it any time; it overwrites in place.
+It requires `0600` sources, creates a `0700` remote directory, and overwrites in
+place. Override `NETTOP_USER`, `NETTOP_HOST`, `REMOTE_DIR` or `SOURCE_DIR` if the
+defaults are wrong.
 
-The SealedSecret values themselves need no separate plaintext export: they are
-in git, encrypted to this key. Losing the key is the failure mode; losing the
-old `~/.kube/dramble-secrets-2026-11-14/` export directory is not.
+### Nettop → workstation
+
+`backup-nettop.sh` stages the k3s recovery set in a temporary directory. The
+database copy uses SQLite's online `backup()` API, so k3s keeps running —
+copying `state.db` and its WAL sidecars from a live server is not reliable. The
+staged tree is packed as `~/.kube/dramble-backup/nettop/k3s-<date>.tar.gz` on
+the workstation, verified by hash, and archives older than `KEEP_DAYS` (30) are
+deleted.
+
+Check and schedule it on nettop:
+
+```bash
+./scripts/backup-nettop.sh --preflight   # tools, sudo, SSH, source paths
+./scripts/backup-nettop.sh --dry-run
+# root's crontab, daily 03:00:
+# 0 3 * * * /home/dflake/github.com/raspberry-pi-dramble/scripts/backup-nettop.sh >> /var/log/dramble-backup.log 2>&1
+```
+
+It needs key-based SSH from nettop to `192.168.0.54` (`WORKSTATION_HOST`) and
+passwordless `sudo -n` unless run as root. To inspect or restore an archive:
+
+```bash
+tar -tzf ~/.kube/dramble-backup/nettop/k3s-<date>.tar.gz
+# extract into a scratch dir, then follow docs/control-plane-migration-nettop.md
+```
+
+### Deliberately excluded
+
+- Nettop → workstation: `db/state.db-wal` and `db/state.db-shm` (the consistent
+  snapshot replaces them), plus `agent/`, `logs/` and `data/` (regenerable).
+- Workstation → nettop: `gemini_api_key.txt` (workstation-only tool credential),
+  `config-dramble-k3s.bak`, `cache/`, `k3s_state/` and `dramble-backup/`. The last
+  one matters most: it is the incoming nettop archive and must not be shuttled
+  back.
+
+### What this still does not cover
+
+Both machines are in the same house, on the same power and LAN. This protects
+against losing one machine, not against site loss (fire, theft, surge) or
+lateral ransomware. There is still no off-site copy. The SealedSecret values
+need no plaintext export — they are in git, encrypted to the private key; that
+key is the load-bearing file. The old `~/.kube/dramble-secrets-2026-11-14/`
+directory is gone and that is fine.
 
 ## Scanning before you commit
 
