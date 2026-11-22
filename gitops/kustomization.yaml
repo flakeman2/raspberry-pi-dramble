@@ -30,3 +30,4 @@ resources:
   # Cluster policy. Kept separate from addons (third-party charts) and apps
   # (first-party workloads); it constrains both.
   - policies/networkpolicies/application.yaml
+  - policies/poddisruptionbudgets/application.yaml

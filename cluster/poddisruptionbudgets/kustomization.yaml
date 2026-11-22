@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Each document names its own namespace; destination.namespace in the
+# Application is only Argo CD's fallback.
+resources:
+  - pdbs.yaml

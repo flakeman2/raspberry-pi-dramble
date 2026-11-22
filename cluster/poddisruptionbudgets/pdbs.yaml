@@ -1,0 +1,114 @@
+# First-party PodDisruptionBudgets, one per namespace.
+#
+# A PDB constrains *voluntary* disruptions — `kubectl drain`, node reimage,
+# controller-initiated eviction. It does not protect against a crash, a dead
+# node, or an API outage. Its job here is to keep a drain from taking a
+# redundant workload fully offline.
+#
+# The rule for each entry:
+#   * More than one replica: minAvailable = replicas - 1, so one pod may go.
+#   * One replica: maxUnavailable = 1. Using minAvailable: 1 on a single-replica
+#     workload is a self-inflicted deadlock — the eviction API refuses to
+#     remove the only pod and `kubectl drain` never finishes. Brief downtime is
+#     the honest tradeoff for a single replica.
+#
+# Chart-owned workloads (Argo CD, Traefik, MetalLB) and Longhorn's own six PDBs
+# are deliberately not listed; they manage their own.
+#
+# Replica counts verified against the live cluster on 2026-11-22. When adding
+# a workload here, check `kubectl get deploy,sts -A` first and keep these in
+# step with any replica-count change.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: jekyll-website
+  namespace: jekyll
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: jekyll-website
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: whoami
+  namespace: whoami
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: traefiklabs
+      task: whoami
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mysite-nginx
+  namespace: mysite-nginx
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: mysite-nginx
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: grafana
+      app.kubernetes.io/name: grafana
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: prometheus-server
+  namespace: monitoring
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: server
+      app.kubernetes.io/instance: prometheus
+      app.kubernetes.io/name: prometheus
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: prometheus-kube-state-metrics
+  namespace: monitoring
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: prometheus
+      app.kubernetes.io/name: kube-state-metrics
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: prometheus-prometheus-pushgateway
+  namespace: monitoring
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: prometheus
+      app.kubernetes.io/name: prometheus-pushgateway
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: prometheus-alertmanager
+  namespace: monitoring
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: prometheus
+      app.kubernetes.io/name: alertmanager

@@ -1,8 +1,8 @@
 # GitOps with Argo CD
 
 **Status:** phases 1–4 complete. The root app-of-apps owns the `drumble`
-AppProject and **fifteen Applications** — the root plus fourteen children —
-all Synced/Healthy and reconciling from `dev` (2026-11-21).
+AppProject and **sixteen Applications** — the root plus fifteen children —
+all Synced/Healthy and reconciling from `dev` (2026-11-22).
 `scripts/install-addons.sh` is now bootstrap-only: it installs Argo CD, restores
 the sealed-secrets key and applies the root Application; the children are Git.
 Longhorn's Application keeps `prune: false` so a sync cannot delete its CRDs and
@@ -95,14 +95,16 @@ it lost no content.
 ```
 gitops/
   README.md               Conventions and the app-of-apps root
-  kustomization.yaml      Explicit AppProject + fourteen child Applications
+  kustomization.yaml      Explicit AppProject + fifteen child Applications
   bootstrap/              Argo CD install and root-app.yaml — the only non-Git step
   projects/               AppProject boundaries
   addons/                 sealed-secrets, MetalLB, Traefik, traefik-config,
                           prometheus, grafana, Longhorn
   apps/                   First-party workloads (Kustomize), including the
                           grafana-dashboards ConfigMap generator
-  policies/               NetworkPolicy allow-lists (cluster/networkpolicies)
+  policies/               Cluster policy: NetworkPolicies and PDBs, sourced
+                          from cluster/networkpolicies/ and
+                          cluster/poddisruptionbudgets/
 ```
 
 Conventions:
@@ -111,7 +113,7 @@ Conventions:
   directories that hold real manifests (`whoami/`, and the root `gitops/`
   directory). Third-party charts use `source.helm` with committed values.
 - The root `Application` (`bootstrap/root-app.yaml`) points at `gitops/`. Its
-  `kustomization.yaml` lists the AppProject and all fourteen children
+  `kustomization.yaml` lists the AppProject and all fifteen children
   explicitly — no `ApplicationSet` generator at this scale. It uses the
   `default` project because it creates `drumble` itself, and bootstrap files
   stay out of the build so Argo cannot manage its own installer.
@@ -172,8 +174,9 @@ independent jobs**, so a red check names itself:
 
 - **Manifests** — `kubeconform -strict` over the raw manifests, all four Helm
   charts rendered at their pinned versions, and every Kustomize build under
-  `gitops/` (the root app-of-apps) and `gitops/apps/*/`. The root build must
-  render exactly the AppProject plus fourteen child Applications. Chart
+  `gitops/`, `gitops/apps/*/` and the two `cluster/` policy directories
+  (`networkpolicies/`, `poddisruptionbudgets/`). The root build must
+  render exactly the AppProject plus fifteen child Applications. Chart
   versions are **single-sourced** from `scripts/install-addons.sh` and
   `gitops/bootstrap/values.yaml`, so CI cannot drift from the install path — a
   removed pin fails the job. The Traefik, MetalLB and Argo CD custom resources
@@ -276,7 +279,7 @@ Argo CD will surface these immediately; fix them before turning on auto-sync.
   repo and cross-repo PRs. At this scale, one repository wins.
 - **Longhorn is Argo-managed** (2026-11-21). It is CRD-heavy, upgrade-sensitive,
   and carries every volume, so it was the last phase-3 migration rather than the
-  first. It is now one of the root app's fourteen children with `prune: false`
+  first. It is now one of the root app's fifteen children with `prune: false`
   and no `ServerSideApply`; MetalLB set the precedent on 2026-11-18 with
   `prune` proven safe by listing what Argo tracks.
 - **Sealed Secrets over SOPS** (2026-11-17), see [Secrets](#secrets).
