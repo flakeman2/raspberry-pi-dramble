@@ -15,7 +15,7 @@ spec:
   source:
     repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
     targetRevision: dev
-    # gitops/kustomization.yaml lists the AppProject and the thirteen child
+    # gitops/kustomization.yaml lists the AppProject and the fourteen child
     # Applications explicitly. Pointing at the directory without that
     # kustomization would also pick up bootstrap/values.yaml, README files and
     # this self-referencing manifest, none of which are Kubernetes objects.

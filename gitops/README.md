@@ -1,9 +1,10 @@
 # GitOps
 
-Declarative cluster state for Argo CD. **Fourteen Applications are live and
+Declarative cluster state for Argo CD. **Fifteen Applications are live and
 reconciling from `dev`**: the root app-of-apps, six first-party apps (including
-`grafana-dashboards`) and seven add-ons — Sealed Secrets, MetalLB, Traefik,
-`traefik-config`, Prometheus, Grafana and Longhorn (2026-11-21).
+`grafana-dashboards`), seven add-ons — Sealed Secrets, MetalLB, Traefik,
+`traefik-config`, Prometheus, Grafana and Longhorn — and one cluster-policy app
+for the NetworkPolicies (2026-11-22).
 `scripts/install-addons.sh` is bootstrap-only; the child Applications are
 managed entirely by the root. The design, phased rollout, and conventions are
 in [../docs/gitops.md](../docs/gitops.md); the component upgrade that landed
@@ -44,6 +45,6 @@ apps/         First-party workloads, one directory per Application (Kustomize);
 2. Run `scripts/install-addons.sh`: restore the sealed-secrets key, create
    namespaces, apply the sealed manifests, install Argo CD from
    [bootstrap/](bootstrap/README.md), and apply `bootstrap/root-app.yaml`.
-3. The root creates the `drumble` AppProject and all thirteen children. Apply
+3. The root creates the `drumble` AppProject and all fourteen children. Apply
    `bootstrap/ingressroute.yaml` only after the Traefik CRDs exist, so Argo CD's
    own public route is the last imperative step.

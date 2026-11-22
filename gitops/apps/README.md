@@ -26,7 +26,7 @@ workload.
 
 The root Application (`gitops/bootstrap/root-app.yaml`) discovers these through
 the explicit list in `gitops/kustomization.yaml`. There is no automatic
-directory generator; adding a sixth first-party app means adding one line to
+directory generator; adding another first-party app means adding one line to
 that list in the same PR.
 
 ### Conventions

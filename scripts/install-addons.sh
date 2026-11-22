@@ -7,7 +7,7 @@
 #   1. restore the sealed-secrets private key and apply the sealed manifests;
 #   2. create namespaces (every Application uses CreateNamespace=false);
 #   3. install Argo CD from gitops/bootstrap/values.yaml;
-#   4. apply the root app-of-apps, which owns the AppProject and all thirteen
+#   4. apply the root app-of-apps, which owns the AppProject and all fourteen
 #      child Applications;
 #   5. wait for the cluster to converge, then install Argo CD's own public
 #      IngressRoute (it needs the Traefik CRDs the root app installs).

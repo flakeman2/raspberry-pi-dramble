@@ -299,11 +299,14 @@ B-series upgrade ever happens, revisit it rather than skipping it silently.
 
 - No first-party application PDBs. The six PDBs are all Longhorn's own: four
   `instance-manager` PDBs plus `csi-attacher` and `csi-provisioner`.
-- Eleven NetworkPolicies exist: four shipped by the Argo CD chart and seven in
+- Sixteen NetworkPolicies exist: four shipped by the Argo CD chart, seven in
   `longhorn-system` (including `allow-prometheus-longhorn-metrics`, which lets
-  Prometheus scrape Longhorn over HTTPS). None yet restrict first-party
-  workloads. At minimum, restrict ingress to `monitoring`, `traefik`, and
-  `longhorn-system`, and egress from the DNS CronJobs.
+  Prometheus scrape Longhorn over HTTPS), and five first-party policies added
+  2026-11-22. Ingress allow-lists isolate `monitoring`, `mysite-nginx`, `jekyll`
+  and `whoami` to node IPs (kubelet probes and SNAT'd Traefik traffic), the
+  `traefik` namespace and the `monitoring` namespace. The DynDNS CronJobs in
+  `default` are isolated to DNS (53) and HTTPS (443) egress. Still open: first-
+  party PDBs, and ingress policy for `longhorn-system` beyond its own seven.
 
 ### 12. Reduce single points of failure
 
@@ -363,7 +366,7 @@ AppProject whitelist was widened three times by the adoptions themselves:
 `prune: false` and no `ServerSideApply` (measured rather than assumed — see the
 comments in its `application.yaml`). The root app-of-apps then landed: one
 root `Application` on the `default` project owns the `drumble` AppProject at
-wave `-10` and thirteen children through an explicit `gitops/kustomization.yaml`.
+wave `-10` and fourteen children through an explicit `gitops/kustomization.yaml`.
 `install-addons.sh` is bootstrap-only, with `--print-pins` keeping CI and
 `check-updates.sh` on the same version pins. **Phase 4** gates are live and the
 image pipeline ships in Ephesus. Conventions:

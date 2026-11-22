@@ -148,7 +148,7 @@ No under-voltage or thermal throttling on any node.
 
 Totals: **66 pods**, 12 namespaces, 23 Deployments, 5 DaemonSets, 2
 StatefulSets, 2 CronJobs, 27 Services, 13 IngressRoutes, 5 Middlewares, 1
-TLSOption, 6 PDBs, 11 NetworkPolicies (6 Longhorn's own, 4 Argo CD's).
+TLSOption, 6 PDBs, 16 NetworkPolicies (7 Longhorn's own, 4 Argo CD's, 5 first-party).
 
 The workload count deliberately **excludes Job-owned pods** (CronJob and Job
 output). Those come and go with `successfulJobsHistoryLimit`, so a total pod
