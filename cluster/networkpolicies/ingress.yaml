@@ -1,0 +1,131 @@
+# Ingress hardening for the namespaces exposed through Traefik.
+#
+# A pod becomes isolated for a direction as soon as any NetworkPolicy selects
+# it for that direction. Each policy below therefore does double duty: the
+# podSelector {} selects every pod in the namespace (default-deny), and the
+# explicit `ingress` list is the complete allow-list. There is no separate
+# "deny" object to race with the "allow" object at sync time.
+#
+# Sources that must stay allowed:
+#
+#   * Node IPs — kubelet liveness/readiness probes come from the node. Traefik's
+#     LoadBalancer also uses externalTrafficPolicy=Cluster, so public traffic
+#     is SNAT'd to the receiving node's IP before it reaches the Traefik pod.
+#     Keep this list in step with `kubectl get nodes -o wide`.
+#   * traefik namespace — Traefik proxies to backend pods from its own pod IP.
+#   * monitoring namespace — Prometheus scrapes, and Grafana queries Prometheus.
+#
+# Longhorn and Argo CD manage their own policies and are deliberately not
+# touched here. Egress is unrestricted in these namespaces: Prometheus must be
+# able to scrape across namespace boundaries.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-approved-ingress-monitoring
+  namespace: monitoring
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 192.168.0.44/32 # dflake-nettop (control plane)
+        - ipBlock:
+            cidr: 192.168.0.61/32 # kube1
+        - ipBlock:
+            cidr: 192.168.0.62/32 # kube2
+        - ipBlock:
+            cidr: 192.168.0.63/32 # kube3
+        - ipBlock:
+            cidr: 192.168.0.64/32 # kube4
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-approved-ingress-mysite-nginx
+  namespace: mysite-nginx
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 192.168.0.44/32
+        - ipBlock:
+            cidr: 192.168.0.61/32
+        - ipBlock:
+            cidr: 192.168.0.62/32
+        - ipBlock:
+            cidr: 192.168.0.63/32
+        - ipBlock:
+            cidr: 192.168.0.64/32
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-approved-ingress-jekyll
+  namespace: jekyll
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 192.168.0.44/32
+        - ipBlock:
+            cidr: 192.168.0.61/32
+        - ipBlock:
+            cidr: 192.168.0.62/32
+        - ipBlock:
+            cidr: 192.168.0.63/32
+        - ipBlock:
+            cidr: 192.168.0.64/32
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-approved-ingress-whoami
+  namespace: whoami
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 192.168.0.44/32
+        - ipBlock:
+            cidr: 192.168.0.61/32
+        - ipBlock:
+            cidr: 192.168.0.62/32
+        - ipBlock:
+            cidr: 192.168.0.63/32
+        - ipBlock:
+            cidr: 192.168.0.64/32
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik

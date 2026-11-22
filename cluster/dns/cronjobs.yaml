@@ -28,6 +28,10 @@ spec:
   jobTemplate:
     spec:
       template:
+        metadata:
+          labels:
+            # Selected by cluster/networkpolicies/dns-egress.yaml.
+            app: dyn-dns
         spec:
           restartPolicy: OnFailure
           containers:
@@ -69,6 +73,10 @@ spec:
   jobTemplate:
     spec:
       template:
+        metadata:
+          labels:
+            # Selected by cluster/networkpolicies/dns-egress.yaml.
+            app: dyn-dns
         spec:
           restartPolicy: OnFailure
           containers:

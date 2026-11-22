@@ -1,0 +1,52 @@
+# Egress hardening for the two DynDNS CronJobs (default namespace).
+#
+# Selecting these pods for Egress isolates them: only the connections below
+# are permitted. They need exactly two things — DNS resolution and HTTPS to
+# dynamicdns.park-your-domain.com. Both CronJobs carry `app: dyn-dns` in their
+# pod template (cluster/dns/cronjobs.yaml) so this selector matches them.
+#
+# The DNS rule is written twice on purpose. kube-router evaluates egress
+# policy against the destination IP; whether that is still the ClusterIP or
+# already the translated CoreDNS pod IP depends on where DNAT happens in the
+# chain. Allowing both is harmless and avoids a silent DNS failure.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dyn-dns-egress
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: dyn-dns
+  policyTypes:
+    - Egress
+  egress:
+    # kube-dns ClusterIP (10.43.0.10), for evaluation before DNAT.
+    - to:
+        - ipBlock:
+            cidr: 10.43.0.10/32
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # CoreDNS pods themselves, for evaluation after DNAT.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Park-Your-Domain update endpoint (curl -fsS https://...).
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443

@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Every namespace's policy is an allow-list in a single document, so there is
+# no ordering dependency between a deny object and its allow object.
+resources:
+  - ingress.yaml
+  - dns-egress.yaml
