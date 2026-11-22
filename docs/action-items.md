@@ -291,12 +291,14 @@ The two machines now mirror each other (2026-11-22). Workstation → nettop:
 [`scripts/backup-secrets.sh`](../scripts/backup-secrets.sh) copies the sealed
 key, ntfy topic, unified admin password and kubeconfig to
 `dflake-nettop:/home/dflake/.kube/dramble-backup/` at `0600`. Nettop →
-workstation: [`scripts/backup-nettop.sh`](../scripts/backup-nettop.sh), meant
-for root's crontab, stages a consistent `state.db` snapshot plus the full k3s
-recovery set and drops a dated tar.gz in `~/.kube/dramble-backup/nettop/` on
-the workstation. Both verify by hash and print only PASS/FAIL; both use
-explicit include lists so workstation-only files (e.g. `gemini_api_key.txt`)
-and the incoming archive never cross. The local key was confirmed
+workstation: [`scripts/stage-k3s-snapshot.sh`](../scripts/stage-k3s-snapshot.sh)
+in root's crontab stages a consistent `state.db` snapshot plus the full k3s
+recovery set into a dflake-owned tree with a `READY` marker, and
+[`scripts/backup-nettop.sh`](../scripts/backup-nettop.sh) in dflake's crontab
+ships that tree as a dated tar.gz to `~/.kube/dramble-backup/nettop/` on the
+workstation. No sudo is granted to dflake. Both verify by hash and print only
+PASS/FAIL; both use explicit include lists so workstation-only files
+(e.g. `gemini_api_key.txt`) and the incoming archive never cross. The local key was confirmed
 byte-identical to live `sealed-secrets-keyn74k5` before either script was
 written. The plaintext export directory from 2026-11-14 is gone, which is fine
 — those values are in git as SealedSecrets, recoverable with that key.
