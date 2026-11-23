@@ -86,7 +86,21 @@ sidecar:
     resource: configmap
     defaultFolderName: Dramble
 
-# Probes come from the chart's defaults (GET /api/health).
+# Grafana 13 loads its bundled plugins and starts the unified-storage API
+# server before /api/health answers. Here that takes 2-3 minutes, and the
+# chart's liveness probe (60s delay, ten failures) killed a still-starting
+# container after the 2026-11-23 rebuild. A startupProbe gives it a five-minute
+# budget before liveness and readiness take over; all three use GET
+# /api/health.
+startupProbe:
+  httpGet:
+    path: /api/health
+    port: grafana
+  periodSeconds: 5
+  timeoutSeconds: 5
+  failureThreshold: 60
+
+# Liveness and readiness still come from the chart's defaults.
 resources:
   requests:
     cpu: 100m

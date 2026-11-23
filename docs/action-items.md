@@ -183,12 +183,14 @@ untouched), and the 2026-11-15/16 rebuild applied them:
 | `jekyll-website` ×3 | 25m / 32Mi | 500m / 128Mi | TCP 80 (already present) |
 | `whoami` ×2 | 10m / 16Mi | 200m / 64Mi | readiness + liveness `GET /` |
 | Traefik | 50m / 64Mi | 500m / 256Mi | the chart's `/ping` probes |
-| Grafana | 100m / 128Mi | 500m / 512Mi | the chart's `GET /api/health` |
+| Grafana | 100m / 128Mi | 500m / 512Mi | startup + chart liveness/readiness `GET /api/health` |
 | Prometheus server | 200m / 512Mi | memory only (1Gi) | chart defaults |
 | DNS CronJobs ×2 | 5m / 16Mi | 100m / 64Mi | n/a (Jobs) |
 
-Grafana's probes come from the chart, so only the budget was added there; the
-same is true of Traefik's `/ping` probes (the chart passes `--ping=true`). The
+Grafana's liveness and readiness probes come from the chart, so only the budget
+was added there; a `startupProbe` was added later because Grafana 13 can take
+2-3 minutes to become ready here. The same is true of Traefik's `/ping` probes
+(the chart passes `--ping=true`). The
 numbers are starting points — tune them from metrics after the rebuild, and do
 not add a CPU limit to Prometheus or the Longhorn managers without measuring
 first.
