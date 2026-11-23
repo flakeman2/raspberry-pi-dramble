@@ -222,10 +222,12 @@ See also `cluster/workloads/README.md`.
 
 ## Gaps
 
-- **The blog source lives outside this repository.** If `flakeman2/Ephesus` is
-  deleted or made private, the blog source and its history go with it. Nothing
-  in `raspberry-pi-dramble` references it except this page. **CI does not fix
-  this** — it needs a mirror or a backup.
+- ~~**The blog source lives outside this repository.**~~ Closed by decision
+  2026-11-23: `flakeman2/Ephesus` on GitHub **is** the backup source for the
+  blog — its public repository and git history are the source of truth and the
+  recovery copy. There is deliberately no second mirror or off-repo backup;
+  GitHub is where the source is restored from. This page and
+  [Publishing a post](#publishing-a-post) document that flow.
 - ~~**No CI.**~~ Resolved 2026-11-17: `.github/workflows/publish.yml` builds,
   verifies, publishes and opens the bump PR (see
   [Publishing a post](#publishing-a-post)). Images were built and pushed by

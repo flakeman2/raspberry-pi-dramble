@@ -65,6 +65,14 @@ pull requests are no longer opened against it. See
 > [docs/gitops.md](docs/gitops.md) and
 > [docs/action-items.md](docs/action-items.md).
 
+## The full story
+
+For a single end-to-end narrative of the rebuild — the reasons for retiring the
+2021 stack, the five defects it surfaced, the control-plane migration, GitOps,
+hardening, backups and the accepted risks — see
+[docs/rebuild-writeup.md](docs/rebuild-writeup.md). The individual blog posts and
+runbooks remain the detailed record.
+
 ## Repository layout
 
 ```
@@ -80,7 +88,7 @@ cluster/                     Manifests for everything the cluster runs
   secrets/                   Secret requirements + example manifests (no values)
 scripts/                     Install scripts for k3s and the add-ons
 docs/                        Architecture, hardware, status, redeploy, secrets,
-                             upgrade plan, GitOps plan, blog rebuild
+                             upgrade plan, GitOps plan, blog rebuild, rebuild write-up
 gitops/                      Argo CD root app-of-apps + 15 children tracking dev
 ```
 
