@@ -9,7 +9,7 @@ repository, which is the main thing to know about.
 
 | Site | Served by | Source | Rebuildable? |
 |---|---|---|---|
-| `blog.devinflake.com` | `flakeman2/jekyll:sha-732b174`, content baked into the image (no volume) | [`flakeman2/Ephesus`](https://github.com/flakeman2/Ephesus) | Yes — Dockerfile, all 9 posts, full history |
+| `blog.devinflake.com` | `flakeman2/jekyll:sha-36286dd`, content baked into the image (no volume) | [`flakeman2/Ephesus`](https://github.com/flakeman2/Ephesus) | Yes — Dockerfile, all 9 posts, full history |
 | `devinflake.com` / `flakeman2.com` | `nginx:latest` + the `mysite-content` PVC | this repo, `cluster/workloads/mysite/content/` | Yes — no build step at all |
 
 ## Blog source
@@ -118,7 +118,7 @@ cd Ephesus
 git checkout master         # head == deployed; see "Which commit is deployed"
 
 docker buildx build --platform linux/arm64 \
-  -t flakeman2/jekyll:sha-732b174 --push .
+  -t flakeman2/jekyll:sha-36286dd --push .
 ```
 
 Three things to get right:
@@ -175,7 +175,7 @@ After `1.0.6` (2026-11-15) the same checks were repeated with one more page:
 landing page's hero image → 200.
 
 After `sha-732b174` (2026-11-21) the same checks were repeated: 3/3 pods on
-`flakeman2/jekyll:sha-732b174`, **12 sitemap URLs**, **9 feed entries**,
+`flakeman2/jekyll:sha-36286dd`, **12 sitemap URLs**, **9 feed entries**,
 `/dramble_control_plane_move/` → 200 with the AI disclosure and all three
 self-authored diagrams fetching, and every public name still answering on `.201`.
 

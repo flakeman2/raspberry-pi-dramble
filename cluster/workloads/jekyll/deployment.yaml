@@ -21,7 +21,7 @@ spec:
         app: jekyll-website
     spec:
       containers:
-      - image: flakeman2/jekyll:sha-732b174
+      - image: flakeman2/jekyll:sha-36286dd
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
