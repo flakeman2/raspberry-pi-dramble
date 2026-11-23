@@ -1,8 +1,9 @@
 # Cluster status snapshot
 
 **Captured:** 2026-11-16 via `~/.kube/config-dramble-k3s` and SSH to each node.
-**Updated:** 2026-11-21 after the control-plane move to `dflake-nettop`;
-the node table and pod totals below reflect the live cluster.
+**Updated:** 2026-11-22 after the control-plane move to `dflake-nettop`,
+the GitOps/NetworkPolicy/PDB work, and a Prometheus discovery refresh;
+the node table, pod totals and target counts below reflect the live cluster.
 **Scope:** first snapshot of the **rebuilt** cluster. The snapshot taken before
 the rebuild is preserved verbatim at the bottom of this page.
 **Related:** [architecture.md](architecture.md) (design),
@@ -76,13 +77,15 @@ it — `mysite-content` is RWX.
 
 ## Headline
 
-- Four `Ready` nodes on **k3s `v1.36.6+k3s1`** / Ubuntu 26.04.1 / containerd
+- Five `Ready` nodes on **k3s `v1.36.6+k3s1`** / Ubuntu 26.04.1 / containerd
   `2.3.7-k3s1.36`, **no pressure conditions**, no failing APIServices.
 - The stack is **fully supported** and matches the repository pins exactly.
-- **60 pods**, all `Running` or `Completed` — nothing pending, nothing crash-looping.
+- **66 workload pods**, all `Running` or `Completed` — nothing pending, nothing
+  crash-looping (68 including two completed Job pods).
 - Public HTTPS works on all fourteen hostnames; the landing page content is
-  byte-identical to git; the blog serves image `flakeman2/jekyll:1.0.6` with
-  the post `/dramble_wiped_and_rebuilt/` live.
+  byte-identical to git; the blog serves image
+  `flakeman2/jekyll:sha-732b174` with the post `/dramble_wiped_and_rebuilt/`
+  live.
 
 ## Versions
 
@@ -130,7 +133,7 @@ No under-voltage or thermal throttling on any node.
 | kube-system | `coredns` | 1/1 | `rancher/mirrored-coredns-coredns:1.14.7` |
 | kube-system | `metrics-server` | 1/1 | `rancher/mirrored-metrics-server:v0.9.0` |
 | metallb-system | `controller` | 1/1 | `quay.io/metallb/controller:v0.16.2` |
-| metallb-system | `speaker` (DaemonSet) | 4/4 | `quay.io/metallb/speaker:v0.16.2` |
+| metallb-system | `speaker` (DaemonSet) | 5/5 | `quay.io/metallb/speaker:v0.16.2` |
 | longhorn-system | `longhorn-manager` (DaemonSet) | 1/1 per node | `longhornio/longhorn-manager:v1.13.0` |
 | longhorn-system | `longhorn-driver-deployer`, `longhorn-global-manager`, `longhorn-ui` | 1/1, 3/3, 2/2 | Longhorn `1.13.0` |
 | longhorn-system | CSI sidecars (`attacher`/`provisioner`/`resizer`/`snapshotter`) | 3/3 each | Longhorn CSI |
@@ -139,11 +142,11 @@ No under-voltage or thermal throttling on any node.
 | monitoring | `prometheus-server` | 1/1 | `quay.io/prometheus/prometheus:v3.16.0` |
 | monitoring | `prometheus-alertmanager` (StatefulSet) | 1/1 | Alertmanager (ntfy receiver) |
 | monitoring | `prometheus-kube-state-metrics` / `pushgateway` | 1/1 each | chart defaults |
-| monitoring | `prometheus-prometheus-node-exporter` (DaemonSet) | 4/4 | chart defaults |
+| monitoring | `prometheus-prometheus-node-exporter` (DaemonSet) | 5/5 | chart defaults |
 | monitoring | `grafana` | 1/1 | `docker.io/grafana/grafana:13.3.1-distroless`, strategy **`Recreate`** |
-| mysite-nginx | `mysite-nginx` | 1/1 | `nginx:latest` |
-| jekyll | `jekyll-website` | 3/3 | `flakeman2/jekyll:1.0.6` |
-| whoami | `whoami` | 2/2 | `traefik/whoami` |
+| mysite-nginx | `mysite-nginx` | 1/1 | `nginx:1.31.8` |
+| jekyll | `jekyll-website` | 3/3 | `flakeman2/jekyll:sha-732b174` |
+| whoami | `whoami` | 2/2 | `traefik/whoami:v1.12.0` |
 | default | `dyn-dns-*` CronJobs | Complete | `curlimages/curl:8.23.0` |
 
 Totals: **66 pods**, 12 namespaces, 23 Deployments, 5 DaemonSets, 2
@@ -173,8 +176,8 @@ The IngressRoutes are the pre-reimage set minus the two `pi-hole` routes
 ## Storage
 
 All five volumes are `attached`/`healthy` with `default-replica-count=3`;
-**15 replicas running across the four nodes**. Default StorageClass:
-`longhorn`.
+**15 replicas running across the four Pi nodes** (`dflake-nettop` is a tainted
+server and holds no replicas). Default StorageClass: `longhorn`.
 
 | PVC | Size | Mode | State |
 |---|---|---|---|
@@ -218,10 +221,13 @@ page, `/whoami` answering behind `PathPrefix(/whoami)`.
 
 ## Monitoring
 
-- Prometheus: **24 targets up, 0 down** — `kubernetes-api-servers` 1,
-  `kubernetes-nodes` 4, `kubernetes-nodes-cadvisor` 4, `kubernetes-pods` 1,
-  `kubernetes-service-endpoints` 7, **`metallb-metrics` 5**, `prometheus` 1,
-  `prometheus-pushgateway` 1.
+- Prometheus: **29 targets up, 0 down** — `kubernetes-api-servers` 1,
+  `kubernetes-nodes` 5, `kubernetes-nodes-cadvisor` 5, `kubernetes-pods` 1,
+  `kubernetes-service-endpoints` 8, **`longhorn-metrics` 1**,
+  **`metallb-metrics` 6**, `prometheus` 1, `prometheus-pushgateway` 1.
+  The pod was restarted on 2026-11-22 after the control-plane move left its
+  in-process discovery pointing at the old `192.168.0.61` API endpoint; it now
+  scrapes `192.168.0.44` and every target is up.
 - MetalLB metrics are scraped by an explicit job (`scheme: https`,
   `insecureSkipVerify`, bearer token, port `9120`) — v0.16 removed the plain
   HTTP endpoint and the annotation-based job cannot reach it (see defect #4).
@@ -254,7 +260,7 @@ rotation history and the two-key design are in
 
 ## Security / hygiene observations
 
-- **21 of 74 containers now set CPU/memory limits** and **45 of 74 have
+- **28 of 83 containers now set CPU/memory limits** and **51 of 83 have
   probes** — before the rebuild it was 1 of 64 and 37 of 73. The remaining
   unlimited containers are k3s-bundled add-ons and Longhorn/CSI internals
   (action item #6 is done for everything this repo owns).
@@ -262,13 +268,17 @@ rotation history and the two-key design are in
   and six first-party added 2026-11-22 (action item #11).
 - Application PDBs: eight first-party, fourteen in total including Longhorn's
   own (action item #11).
-- Secrets are plain Kubernetes `Secret` objects — no Sealed Secrets/SOPS yet
-  (the GitOps plan adds Sealed Secrets at bootstrap).
-- The k3s join token rotated with the rebuild (fresh cluster). The
-  Park-Your-Domain password is still the exposed one and **must be rotated**;
-  `authsecret` and `grafana` were rotated before the wipe.
-- `config.yml` in the working tree still holds legacy plaintext passwords; it
-  is gitignored and must never be committed.
+- Four SealedSecrets are reconciled by `sealed-secrets-controller` `0.41.2`
+  (`authsecret`, `grafana`, `dyn-dns-credentials`, `alertmanager-ntfy`). SOPS and
+  External Secrets are not used; no plaintext Secret values are in git.
+- The k3s join token rotated with the rebuild. The Park-Your-Domain passwords
+  were rotated on 2026-11-16 and both live CronJobs read `dyn-dns-credentials`
+  via `secretKeyRef`; `authsecret` and `grafana` were rotated before the wipe.
+  Operator-local copies live at mode `0600` outside the repository, including
+  the unified admin password in `~/.kube/unified-admin-password.txt`.
+- The legacy gitignored `config.yml` with 2021 plaintext credentials was
+  deleted on 2026-11-22; no plaintext credential file remains in the working
+  tree.
 
 ---
 

@@ -1,12 +1,12 @@
 # Traefik
 
-Traefik chart `42.4.0` (application `v3.7.18`), one replica, exposed as a
+Traefik chart `42.4.1` (application `v3.7.19`), one replica, exposed as a
 `LoadBalancer` at `192.168.0.201` by MetalLB.
 
 ```bash
 helm repo add traefik https://traefik.github.io/charts
 helm upgrade --install traefik traefik/traefik \
-  --namespace traefik --version 42.4.0 \
+  --namespace traefik --version 42.4.1 \
   -f values.yaml
 
 kubectl apply -f tlsoption.yaml
@@ -30,7 +30,7 @@ established before applying the three files above on a fresh cluster
 - Resolver `letsencrypt`, TLS-ALPN-01 challenge, Let's Encrypt production.
 - Store: `/data/acme.json` on a 128 MiB Longhorn PVC.
 - Account email: `devinflake@gmail.com` (change in `values.yaml` if desired).
-- Six certificates are live and valid through January 2027.
+- Seven certificates are live and valid through January 2027.
 
 ## Auth
 

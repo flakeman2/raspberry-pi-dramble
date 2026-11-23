@@ -30,5 +30,6 @@ expressions use the metric names and label semantics from Longhorn 1.13's
 `longhorn_volume_robustness` carries a `state` label with value `1` only for the
 current state, and `longhorn_volume_actual_size_bytes` is reported **per
 replica**, so volume counts are deduplicated with `count by(...)` and used
-space is averaged across replicas before comparing to capacity. These queries
-can only be confirmed live once the `longhorn-metrics` job has collected data.
+space is averaged across replicas before comparing to capacity. The
+`longhorn-metrics` job is live and up, and all four dashboards are provisioned
+from git.

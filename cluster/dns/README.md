@@ -7,7 +7,7 @@ Two CronJobs update Namecheap (Park-Your-Domain) A records every 30 minutes:
 | `dyn-dns-devinflake.com` | `devinflake.com` | `password-devinflake.com` | `@`, `www`, `*` |
 | `dyn-dns-flakeman2.com` | `flakeman2.com` | `password-flakeman2.com` | `@`, `www`, `*` |
 
-They run `curlimages/curl:7.81.0`, take `DDNS_PASSWORD` from Secret
+They run `curlimages/curl:8.23.0`, take `DDNS_PASSWORD` from Secret
 `default/dyn-dns-credentials`, and call
 `https://dynamicdns.park-your-domain.com/update?host=…&domain=…&password=…`.
 
@@ -19,7 +19,11 @@ They run `curlimages/curl:7.81.0`, take `DDNS_PASSWORD` from Secret
 
 ## Create the Secret
 
-Both keys must exist before the CronJobs schedule cleanly:
+The live Secret is applied from `../secrets/sealed/dyn-dns-credentials.yaml` by
+`scripts/install-addons.sh`; use that path on a normal rebuild. Both keys must
+exist before the CronJobs schedule cleanly. The command below is break-glass
+recovery only — a hand-created Secret must be deleted and re-applied as a
+SealedSecret once the controller is available:
 
 ```bash
 kubectl -n default create secret generic dyn-dns-credentials \
@@ -28,8 +32,8 @@ kubectl -n default create secret generic dyn-dns-credentials \
 kubectl apply -f cronjobs.yaml
 ```
 
-Alternatively copy `../secrets/examples/dyn-dns-credentials.yaml`, substitute
-real values, and apply it.
+`../secrets/examples/dyn-dns-credentials.yaml` is a placeholder, not a source
+of real values.
 
 ## Verify — read the logs, not the Job status
 

@@ -10,7 +10,7 @@ app-of-apps then reconciles the Applications that consume these paths.
 | `metallb/` | MetalLB 0.16.2 upstream native manifest + `IPAddressPool`/`L2Advertisement` CRs |
 | `longhorn/` | Longhorn 1.13.0 | **vendored** manifest `longhorn-v1.13.0.yaml` + install notes |
 | `traefik/` | Helm values, TLSOption, Middlewares, IngressRoutes |
-| `monitoring/` | Grafana Helm values; Prometheus uses chart defaults |
+| `monitoring/` | Prometheus and Grafana Helm values, alert rules, scrape jobs and dashboards |
 | `dns/` | Dynamic DNS CronJobs |
 | `workloads/` | mysite, jekyll, whoami |
 | `dashboards/` | Grafana/Longhorn UI IngressRoutes |
@@ -18,7 +18,7 @@ app-of-apps then reconciles the Applications that consume these paths.
 | `poddisruptionbudgets/` | Eight first-party PDBs for orderly node drains |
 | `secrets/` | Required Secrets and placeholder examples |
 
-These pins are the **target** stack: the repository was retargeted on
-2026-11-14, while the live cluster still runs the 2021 versions until it is
-reimaged — see [../docs/upgrade.md](../docs/upgrade.md) and the snapshot in
-[../docs/cluster-status.md](../docs/cluster-status.md).
+These pins are the **live** stack: the repository was retargeted on
+2026-11-14, the rebuild completed on 2026-11-15/16, and Traefik/Grafana were
+bumped again on 2026-11-18 — see [../docs/upgrade.md](../docs/upgrade.md) and
+the current inventory in [../docs/cluster-status.md](../docs/cluster-status.md).

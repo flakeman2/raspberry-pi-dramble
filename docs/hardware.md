@@ -142,7 +142,8 @@ Apply changes with `sudo netplan apply`.
 - The MetalLB pool (`192.168.0.201–250`) is **outside** the static node range
   and is reserved in the router's DHCP configuration (confirmed 2026-11-14), so
   DHCP cannot hand MetalLB's VIP to a client.
-- `wlan0` exists but is down; `eth0` is the only active interface.
+- Wi-Fi and Bluetooth are disabled at firmware level (no `wlan0` exists);
+  `eth0` is the only active interface. `wpa_supplicant` is disabled.
 
 ## Installed packages
 

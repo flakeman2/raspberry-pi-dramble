@@ -58,8 +58,9 @@ There is **no** kube-vip, no external etcd, no HA control plane, and no
 cert-manager. A single-node etcd was evaluated after the move and rejected: it
 adds raft and fsync overhead on top of the same API traffic without addressing
 the failure mode (see [action-items.md](action-items.md#17-move-the-k3s-control-plane-off-kube1--done-2026-11-21)).
-The `192.168.0.200` VIP from an old kube-vip experiment does not exist; see
-[cluster-status.md](cluster-status.md) for the residual broken unit on kube2.
+The `192.168.0.200` VIP from an old kube-vip experiment does not exist. kube2
+was reimaged during the rebuild and now runs only `k3s-agent.service`; there is
+no residual server unit.
 
 ## Namespaces
 
@@ -73,7 +74,11 @@ The `192.168.0.200` VIP from an old kube-vip experiment does not exist; see
 | `mysite-nginx` | Static site (`devinflake.com`, `flakeman2.com`) |
 | `jekyll` | Blog (`blog.devinflake.com`) |
 | `whoami` | Traefik whoami demo at `/whoami` |
+| `argocd` | Argo CD controller, repo-server, API server and Redis |
 | `default` | HTTP basic-auth Secret, Traefik middlewares, DynDNS CronJobs |
+
+`kube-node-lease` and `kube-public` are the remaining two k3s system
+namespaces; twelve namespaces exist in total.
 
 ## Networking
 
@@ -121,9 +126,9 @@ and `PathPrefix(/api)`. It is not exposed through the LoadBalancer by hostname.
 ### Dynamic DNS
 
 Two CronJobs in `default` run every 30 minutes and update Park-Your-Domain
-records for `devinflake.com` and `flakeman2.com` (hosts `@`, `www`, `*`). The
-live jobs embed the password in the command; the manifests in this repo use the
-`dyn-dns-credentials` Secret instead.
+records for `devinflake.com` and `flakeman2.com` (hosts `@`, `www`, `*`). Both
+live jobs read `dyn-dns-credentials` via `secretKeyRef` — one key per domain —
+so no password appears in the command line.
 
 ## Storage
 
@@ -133,11 +138,12 @@ Longhorn 1.13.0 provides the `longhorn` default StorageClass with 3 replicas.
 |---|---|---|---|---|
 | `traefik` | traefik | 128 MiB | RWO | ACME store |
 | `mysite-content` | mysite-nginx | 1 GiB | RWX | nginx document root |
-| `prometheus-alertmanager` | monitoring | 2 GiB | RWO | Alertmanager |
+| `storage-prometheus-alertmanager-0` | monitoring | 2 GiB | RWO | Alertmanager |
 | `prometheus-server` | monitoring | 8 GiB | RWO | Prometheus TSDB |
 | `grafana` | monitoring | 10 GiB | RWO | Grafana database |
 
-Each volume has three healthy replicas spread over the four nodes. RWX
+Each volume has three healthy replicas spread over the four Pi nodes (the
+tainted server holds none). RWX
 (`mysite-content`) is served by Longhorn's share-manager over NFS from inside
 the cluster — and the *node* still needs an NFS client to mount it, which is
 what `nfs-common` provides. Every node runs `open-iscsi`/`iscsid` (explicitly
@@ -174,9 +180,9 @@ provisioned from git through labelled ConfigMaps
 
 | Workload | Namespace | Image | Replicas | Service |
 |---|---|---|---|---|
-| `mysite-nginx` | mysite-nginx | `nginx:latest` | 1 | ClusterIP 80/443 |
+| `mysite-nginx` | mysite-nginx | `nginx:1.31.8` | 1 | ClusterIP 80/443 |
 | `jekyll-website` | jekyll | `flakeman2/jekyll:sha-732b174` | 3 | ClusterIP 80 |
-| `whoami` | whoami | `traefik/whoami` | 2 | ClusterIP 80 |
+| `whoami` | whoami | `traefik/whoami:v1.12.0` | 2 | ClusterIP 80 |
 
 `mysite-nginx` mounts the `mysite-content` RWX PVC at `/usr/share/nginx/html`
 and a `nginx-conf` ConfigMap at `/etc/nginx/conf.d/default.conf`. A copy of the

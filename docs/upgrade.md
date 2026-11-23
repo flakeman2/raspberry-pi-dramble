@@ -13,10 +13,10 @@
 Version data was checked on 2026-11-14; the pins above are what the rebuild
 installed, and Traefik (`42.4.1`) and Grafana (`14.5.0`) were bumped again on
 2026-11-18 — [cluster-status.md](cluster-status.md) is the current inventory.
-Still open after the rebuild: the Park-Your-Domain rotation
-([secrets.md](secrets.md#rotation-decisions-2026-11-14)), host tuning
-([action-items.md](action-items.md) item 16), and Argo CD
-([gitops.md](gitops.md)).
+All follow-ups are now complete: the Park-Your-Domain rotation
+([secrets.md](secrets.md#rotation-decisions-2026-11-14)) and host tuning
+([action-items.md](action-items.md) item 16) landed on 2026-11-16, and Argo CD
+phases 1–4 ([gitops.md](gitops.md)) were finished on 2026-11-21.
 
 This page covers every component, the order, the gates between steps, and the
 choice between upgrading in place and rebuilding. Argo CD adoption is sequenced
@@ -92,10 +92,10 @@ kubectl -n traefik exec deploy/traefik -- cat /data/acme.json > acme.json
 
 **Secrets — rotated, not restored.** `authsecret` and `grafana` were
 regenerated on 2026-11-14; the new values exist only in the off-repo export
-directory (`0600`), alongside `acme.json`. The Park-Your-Domain password still
-has to be rotated at the provider — it was read during the investigation and
-lives inline in the two live CronJobs. The k3s join token and the kubeconfig
-regenerate themselves during the rebuild.
+directory (`0600`), alongside `acme.json`. The Park-Your-Domain passwords were
+rotated at the provider on 2026-11-16, and the live CronJobs read
+`dyn-dns-credentials` via `secretKeyRef` — no password appears in a command.
+The k3s join token and the kubeconfig regenerate themselves during the rebuild.
 
 **Gate: there is no rollback.** All four disks are wiped, so the moment A2
 starts the old cluster is gone for good. Do not start it until every one of

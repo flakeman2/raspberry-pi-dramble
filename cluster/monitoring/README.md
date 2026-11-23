@@ -105,7 +105,10 @@ Certificate-expiry alerts are deliberately deferred: Traefik stores its ACME
 certificate in a file on its PVC, not in a Kubernetes Secret, so there is no
 cert-manager expiration metric to alert on.
 
-## Known gaps
+## Prometheus targets
 
-- Prometheus targets are healthy after the 2026-11-14 node removal (23 targets,
-  0 down); see [../../docs/cluster-status.md](../../docs/cluster-status.md).
+After the 2026-11-22 Prometheus restart refreshed service discovery following
+the control-plane move, all 29 active targets are up. The
+`kubernetes-api-servers` job now scrapes `192.168.0.44:6443`; the earlier stale
+`192.168.0.61` endpoint is gone. See
+[../../docs/cluster-status.md](../../docs/cluster-status.md).

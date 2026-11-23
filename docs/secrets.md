@@ -10,6 +10,7 @@ cluster needs, how to create it, and how to rotate it.
 | `authsecret` | `default` | `users` | Traefik `basic-auth` Middleware (Traefik + Longhorn dashboards) |
 | `grafana` | `monitoring` | `admin-user`, `admin-password`, `ldap-toml` | Grafana deployment |
 | `dyn-dns-credentials` | `default` | `password-devinflake.com`, `password-flakeman2.com` | One key per dynamic-DNS CronJob — Namecheap requires a unique password per domain |
+| `alertmanager-ntfy` | `monitoring` | `url` (encrypted) | Alertmanager ntfy receiver, mounted via `url_file` |
 | k3s join token | node filesystem | `/var/lib/rancher/k3s/server/node-token`, `k3s-agent.service.env` | k3s agents |
 | kubeconfig | workstation | client cert/key | `kubectl` / Helm |
 | ACME account + certs | `traefik` PVC | `/data/acme.json` | Traefik |
@@ -20,8 +21,10 @@ not managed here.
 ### Not in the cluster
 
 The live cluster has no `cert-manager`, no image-pull registry Secret, and no
-Sealed Secrets/SOPS/External Secrets controller. Everything is a plain
-Kubernetes Secret.
+SOPS or External Secrets controller. Sealed Secrets **is** deployed:
+`sealed-secrets-controller` `0.41.2` in `kube-system` reconciles the four
+manifests in `cluster/secrets/sealed/` into plain Kubernetes Secrets. Those
+plaintext Secrets exist only in the cluster, never in git.
 
 ### Rotation decisions (2026-11-14)
 
@@ -40,6 +43,13 @@ Kubernetes Secret.
 - **k3s join token and kubeconfig** regenerate during the rebuild; no action.
 
 ## Create the required Secrets
+
+The current cluster restores these from the SealedSecrets in
+`cluster/secrets/sealed/` (step 3 of [redeploy.md](redeploy.md), automated by
+`scripts/install-addons.sh`). The `kubectl create secret generic` commands below
+are **break-glass recovery only**: a hand-created Secret is not owned by the
+controller, so delete it and re-apply the matching SealedSecret as described in
+[gitops.md](gitops.md#adopting-a-secret-that-already-exists).
 
 Apply the namespaces first:
 
@@ -140,7 +150,7 @@ cluster's certificate, valid until 2027-03-05, died with it.)
 Traefik writes account keys and certificates to `/data/acme.json` on the
 `traefik` Longhorn PVC (mode `0600`, owner `65532`). It is not a Kubernetes
 Secret and must never be committed. The file on the live cluster is ~79 KB and
-holds six certificates.
+holds seven certificates.
 
 ## Legacy `config.yml` — removed 2026-11-22
 
