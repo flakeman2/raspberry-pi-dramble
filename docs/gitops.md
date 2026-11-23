@@ -46,7 +46,7 @@ All four gates below are **satisfied** — evidence in
 
 - ✅ k3s is on a Kubernetes minor inside Argo CD's tested range (`1.36`);
 - ✅ Longhorn, MetalLB and Traefik support that minor and are migrated;
-- ✅ all four nodes are `Ready` and all five Longhorn volumes are `healthy`;
+- ✅ all five nodes are `Ready` and all five Longhorn volumes are `healthy`;
 - ✅ the workloads are reachable over HTTPS again — all fourteen hostnames serve
   valid Let's Encrypt certificates.
 
@@ -55,7 +55,7 @@ All four gates below are **satisfied** — evidence in
 | | |
 |---|---|
 | Namespace | `argocd` |
-| Version | pinned in `gitops/bootstrap/`; 3.6.x once k8s reaches the 1.36 target |
+| Version | `v3.6.1`, pinned in `gitops/bootstrap/`; installed after k8s reached 1.36 |
 | HA | no — single replicas, bundled Redis |
 | Dex / notifications | disabled |
 | Ingress | `argocd.devinflake.com` via `IngressRoute`, TLS-ALPN, server runs `--insecure` |
@@ -141,10 +141,11 @@ git is unrecoverable.** The key is the `sealed-secrets-key*` Secret in
 
 SOPS + age was the alternative and is **not** used. Do not mix the two.
 
-The inventory is the same three Secrets — `authsecret`, `grafana`,
-`dyn-dns-credentials` (see [secrets.md](secrets.md)) — all three now live in
-git as SealedSecrets. The k3s join token, kubeconfig, and Traefik `acme.json`
-stay outside git entirely.
+The inventory is four SealedSecrets — `authsecret`, `grafana`,
+`dyn-dns-credentials` and `alertmanager-ntfy` (see
+[secrets.md](secrets.md)) — all four now live in git. The k3s join token,
+kubeconfig, unified admin password and Traefik `acme.json` stay outside git
+entirely, with operator-local copies at mode `0600`.
 
 ### Adopting a Secret that already exists
 
@@ -237,7 +238,7 @@ gate.
 | 0. Upgrade | k3s, Longhorn, MetalLB, Traefik, monitoring charts | Argo CD's tested k8s range is met; volumes healthy | ✅ done 2026-11-16 |
 | 1. Pilot | Bootstrap Argo CD; adopt one stateless app (`whoami`) with manual sync | `argocd app diff` is empty; no surprise mutations | ✅ done 2026-11-17 |
 | 2. Workloads | `apps/` for mysite, jekyll, whoami, dashboards, DNS; sealed secrets | Apps auto-sync with self-heal; Grafana is code, not UI state | ✅ done 2026-11-17 |
-| 3. Addons | Traefik, Prometheus, Grafana as Helm Applications; root app-of-apps | Addons sync automatically with self-heal; bootstrap script only installs Argo CD | ✅ done 2026-11-21 — AppProject + child apps under the root app (14 by 2026-11-22) |
+| 3. Addons | Traefik, Prometheus, Grafana as Helm Applications; root app-of-apps | Addons sync automatically with self-heal; bootstrap script only installs Argo CD | ✅ done 2026-11-21 — AppProject + 15 children / 16 Applications by 2026-11-22 |
 | 4. CI | kustomize/kubeconform/gitleaks gates; image pipeline | A bad manifest cannot merge | ✅ done 2026-11-21 — gates live 2026-11-17; image pipeline shipped in Ephesus |
 
 A fresh rebuild is now `scripts/install-addons.sh` → Argo CD sync. The script no
@@ -263,14 +264,15 @@ Argo CD will surface these immediately; fix them before turning on auto-sync.
   by the `grafana-dashboards` Application (item 7), so a rebuild no longer
   starts empty.
 
-**Still open:**
+**Not managed by Argo CD:**
 
-- floating image tags `nginx:latest` and untagged `traefik/whoami`
-  ([action-items.md](action-items.md) item 9) — pin them before adopting the
-  workloads, or Argo CD will faithfully reconcile a tag someone else moved;
 - host configuration (SSH keys, netplan, `iscsid`, `wpa_supplicant`, boot
-  tuning) stays in [redeploy.md](redeploy.md) and [hardware.md](hardware.md) —
-  Argo CD manages cluster objects, not nodes.
+  tuning) stays in [redeploy.md](redeploy.md) and [hardware.md](hardware.md);
+  Argo CD manages cluster objects, not nodes. Host tuning was restored on
+  2026-11-16 (item 16).
+
+The floating-image issue is closed: workloads are pinned to `nginx:1.31.8`,
+`traefik/whoami:v1.12.0` and `flakeman2/jekyll:sha-732b174` (item 9).
 
 ## Decisions
 

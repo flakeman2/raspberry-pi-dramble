@@ -52,16 +52,18 @@ pull requests are no longer opened against it. See
 > in [docs/cluster-status.md](docs/cluster-status.md), and the plan they came
 > from is [docs/upgrade.md](docs/upgrade.md).
 
-> **Status:** all four nodes `Ready` on k3s `v1.36.6+k3s1` (Ubuntu 26.04.1),
+> **Status:** five nodes `Ready` on k3s `v1.36.6+k3s1` (Ubuntu 26.04.1),
 > all five volumes `healthy` with 15 replicas, **all fourteen public hostnames
-> serving valid Let's Encrypt certificates** (7 certificates), Prometheus **24
+> serving valid Let's Encrypt certificates** (7 certificates), Prometheus **29
 > targets / 0 down**. The frozen 2021 stack was retired by a full rebuild on
 > 2026-11-15/16 — before-and-after is recorded in
 > [docs/cluster-status.md](docs/cluster-status.md).
 >
-> **Next:** bootstrap Argo CD per [docs/gitops.md](docs/gitops.md), then the
-> open items in [docs/action-items.md](docs/action-items.md) — rotate the DDNS
-> password, host tuning (item 16), Grafana dashboards, NetworkPolicies.
+> **Current work:** all action items are complete. Argo CD reconciles the
+> cluster from `dev` (root + 15 children), with sealed secrets, Grafana
+> dashboards, NetworkPolicies and PDBs in place. See
+> [docs/gitops.md](docs/gitops.md) and
+> [docs/action-items.md](docs/action-items.md).
 
 ## Repository layout
 
@@ -79,7 +81,7 @@ cluster/                     Manifests for everything the cluster runs
 scripts/                     Install scripts for k3s and the add-ons
 docs/                        Architecture, hardware, status, redeploy, secrets,
                              upgrade plan, GitOps plan, blog rebuild
-gitops/                      Argo CD scaffold (not yet applied)
+gitops/                      Argo CD root app-of-apps + 15 children tracking dev
 ```
 
 ## Rebuild from bare Pis

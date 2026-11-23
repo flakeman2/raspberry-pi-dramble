@@ -12,7 +12,7 @@ kubectl apply -R -f cluster/workloads
 
 ## mysite
 
-- `nginx:latest`, 1 replica, ClusterIP Service on 80/443.
+- `nginx:1.31.8`, 1 replica, ClusterIP Service on 80/443.
 - `mysite-content` 1 GiB **RWX** PVC mounted at `/usr/share/nginx/html`.
 - `nginx-conf` ConfigMap mounted at `/etc/nginx/conf.d/default.conf`.
 - The current document root is checked in under `mysite/content/`.
@@ -36,7 +36,7 @@ the exact deployed commit, and verification:
 
 ## whoami
 
-`traefik/whoami`, 2 replicas, ClusterIP port 80. Routed at
+`traefik/whoami:v1.12.0`, 2 replicas, ClusterIP port 80. Routed at
 `PathPrefix(/whoami)` on the apex domains.
 
 ## pi-hole — removed 2026-11-14

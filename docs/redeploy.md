@@ -208,7 +208,19 @@ kubectl get nodes -o wide
 
 All intended nodes should be `Ready`. Do not continue until they are.
 
-## 3. Create the Secrets
+## 3. Restore the Secrets
+
+The live cluster does not use hand-created application Secrets. The four
+SealedSecrets in `cluster/secrets/sealed/` (`authsecret`, `grafana`,
+`dyn-dns-credentials`, `alertmanager-ntfy`) are the source of truth; restore the
+controller's private key and apply them in step 4, where
+`scripts/install-addons.sh` does both. See [secrets.md](secrets.md) for the
+inventory and rotation history.
+
+> Never commit real Secret values. The commands below are break-glass recovery
+> only. A hand-created Secret is not owned by the Sealed Secrets controller, so
+> delete it and re-apply the matching SealedSecret as described in
+> [gitops.md](gitops.md#adopting-a-secret-that-already-exists).
 
 Apply the namespaces first so the Secrets have somewhere to live:
 
@@ -216,8 +228,9 @@ Apply the namespaces first so the Secrets have somewhere to live:
 kubectl apply -f cluster/namespaces.yaml
 ```
 
-Create the three required Secrets. See [secrets.md](secrets.md) for details and
-rotation notes.
+If the Sealed Secrets controller or its private key is unavailable, recreate the
+three application values directly, then adopt the SealedSecrets as soon as the
+controller is back:
 
 ```bash
 # Dashboard basic auth (htpasswd format)
@@ -235,11 +248,10 @@ kubectl -n monitoring create secret generic grafana \
   --from-literal=admin-password='CHOOSE-A-PASSWORD'
 ```
 
-`htpasswd` comes from `apache2-utils`. If you prefer, copy
-`cluster/secrets/examples/*.yaml`, replace the placeholders, and `kubectl apply`
-them.
-
-> Never commit real Secret values.
+`htpasswd` comes from `apache2-utils`. The fourth sealed value (the ntfy URL) is
+also in `cluster/secrets/sealed/`; restore that manifest rather than recreating
+the value by hand. Placeholder examples live in `cluster/secrets/examples/` and
+must never hold real values.
 
 ## 4. Bootstrap GitOps
 
@@ -304,8 +316,10 @@ Verify:
 kubectl -n mysite-nginx exec deploy/mysite-nginx -- ls -la /usr/share/nginx/html
 ```
 
-Longhorn volumes are new and empty. Prometheus and Grafana start with empty
-databases; historical metrics and Grafana dashboards are not part of this repo.
+Longhorn volumes are new and empty, so Prometheus starts with an empty TSDB.
+The four Grafana dashboards and its Prometheus datasource are provisioned from
+git by the `grafana-dashboards` Application; only historical metric samples are
+not part of this repo.
 
 ## 6. DNS and TLS
 
@@ -339,7 +353,7 @@ kubectl top nodes
 
 Expected:
 
-- 4 (or 6) nodes `Ready`
+- 5 nodes `Ready` (one tainted server + four Pi agents)
 - all pods `Running`/`Completed`
 - every PVC `Bound`
 - Traefik Service `EXTERNAL-IP=192.168.0.201`

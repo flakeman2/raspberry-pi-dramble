@@ -136,8 +136,8 @@ the Pi disks; only metadata moves, and that is exactly what must be verified.
    `healthy`, all PVCs Bound, no failing pods, and the public names unaffected
    — `.201` is a MetalLB address and never moved.
 5. **Aftercare**: the Longhorn conflict loop below was cleared, then the Argo
-   holds were lifted. All 12 Applications are now Synced/Healthy with automation
-   back on.
+   holds were lifted. All 12 Applications were Synced/Healthy with automation
+   back on at the time (16 today, after the remaining phase-3 migrations).
 
 **The first surprise after the move:** nettop's CPU pegged at **99%** even
 though iowait was **0** and kine compactions were down to **104–467 ms** (from
@@ -173,8 +173,9 @@ What is left in this area is follow-through rather than upgrade: Argo CD
 ### 6. Add resource requests/limits and probes — done in git, 2026-11-14
 
 **63 of 64 containers had no limits; 37 of 64 had no probes** — on a 4 GB node
-a busy workload could OOM it. The manifests now carry budgets and probes; they
-take effect when the cluster is rebuilt (the live cluster is untouched):
+a busy workload could OOM it. The manifests now carry budgets and probes; as of
+this 2026-11-14 note they took effect only on rebuild (the live cluster was
+untouched), and the 2026-11-15/16 rebuild applied them:
 
 | Workload | requests | limits | probes |
 |---|---|---|---|
@@ -482,6 +483,7 @@ systemctl is-active wpa_supplicant             # expect: inactive
 Active cooling is assumed: if temperature climbs or `get_throttled` is
 non-zero, drop `over_voltage`/`arm_freq` first rather than the cooling.
 
-Afterwards, update [hardware.md](hardware.md) — its bill of materials currently
-records Wi-Fi as present-but-down and Bluetooth as not disabled, and the boot
-config section says no overclock is set — and re-measure the health baseline.
+Afterwards, update [hardware.md](hardware.md) — at the time it still recorded
+Wi-Fi as present-but-down, Bluetooth as not disabled, and no overclock. That
+update was completed: it now records radios disabled at firmware level and
+`arm_freq=2000` restored, and the health baseline was re-measured.
