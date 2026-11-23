@@ -29,7 +29,9 @@ the server, alert rules, an ntfy.sh receiver, and an explicit
 **`metallb-metrics`** scrape job — MetalLB v0.16 serves metrics over HTTPS with
 bearer-token auth, which the chart's annotation-driven job cannot do (see
 `../metallb/README.md`). Every workload in this directory now has
-requests/limits, and Grafana's probes come from the chart (`GET /api/health`).
+requests/limits. Grafana uses the chart's liveness and readiness probes
+(`GET /api/health`) plus a five-minute `startupProbe`, because Grafana 13 can
+take 2-3 minutes to start here.
 
 ## Grafana rollout strategy
 
