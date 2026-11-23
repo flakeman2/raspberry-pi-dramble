@@ -1,13 +1,13 @@
 # Projects
 
 `AppProject` definitions that bound what each `Application` may touch. The
-`drumble` project in `default.yaml` is live and is created by the root
+`dramble` project in `default.yaml` is live and is created by the root
 app-of-apps at wave `-10`, before any child Application that uses it.
 
 There is one tenant today: the repository owner. Keep one project with a tight
 source and destination allow-list instead of relying on the `default` project,
 which permits every repository and every namespace. The root itself is the one
-exception: it must use `default` because `drumble` does not exist until the root
+exception: it must use `default` because `dramble` does not exist until the root
 creates it.
 
 `default.yaml` pins:

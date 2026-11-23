@@ -96,11 +96,11 @@ engine and the monitoring/ingress stack on one contended disk. The datastore
 sits on exactly the resource that is saturated.
 
 **Interim measure, in place 2026-11-18 → lifted 2026-11-21:** an emergency
-`syncWindows` deny window on *both* AppProjects (`drumble` in
+`syncWindows` deny window on *both* AppProjects (`dramble` in
 `gitops/projects/default.yaml`; `default` is created by Argo CD and is not in
 this repository). It denied automated sync — and therefore selfHeal — so the
 12 Applications stopped retrying against an apiserver that could not answer,
-while `manualSync` kept operator-initiated syncs working. The `drumble` block
+while `manualSync` kept operator-initiated syncs working. The `dramble` block
 was never committed to `dev`, so lifting the hold needed **no git revert**: both
 projects were patched live with `{"spec":{"syncWindows":null}}` after the move.
 Note this install does not ship the `SyncWindow` CRD, so the AppProject field is
@@ -396,7 +396,7 @@ and prune. Each was registered with sync disabled first, diffed, and only then
 given automation, per the convention that prune stays off until an app's diff
 is clean. Sealed Secrets landed the same day and closed this item's blocker.
 
-**Phase 3 (2026-11-17/18):** the `drumble` AppProject, then Sealed Secrets,
+**Phase 3 (2026-11-17/18):** the `dramble` AppProject, then Sealed Secrets,
 MetalLB, Traefik and monitoring — Traefik as two Applications, `traefik` (the
 Helm release) and `traefik-config` (the CRs), because an Application is either
 a chart or a directory of manifests, never both; Prometheus and Grafana as one
@@ -409,7 +409,7 @@ AppProject whitelist was widened three times by the adoptions themselves:
 **Phase 3 completion (2026-11-21):** Longhorn joined as an Application with
 `prune: false` and no `ServerSideApply` (measured rather than assumed — see the
 comments in its `application.yaml`). The root app-of-apps then landed: one
-root `Application` on the `default` project owns the `drumble` AppProject at
+root `Application` on the `default` project owns the `dramble` AppProject at
 wave `-10` and fifteen children through an explicit `gitops/kustomization.yaml`.
 `install-addons.sh` is bootstrap-only, with `--print-pins` keeping CI and
 `check-updates.sh` on the same version pins. **Phase 4** gates are live and the

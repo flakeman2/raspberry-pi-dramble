@@ -9,7 +9,7 @@ metadata:
     # it are IngressRoutes owned by the `dashboards` Application.
     argocd.argoproj.io/sync-wave: "0"
 spec:
-  project: drumble
+  project: dramble
   # Two sources, because the chart and the values live in different places:
   # the chart comes from the prometheus-community Helm repository, our values
   # from this repository. `$values` resolves against the source carrying

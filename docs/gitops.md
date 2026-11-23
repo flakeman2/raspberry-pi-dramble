@@ -1,6 +1,6 @@
 # GitOps with Argo CD
 
-**Status:** phases 1–4 complete. The root app-of-apps owns the `drumble`
+**Status:** phases 1–4 complete. The root app-of-apps owns the `dramble`
 AppProject and **sixteen Applications** — the root plus fifteen children —
 all Synced/Healthy and reconciling from `dev` (2026-11-22).
 `scripts/install-addons.sh` is now bootstrap-only: it installs Argo CD, restores
@@ -115,7 +115,7 @@ Conventions:
 - The root `Application` (`bootstrap/root-app.yaml`) points at `gitops/`. Its
   `kustomization.yaml` lists the AppProject and all fifteen children
   explicitly — no `ApplicationSet` generator at this scale. It uses the
-  `default` project because it creates `drumble` itself, and bootstrap files
+  `default` project because it creates `dramble` itself, and bootstrap files
   stay out of the build so Argo cannot manage its own installer.
 - Sync waves order the rollout: `-10` root and AppProject, `-5` CRDs and
   controllers, `0` addons, `1+` workloads.

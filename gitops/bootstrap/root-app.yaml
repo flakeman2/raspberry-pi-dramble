@@ -9,7 +9,7 @@ metadata:
     # child wave (-5/0/1) if Argo ever syncs it as part of a wider set.
     argocd.argoproj.io/sync-wave: "-10"
 spec:
-  # `default`, not `drumble`: the root creates the drumble AppProject, so it
+  # `default`, not `dramble`: the root creates the dramble AppProject, so it
   # cannot depend on that project already existing.
   project: default
   source:

@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: drumble
+  name: dramble
   namespace: argocd
   annotations:
     # The root app-of-apps creates this project and the Applications that use
@@ -9,7 +9,7 @@ metadata:
     # can be rejected as "project not permitted" on a fresh install.
     argocd.argoproj.io/sync-wave: "-10"
 spec:
-  description: Raspberry Pi Drumble cluster
+  description: Raspberry Pi Dramble cluster
 
   # Pinned to this repository so a compromised manifest cannot pull from
   # anywhere else. The `.git` suffix matches how every Application spells its
@@ -21,7 +21,7 @@ spec:
   # The Helm repositories follow: an Application whose chart comes from a Helm
   # repo is rejected without one, which is exactly how traefik adoption was
   # stopped with "application repo https://traefik.github.io/charts is not
-  # permitted in project 'drumble'". These are the same repositories
+  # permitted in project 'dramble'". These are the same repositories
   # install-addons.sh registers, plus argo-helm for phase 3 when Argo CD
   # manages its own release.
   sourceRepos:

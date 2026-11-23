@@ -47,6 +47,6 @@ policies/     Cluster policy: NetworkPolicies and PodDisruptionBudgets,
 2. Run `scripts/install-addons.sh`: restore the sealed-secrets key, create
    namespaces, apply the sealed manifests, install Argo CD from
    [bootstrap/](bootstrap/README.md), and apply `bootstrap/root-app.yaml`.
-3. The root creates the `drumble` AppProject and all fifteen children. Apply
+3. The root creates the `dramble` AppProject and all fifteen children. Apply
    `bootstrap/ingressroute.yaml` only after the Traefik CRDs exist, so Argo CD's
    own public route is the last imperative step.
