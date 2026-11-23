@@ -13,7 +13,7 @@ spec:
   # The new AppProject, not `default` — this is the first app to exercise it,
   # chosen because its cluster-scoped needs (CRD, ClusterRole,
   # ClusterRoleBinding) are all in the whitelist and it is small.
-  project: drumble
+  project: dramble
   source:
     repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
     targetRevision: dev

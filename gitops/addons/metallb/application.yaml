@@ -13,7 +13,7 @@ spec:
   # ClusterRoleBinding, ValidatingWebhookConfiguration) are listed there —
   # the last two were added specifically when this file was written, because
   # the original draft would have blocked adoption.
-  project: drumble
+  project: dramble
   source:
     repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
     targetRevision: dev

@@ -9,7 +9,7 @@ metadata:
     # by depending on the release, so it does not need a later wave.
     argocd.argoproj.io/sync-wave: "0"
 spec:
-  project: drumble
+  project: dramble
   # Two sources, because the chart and the values live in different places:
   # the chart comes from the grafana-community Helm repository (the original
   # grafana.github.io endpoint serves a frozen 10.5.x line), our values from

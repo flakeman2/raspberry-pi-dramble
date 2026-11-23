@@ -9,7 +9,7 @@ metadata:
     # first install rather than a hard dependency.
     argocd.argoproj.io/sync-wave: "1"
 spec:
-  project: drumble
+  project: dramble
   source:
     repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
     targetRevision: dev

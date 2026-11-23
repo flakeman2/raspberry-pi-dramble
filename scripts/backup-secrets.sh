@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copy the workstation-side Drumble secret artifacts to dflake-nettop.
+# Copy the workstation-side Dramble secret artifacts to dflake-nettop.
 #
 # The sealed-secrets private key is the load-bearing one: every file in
 # cluster/secrets/sealed/ is unrecoverable without it. The ntfy topic URL and

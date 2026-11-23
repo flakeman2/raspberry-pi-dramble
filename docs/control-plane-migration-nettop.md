@@ -201,11 +201,11 @@ Longhorn conflict loop was cleared (rolling restart of `longhorn-manager` and
 synced to a clean diff. Both projects were cleared live:
 
 ```bash
-kubectl -n argocd patch appproject drumble --type=merge -p '{"spec":{"syncWindows":null}}'
+kubectl -n argocd patch appproject dramble --type=merge -p '{"spec":{"syncWindows":null}}'
 kubectl -n argocd patch appproject default --type=merge -p '{"spec":{"syncWindows":null}}'
 ```
 
-The `drumble` block had been written to `gitops/projects/default.yaml` but never
+The `dramble` block had been written to `gitops/projects/default.yaml` but never
 committed, so no revert PR was needed — the working-tree copy was simply
 dropped. Result: **12/12 Applications Synced/Healthy**, zero Longhorn node
 409s, nettop at 15–23% CPU instead of 99%.

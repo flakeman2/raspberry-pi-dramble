@@ -8,7 +8,7 @@ metadata:
     # meaningless until Traefik is serving.
     argocd.argoproj.io/sync-wave: "1"
 spec:
-  project: drumble
+  project: dramble
   source:
     repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
     targetRevision: dev

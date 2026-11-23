@@ -16,7 +16,7 @@ Argo CD 3.6's tested range; see
 | `root-app.yaml` | the root `Application`: `path: gitops/`, project `default`, automated prune/self-heal, wave `-10` |
 | `ingressroute.yaml` | `argocd.devinflake.com` — redirect on `web`, TLS-ALPN via `letsencrypt` on `websecure` |
 
-The root uses the `default` project because it creates the `drumble` AppProject
+The root uses the `default` project because it creates the `dramble` AppProject
 itself. It is excluded from the `gitops/kustomization.yaml` it points at, so
 Argo CD never manages the manifest that installs it. `ingressroute.yaml` is
 excluded for a different reason: it needs Traefik CRDs that only exist after the
@@ -74,7 +74,7 @@ four 4 GB nodes also run Longhorn, Prometheus and Grafana.
 1. Confirm the root is `Synced/Healthy` and owns all fifteen children:
    `kubectl -n argocd get applications`.
 2. Verify it created the project, not the other way round:
-   `kubectl -n argocd get appproject drumble`.
+   `kubectl -n argocd get appproject dramble`.
 3. Back up the sealed-secrets private key. The controller is now a child
    Application, but losing its key still makes every sealed secret in git
    unrecoverable — see [../../cluster/secrets/README.md](../../cluster/secrets/README.md).

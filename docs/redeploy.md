@@ -273,7 +273,7 @@ The script is bootstrap-only. In order it:
    own `IngressRoute` — last, because it needs the Traefik CRDs installed by a
    child.
 
-The root creates the `drumble` AppProject at wave `-10`, then reconciles
+The root creates the `dramble` AppProject at wave `-10`, then reconciles
 fifteen child Applications listed in `gitops/kustomization.yaml`: the seven
 add-ons, six first-party apps and two cluster-policy apps (NetworkPolicies and
 PodDisruptionBudgets). Add-ons and workloads are no longer installed

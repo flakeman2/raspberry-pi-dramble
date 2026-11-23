@@ -9,7 +9,7 @@ metadata:
     # workloads that route through it (wave 1+).
     argocd.argoproj.io/sync-wave: "0"
 spec:
-  project: drumble
+  project: dramble
   # Two sources, because the chart and the values live in different places:
   # the chart comes from the Traefik Helm repository, our values from this
   # repository. `$values` resolves against the source carrying `ref: values`.

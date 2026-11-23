@@ -1,4 +1,4 @@
-# Raspberry Pi Drumble
+# Raspberry Pi Dramble
 
 A four-node Raspberry Pi 4 Kubernetes cluster running **k3s**, **Longhorn**
 storage, **MetalLB** load balancing, and **Traefik** ingress with Let's Encrypt

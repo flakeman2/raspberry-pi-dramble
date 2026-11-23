@@ -8,7 +8,7 @@ metadata:
     # Everything that needs a PVC depends on this being up first.
     argocd.argoproj.io/sync-wave: "-5"
 spec:
-  project: drumble
+  project: dramble
   source:
     repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
     targetRevision: dev
