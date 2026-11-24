@@ -73,6 +73,9 @@ hardening, backups and the accepted risks — see
 [docs/rebuild-writeup.md](docs/rebuild-writeup.md). The individual blog posts and
 runbooks remain the detailed record.
 
+The proposed browser-based blog post editor is designed in
+[docs/blog-cms.md](docs/blog-cms.md).
+
 ## Repository layout
 
 ```
