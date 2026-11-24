@@ -65,13 +65,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Make package public
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          gh api --silent -X PATCH /user/packages/container/blog-cms-api -f visibility=public
-
       - name: Summarize
         env:
           IMAGE: ${{ steps.image.outputs.full }}
