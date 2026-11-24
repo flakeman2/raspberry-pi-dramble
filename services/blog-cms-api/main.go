@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/netip"
 	"os"
 	"os/signal"
 	"strconv"
@@ -33,29 +34,33 @@ type gitHubAppConfig struct {
 }
 
 type config struct {
-	Addr         string
-	CookieSecure bool
-	SessionKey   []byte
-	AdminHash    []byte
-	GuestHash    []byte
-	RateLimit    int
-	RateWindow   time.Duration
-	EphesusOwner string
-	EphesusRepo  string
-	DrambleOwner string
-	DrambleRepo  string
-	GitHubAPIURL string
-	NtfyURL      string
-	NtfyTopic    string
-	Writer       gitHubAppConfig
-	Publisher    gitHubAppConfig
-	Approver     gitHubAppConfig
+	Addr             string
+	CookieSecure     bool
+	SessionKey       []byte
+	AdminHash        []byte
+	GuestHash        []byte
+	RateLimit        int
+	RateWindow       time.Duration
+	ActionRateLimit  int
+	ActionRateWindow time.Duration
+	TrustedProxies   []netip.Prefix
+	EphesusOwner     string
+	EphesusRepo      string
+	DrambleOwner     string
+	DrambleRepo      string
+	GitHubAPIURL     string
+	NtfyURL          string
+	NtfyTopic        string
+	Writer           gitHubAppConfig
+	Publisher        gitHubAppConfig
+	Approver         gitHubAppConfig
 }
 
 type server struct {
-	cfg     config
-	gh      *githubClient
-	limiter *rateLimiter
+	cfg           config
+	gh            *githubClient
+	limiter       *rateLimiter
+	actionLimiter *rateLimiter
 }
 
 func main() {
@@ -70,9 +75,10 @@ func main() {
 	}
 
 	s := &server{
-		cfg:     cfg,
-		gh:      gh,
-		limiter: newRateLimiter(cfg.RateLimit, cfg.RateWindow),
+		cfg:           cfg,
+		gh:            gh,
+		limiter:       newRateLimiter(cfg.RateLimit, cfg.RateWindow),
+		actionLimiter: newRateLimiter(cfg.ActionRateLimit, cfg.ActionRateWindow),
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -167,6 +173,15 @@ func loadConfig() (config, error) {
 	if cfg.RateWindow, err = envDuration("LOGIN_RATE_WINDOW", time.Minute); err != nil {
 		return cfg, err
 	}
+	if cfg.ActionRateLimit, err = envInt("ACTION_RATE_LIMIT", 60); err != nil {
+		return cfg, err
+	}
+	if cfg.ActionRateWindow, err = envDuration("ACTION_RATE_WINDOW", time.Minute); err != nil {
+		return cfg, err
+	}
+	if cfg.TrustedProxies, err = envPrefixes("TRUSTED_PROXY_CIDRS"); err != nil {
+		return cfg, err
+	}
 
 	defaulted := map[string]*string{
 		"EPHESUS_OWNER":  &cfg.EphesusOwner,
@@ -239,6 +254,26 @@ func envDuration(name string, fallback time.Duration) (time.Duration, error) {
 		return 0, fmt.Errorf("%s must be a positive duration", name)
 	}
 	return d, nil
+}
+
+func envPrefixes(name string) ([]netip.Prefix, error) {
+	v := strings.TrimSpace(os.Getenv(name))
+	if v == "" {
+		return nil, nil
+	}
+	var prefixes []netip.Prefix
+	for _, item := range strings.Split(v, ",") {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		prefix, err := netip.ParsePrefix(item)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", name, err)
+		}
+		prefixes = append(prefixes, prefix)
+	}
+	return prefixes, nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

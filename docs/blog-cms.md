@@ -186,6 +186,12 @@ SealedSecret workflow.
   credential.
 - The API must never receive or return a GitHub token to the browser. All
   GitHub calls happen server-side with the short-lived App installation token.
+- The reconciler only auto-merges bump PRs whose head repository is
+  `flakeman2/raspberry-pi-dramble`, whose base is `dev`, and whose branch uses
+  the expected `bump/*-sha-*` prefix. Fork PRs are never auto-approved.
+- Client IP for rate limiting comes from the direct peer unless that peer is in
+  `TRUSTED_PROXY_CIDRS`; forwarded headers are then read right-to-left so a
+  client-supplied leftmost value cannot reset the login budget.
 - `cluster/workloads/jekyll/deployment.yaml` remains the only image tag source
   of truth; `scripts/verify-docs.sh` must be extended to check the new API image
   tag as well.

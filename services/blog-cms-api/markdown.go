@@ -9,6 +9,7 @@ import (
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
+	"gopkg.in/yaml.v3"
 )
 
 type postDocument struct {
@@ -43,64 +44,103 @@ func parsePost(raw string) (*postDocument, error) {
 		return nil, fmt.Errorf("front matter is missing its closing --- delimiter")
 	}
 
+	var node yaml.Node
+	frontMatter := strings.Join(lines[1:end], "\n")
+	if err := yaml.Unmarshal([]byte(frontMatter), &node); err != nil {
+		return nil, fmt.Errorf("invalid front matter YAML: %w", err)
+	}
+	if len(node.Content) != 1 || node.Content[0].Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("front matter must be a YAML mapping")
+	}
+
 	doc := &postDocument{Raw: normalized}
-	currentList := ""
-	for _, line := range lines[1:end] {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
+	mapping := node.Content[0]
+	seen := make(map[string]bool, len(mapping.Content)/2)
+	for i := 0; i+1 < len(mapping.Content); i += 2 {
+		keyNode, valueNode := mapping.Content[i], mapping.Content[i+1]
+		if keyNode.Kind != yaml.ScalarNode {
+			return nil, fmt.Errorf("front matter keys must be strings")
 		}
-		if strings.HasPrefix(trimmed, "- ") && currentList != "" {
-			value := cleanScalar(strings.TrimPrefix(trimmed, "- "))
-			if value != "" {
-				if currentList == "tags" {
-					doc.Tags = append(doc.Tags, value)
-				} else {
-					doc.AIModels = append(doc.AIModels, value)
-				}
-			}
-			continue
+		key := keyNode.Value
+		if seen[key] {
+			return nil, fmt.Errorf("duplicate front matter key %q", key)
 		}
-		key, value, ok := strings.Cut(trimmed, ":")
-		if !ok {
-			currentList = ""
-			continue
-		}
-		key = strings.TrimSpace(key)
-		value = strings.TrimSpace(value)
+		seen[key] = true
+
 		switch key {
-		case "title":
-			doc.Title = cleanScalar(value)
-		case "date":
-			doc.Date = cleanScalar(value)
-		case "author":
-			doc.Author = cleanScalar(value)
-		case "layout":
-			doc.Layout = cleanScalar(value)
-		case "permalink":
-			doc.Permalink = cleanScalar(value)
-		case "verification":
-			doc.Verification = cleanScalar(value)
-		case "tags", "ai_models":
-			currentList = key
-			values := parseScalarList(value)
-			if key == "tags" {
-				doc.Tags = append(doc.Tags, values...)
-			} else {
-				doc.AIModels = append(doc.AIModels, values...)
+		case "title", "date", "author", "layout", "permalink", "verification":
+			value, err := scalarValue(valueNode)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", key, err)
 			}
-		default:
-			currentList = ""
+			switch key {
+			case "title":
+				doc.Title = value
+			case "date":
+				doc.Date = value
+			case "author":
+				doc.Author = value
+			case "layout":
+				doc.Layout = value
+			case "permalink":
+				doc.Permalink = value
+			case "verification":
+				doc.Verification = value
+			}
+		case "tags", "ai_models":
+			values, err := listValues(valueNode)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", key, err)
+			}
+			if key == "tags" {
+				doc.Tags = values
+			} else {
+				doc.AIModels = values
+			}
 		}
 	}
+
 	doc.Body = strings.TrimSpace(strings.Join(lines[end+1:], "\n"))
 	return doc, nil
+}
+
+func scalarValue(node *yaml.Node) (string, error) {
+	if node.Kind != yaml.ScalarNode {
+		return "", fmt.Errorf("must be a scalar value")
+	}
+	if node.Tag == "!!null" {
+		return "", nil
+	}
+	return node.Value, nil
+}
+
+func listValues(node *yaml.Node) ([]string, error) {
+	if node.Kind == yaml.ScalarNode && node.Tag == "!!null" {
+		return nil, nil
+	}
+	if node.Kind == yaml.ScalarNode {
+		return parseScalarList(node.Value), nil
+	}
+	if node.Kind != yaml.SequenceNode {
+		return nil, fmt.Errorf("must be a list")
+	}
+	values := make([]string, 0, len(node.Content))
+	for _, item := range node.Content {
+		value, err := scalarValue(item)
+		if err != nil {
+			return nil, fmt.Errorf("list items must be scalars")
+		}
+		if value != "" {
+			values = append(values, value)
+		}
+	}
+	return values, nil
 }
 
 func cleanScalar(value string) string {
 	value = strings.TrimSpace(value)
 	if len(value) >= 2 && ((value[0] == '"' && value[len(value)-1] == '"') || (value[0] == '\'' && value[len(value)-1] == '\'')) {
-		return strings.TrimSpace(value[1 : len(value)-1])
+		return value[1 : len(value)-1]
 	}
 	return value
 }
@@ -163,18 +203,26 @@ func (d *postDocument) validate() error {
 		problems = append(problems, "verification text does not match the required publishing statement")
 	}
 
-	var aiLine string
+	discussed := []string(nil)
 	for _, line := range strings.Split(d.Body, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "AI models discussed:") {
-			aiLine = line
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "AI models discussed:") {
+			discussed = parseScalarList(strings.TrimSpace(strings.TrimPrefix(trimmed, "AI models discussed:")))
 			break
 		}
 	}
-	if aiLine == "" {
+	if len(discussed) == 0 {
 		problems = append(problems, "body must contain an 'AI models discussed:' line")
 	} else {
 		for _, model := range d.AIModels {
-			if !strings.Contains(aiLine, model) {
+			found := false
+			for _, item := range discussed {
+				if strings.EqualFold(item, model) {
+					found = true
+					break
+				}
+			}
+			if !found {
 				problems = append(problems, fmt.Sprintf("AI models discussed line does not credit %q", model))
 			}
 		}

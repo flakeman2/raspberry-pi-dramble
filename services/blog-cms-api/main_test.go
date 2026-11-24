@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -53,7 +54,8 @@ func testServer(t *testing.T) *server {
 			GuestHash:    guestHash,
 			CookieSecure: false,
 		},
-		limiter: newRateLimiter(10, time.Minute),
+		limiter:       newRateLimiter(10, time.Minute),
+		actionLimiter: newRateLimiter(60, time.Minute),
 	}
 }
 
@@ -155,14 +157,22 @@ func TestMarkdownRenderUsesGFM(t *testing.T) {
 
 func TestRateLimiter(t *testing.T) {
 	limiter := newRateLimiter(2, time.Minute)
-	if !limiter.allow("192.0.2.1") || !limiter.allow("192.0.2.1") {
+	if !limiter.take("192.0.2.1") || !limiter.take("192.0.2.1") {
 		t.Fatal("first two attempts should be allowed")
 	}
-	if limiter.allow("192.0.2.1") {
+	if limiter.take("192.0.2.1") {
 		t.Fatal("third attempt should be blocked")
 	}
-	if !limiter.allow("192.0.2.2") {
+	if limiter.allow("192.0.2.1") {
+		t.Fatal("allow must report an exhausted budget")
+	}
+	if !limiter.take("192.0.2.2") {
 		t.Fatal("different IP should be allowed")
+	}
+
+	limiter.reset("192.0.2.1")
+	if !limiter.allow("192.0.2.1") {
+		t.Fatal("reset should clear the budget")
 	}
 }
 
@@ -247,5 +257,115 @@ func TestAppJWTSigning(t *testing.T) {
 	digest := sha256.Sum256([]byte(parts[0] + "." + parts[1]))
 	if err := rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, digest[:], signature); err != nil {
 		t.Fatalf("JWT signature did not verify: %v", err)
+	}
+}
+
+func TestClientIPIgnoresSpoofedForwardedFor(t *testing.T) {
+	trusted := []netip.Prefix{netip.MustParsePrefix("10.42.0.0/16")}
+	req := httptest.NewRequest(http.MethodPost, "/post/api/login", nil)
+	req.RemoteAddr = "10.42.0.206:12345"
+	req.Header.Set("X-Forwarded-For", "203.0.113.9, 10.42.0.206")
+	req.Header.Set("X-Real-IP", "198.51.100.9")
+
+	got := clientIP(req, trusted)
+	if got != "203.0.113.9" {
+		t.Fatalf("clientIP = %q, want rightmost untrusted XFF value", got)
+	}
+
+	direct := httptest.NewRequest(http.MethodPost, "/post/api/login", nil)
+	direct.RemoteAddr = "198.51.100.20:54321"
+	direct.Header.Set("X-Forwarded-For", "203.0.113.9")
+	if got := clientIP(direct, trusted); got != "198.51.100.20" {
+		t.Fatalf("clientIP = %q, want direct peer when it is not trusted", got)
+	}
+}
+
+func TestSuccessfulLoginsDoNotConsumeFailureBudget(t *testing.T) {
+	s := testServer(t)
+	s.limiter = newRateLimiter(2, time.Minute)
+	for i := 0; i < 5; i++ {
+		login := doRequest(t, s, http.MethodPost, "/post/api/login", `{"role":"admin","password":"admin-password","website":""}`, nil, "")
+		if login.Code != http.StatusOK {
+			t.Fatalf("successful login %d returned %d: %s", i+1, login.Code, login.Body.String())
+		}
+	}
+	for i := 0; i < 2; i++ {
+		bad := doRequest(t, s, http.MethodPost, "/post/api/login", `{"role":"admin","password":"wrong","website":""}`, nil, "")
+		if bad.Code != http.StatusUnauthorized {
+			t.Fatalf("bad login %d status %d", i+1, bad.Code)
+		}
+	}
+	blocked := doRequest(t, s, http.MethodPost, "/post/api/login", `{"role":"admin","password":"wrong","website":""}`, nil, "")
+	if blocked.Code != http.StatusTooManyRequests {
+		t.Fatalf("third bad login status %d", blocked.Code)
+	}
+}
+
+func TestMeReturnsCSRF(t *testing.T) {
+	s := testServer(t)
+	login := doRequest(t, s, http.MethodPost, "/post/api/login", `{"role":"admin","password":"admin-password","website":""}`, nil, "")
+	cookie := login.Result().Cookies()[0]
+	var result struct {
+		CSRF string `json:"csrf"`
+	}
+	if err := json.Unmarshal(login.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	me := doRequest(t, s, http.MethodGet, "/post/api/me", "", cookie, "")
+	var meResult struct {
+		Role string `json:"role"`
+		CSRF string `json:"csrf"`
+	}
+	if err := json.Unmarshal(me.Body.Bytes(), &meResult); err != nil {
+		t.Fatal(err)
+	}
+	if meResult.Role != "admin" || meResult.CSRF != result.CSRF {
+		t.Fatalf("/me did not return the session CSRF token: %+v", meResult)
+	}
+}
+
+func TestBumpPRRequiresTrustedHead(t *testing.T) {
+	c := &githubClient{cfg: config{DrambleOwner: "flakeman2", DrambleRepo: "raspberry-pi-dramble"}}
+	makePR := func(headRepo, state, base, ref string) pullRequest {
+		var pr pullRequest
+		pr.Number = 42
+		pr.State = state
+		pr.Base.Ref = base
+		pr.Head.Ref = ref
+		pr.Head.Repo.FullName = headRepo
+		return pr
+	}
+
+	good := makePR("flakeman2/raspberry-pi-dramble", "open", "dev", "bump/jekyll-sha-abcdef0")
+	if !c.isBumpPR(good) {
+		t.Fatal("same-repository bump PR was rejected")
+	}
+	fork := makePR("attacker/raspberry-pi-dramble", "open", "dev", "bump/jekyll-sha-abcdef0")
+	if c.isBumpPR(fork) {
+		t.Fatal("fork bump PR was accepted")
+	}
+	wrongBase := makePR("flakeman2/raspberry-pi-dramble", "open", "master", "bump/jekyll-sha-abcdef0")
+	if c.isBumpPR(wrongBase) {
+		t.Fatal("PR against master was accepted")
+	}
+	closed := makePR("flakeman2/raspberry-pi-dramble", "closed", "dev", "bump/jekyll-sha-abcdef0")
+	if c.isBumpPR(closed) {
+		t.Fatal("closed PR was accepted")
+	}
+}
+
+func TestFrontMatterRejectsDuplicateKeysAndLooseVerification(t *testing.T) {
+	duplicate := strings.Replace(validPost, "title: \"A test post\"", "title: \"A test post\"\ntitle: \"Another title\"", 1)
+	if _, err := parsePost(duplicate); err == nil {
+		t.Fatal("duplicate front matter key was accepted")
+	}
+
+	looseVerification := strings.Replace(validPost, verificationLine, verificationLine+" ", 1)
+	doc, err := parsePost(looseVerification)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := doc.validate(); err == nil {
+		t.Fatal("verification statement with trailing space was accepted")
 	}
 }

@@ -73,8 +73,14 @@ type pullRequest struct {
 	HTMLURL string `json:"html_url"`
 	State   string `json:"state"`
 	Head    struct {
-		Ref string `json:"ref"`
-		SHA string `json:"sha"`
+		Ref  string `json:"ref"`
+		SHA  string `json:"sha"`
+		Repo struct {
+			FullName string `json:"full_name"`
+		} `json:"repo"`
+		User struct {
+			Login string `json:"login"`
+		} `json:"user"`
 	} `json:"head"`
 	Base struct {
 		Ref string `json:"ref"`
@@ -334,12 +340,19 @@ func (c *githubClient) createPR(ctx context.Context, app *githubAppAuth, owner, 
 }
 
 func (c *githubClient) listOpenPRs(ctx context.Context, app *githubAppAuth, owner, repo, base string) ([]pullRequest, error) {
-	endpoint := fmt.Sprintf("/repos/%s/%s/pulls?state=open&base=%s&per_page=100", owner, repo, url.QueryEscape(base))
-	var prs []pullRequest
-	if err := c.do(ctx, app, http.MethodGet, endpoint, nil, &prs); err != nil {
-		return nil, err
+	var all []pullRequest
+	for page := 1; page <= 10; page++ {
+		endpoint := fmt.Sprintf("/repos/%s/%s/pulls?state=open&base=%s&per_page=100&page=%d", owner, repo, url.QueryEscape(base), page)
+		var pagePRs []pullRequest
+		if err := c.do(ctx, app, http.MethodGet, endpoint, nil, &pagePRs); err != nil {
+			return nil, err
+		}
+		all = append(all, pagePRs...)
+		if len(pagePRs) < 100 {
+			return all, nil
+		}
 	}
-	return prs, nil
+	return all, nil
 }
 
 func (c *githubClient) getPR(ctx context.Context, app *githubAppAuth, owner, repo string, number int) (*pullRequest, error) {
@@ -392,11 +405,12 @@ func (s *server) reconcileBumpPRs(ctx context.Context) {
 		return
 	}
 	for _, pr := range prs {
-		if !isBumpBranch(pr.Head.Ref) {
+		if !s.gh.isBumpPR(pr) {
 			continue
 		}
 		if err := s.gh.approvePR(pollCtx, s.gh.approver, s.cfg.DrambleOwner, s.cfg.DrambleRepo, pr.Number); err != nil {
 			log.Printf("could not approve bump PR #%d: %v", pr.Number, err)
+			continue
 		}
 		if err := s.gh.mergePR(pollCtx, s.gh.approver, s.cfg.DrambleOwner, s.cfg.DrambleRepo, pr.Number); err != nil {
 			log.Printf("could not merge bump PR #%d: %v", pr.Number, err)
@@ -409,6 +423,19 @@ func (s *server) reconcileBumpPRs(ctx context.Context) {
 
 func isBumpBranch(ref string) bool {
 	return strings.HasPrefix(ref, "bump/jekyll-sha-") || strings.HasPrefix(ref, "bump/blog-cms-api-sha-")
+}
+
+func (c *githubClient) isTrustedHead(pr pullRequest, owner, repo string) bool {
+	fullName := strings.ToLower(strings.TrimSpace(pr.Head.Repo.FullName))
+	expected := strings.ToLower(owner + "/" + repo)
+	return fullName == expected
+}
+
+func (c *githubClient) isBumpPR(pr pullRequest) bool {
+	return pr.State == "open" &&
+		pr.Base.Ref == "dev" &&
+		isBumpBranch(pr.Head.Ref) &&
+		c.isTrustedHead(pr, c.cfg.DrambleOwner, c.cfg.DrambleRepo)
 }
 
 func (s *server) notify(ctx context.Context, message string) {

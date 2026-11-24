@@ -35,8 +35,11 @@ stored in this repository; in the cluster these come from SealedSecrets.
 | `SESSION_KEY` | Base64-encoded HMAC key, at least 32 bytes |
 | `ADMIN_PASSWORD_HASH` | bcrypt hash of the unified admin password |
 | `GUEST_PASSWORD_HASH` | bcrypt hash of the shared guest password |
-| `LOGIN_RATE_LIMIT` | Failed-login budget per IP; defaults to `5` |
-| `LOGIN_RATE_WINDOW` | Rate-limit window; defaults to `1m` |
+| `LOGIN_RATE_LIMIT` | Failed-login budget per client IP; defaults to `5` |
+| `LOGIN_RATE_WINDOW` | Failed-login window; defaults to `1m` |
+| `ACTION_RATE_LIMIT` | Budget for authenticated state-changing requests per role and client IP; defaults to `60` |
+| `ACTION_RATE_WINDOW` | Action rate-limit window; defaults to `1m` |
+| `TRUSTED_PROXY_CIDRS` | Comma-separated proxy networks allowed to set `X-Forwarded-For`; empty means never trust it |
 | `EPHESUS_OWNER`, `EPHESUS_REPO` | Blog content repository; defaults to `flakeman2`/`Ephesus` |
 | `DRAMBLE_OWNER`, `DRAMBLE_REPO` | Deployment repository; defaults to `flakeman2`/`raspberry-pi-dramble` |
 | `GITHUB_API_URL` | GitHub API base URL; defaults to `https://api.github.com` |
@@ -45,9 +48,11 @@ stored in this repository; in the cluster these come from SealedSecrets.
 | `PUBLISHER_APP_ID`, `PUBLISHER_INSTALLATION_ID`, `PUBLISHER_PRIVATE_KEY` | GitHub App for merging post PRs |
 | `APPROVER_APP_ID`, `APPROVER_INSTALLATION_ID`, `APPROVER_PRIVATE_KEY` | GitHub App for approving and merging bump PRs |
 
-The background reconciler polls for open `bump/jekyll-sha-*` and
-`bump/blog-cms-api-sha-*` PRs into `dev`, approves them with `cms-approver`, and
-merges them. Session state is a signed cookie; role checks are repeated on the
+The background reconciler only considers open `bump/jekyll-sha-*` and
+`bump/blog-cms-api-sha-*` PRs into `dev` whose head branch is in the deployment
+repository itself. Fork PRs are never auto-approved or merged. It approves
+eligible PRs with `cms-approver` and merges them only after that approval
+succeeds. Session state is a signed cookie; role checks are repeated on the
 server for every privileged route.
 
 ## Local checks
