@@ -12,7 +12,7 @@ build and image pipeline.
 | Editing experience | Markdown-first editor with a live preview and a formatting toolbar; Jekyll/Kramdown remains the only renderer of record. |
 | Publish flow | Admin: preview → **Publish** merges the post PR immediately. Guest: preview → **Submit for review** opens a PR and waits in the admin queue. |
 | Admin login | Reuse the unified admin password. The API stores only a bcrypt hash in a SealedSecret; the plaintext is never committed or printed. |
-| Guest login | No password for now. Anyone can enter as guest; guest can only create drafts and submit posts for review. |
+| Guest login | Dedicated shared guest password. Its bcrypt hash is stored in a SealedSecret; guest can only create drafts and submit posts for review. |
 | Bump PR | Fully automatic: a separate approver identity approves and merges the image-bump PR into `dev`. |
 | UI location | `https://blog.devinflake.com/post/`, with the page source living in the Ephesus repository. |
 | API location | A small in-cluster service routed at `https://blog.devinflake.com/post/api/` by Traefik. |
@@ -24,8 +24,8 @@ build and image pipeline.
 Decap CMS and Sveltia CMS are the natural Jekyll candidates: they are
 MIT-licensed, Git-backed, responsive, and have an editorial workflow that maps
 draft/review/publish to branches and pull requests. They are not a fit here
-because their authentication is GitHub OAuth (or a paid hosted layer), not a
-local admin password plus a passwordless guest role. Their open-authoring
+because their authentication is GitHub OAuth (or a paid hosted layer), not
+shared admin and guest passwords with distinct roles. Their open-authoring
 model also requires a GitHub account for each guest, and guest PRs are approved
 in the Git host rather than in the CMS queue.
 
@@ -57,8 +57,8 @@ data goes to the same-origin API under `/post/api/`.
 
 A new Go service, built as a small static binary, provides:
 
-- `POST /post/api/login` — verifies the admin password hash, or starts a
-  passwordless guest session; sets a signed, HttpOnly, Secure, SameSite cookie.
+- `POST /post/api/login` — verifies either the admin or guest password hash;
+  sets a signed, HttpOnly, Secure, SameSite cookie carrying the role.
 - `GET/POST /post/api/drafts` — create and update `_drafts/<slug>.md` on a
   `cms/<slug>` branch in Ephesus.
 - `POST /post/api/preview` — render the Markdown/front matter for the preview
@@ -107,8 +107,8 @@ A separate approver identity is required because
 `raspberry-pi-dramble/dev` has branch protection with one approving review;
 the app that creates a PR cannot be relied on to approve its own PR.
 
-App private keys, the admin password hash and the session signing key are
-stored as SealedSecrets in `cluster/secrets/sealed/`. The existing
+App private keys, the admin and guest password hashes, and the session signing
+key are stored as SealedSecrets in `cluster/secrets/sealed/`. The existing
 `DRAMBLE_BUMP_TOKEN` remains an Ephesus Actions secret. No plaintext credential
 is written to git or to a container image.
 
@@ -169,9 +169,12 @@ SealedSecret workflow.
   exposes a cluster administrator credential at a public login form. Rate
   limiting, CSRF protection, constant-time bcrypt verification and no token in
   browser storage are mandatory mitigations.
-- A passwordless guest is an open submission channel. Spam is possible by
-  design; the admin review queue is the control. Add per-IP rate limiting and a
-  honeypot field in Phase 1, and consider CAPTCHA or invite codes later.
+- The guest password is shared by design, so it can spread beyond the intended
+  authors. Treat guest as an untrusted role: the admin review queue is the
+  control. Add per-IP rate limiting and a honeypot field in Phase 1, and consider
+  CAPTCHA or per-author accounts later. The plaintext will be supplied
+  out-of-band, hashed, and sealed before deployment; rotate it like any shared
+  credential.
 - The API must never receive or return a GitHub token to the browser. All
   GitHub calls happen server-side with the short-lived App installation token.
 - `cluster/workloads/jekyll/deployment.yaml` remains the only image tag source
@@ -188,6 +191,6 @@ SealedSecret workflow.
 
 Acceptance for Phase 1: an admin can log in with the unified password, write a
 post at `/post/`, preview it, and publish it without leaving the browser; a
-guest can submit a post without a password and see it pending; admin approves
-it in the same UI; both paths result in a new `sha-<7>` blog image and a live
-blog update a few minutes later.
+guest can log in with the shared guest password, submit a post and see it
+pending; admin approves it in the same UI; both paths result in a new `sha-<7>`
+blog image and a live blog update a few minutes later.
