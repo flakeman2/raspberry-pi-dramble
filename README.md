@@ -93,6 +93,7 @@ scripts/                     Install scripts for k3s and the add-ons
 docs/                        Architecture, hardware, status, redeploy, secrets,
                              upgrade plan, GitOps plan, blog rebuild, rebuild write-up
 gitops/                      Argo CD root app-of-apps + 15 children tracking dev
+services/                    First-party service source (blog post editor API)
 ```
 
 ## Rebuild from bare Pis
