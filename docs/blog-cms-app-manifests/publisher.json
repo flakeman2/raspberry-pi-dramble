@@ -1,0 +1,13 @@
+{
+  "name": "cms-publisher",
+  "url": "https://blog.devinflake.com/post/",
+  "redirect_url": "https://blog.devinflake.com/post/",
+  "public": false,
+  "default_permissions": {
+    "contents": "write",
+    "issues": "write",
+    "metadata": "read",
+    "pull_requests": "write"
+  },
+  "default_events": []
+}

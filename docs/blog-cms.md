@@ -97,7 +97,9 @@ use `certResolver: letsencrypt`; no new certificate is needed.
 
 ### GitHub identities
 
-Three GitHub Apps keep role enforcement at the token level:
+Three GitHub Apps keep role enforcement at the token level. See
+[blog-cms-app-setup.md](blog-cms-app-setup.md) for the one-time creation and
+sealing procedure.
 
 | App | Repository permissions | Used for |
 |---|---|---|
@@ -145,6 +147,10 @@ on successful publish.
 ### raspberry-pi-dramble
 
 - `services/blog-cms-api/` (new) — API source, tests, Dockerfile and README.
+- `services/blog-cms-api/cmd/hashpassword/` (new) — bcrypt helper for local
+  secret generation.
+- `scripts/setup-blog-cms-secret.sh` (new) and
+  `docs/blog-cms-app-setup.md` (new) — GitHub App setup and local sealing.
 - `cluster/namespaces.yaml` — add namespace `blog-cms`.
 - `cluster/workloads/blog-cms-api/` (new) — Deployment, Service, Kustomization.
 - `gitops/apps/blog-cms-api/application.yaml` (new) — project `dramble`,
