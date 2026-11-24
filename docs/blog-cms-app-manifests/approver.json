@@ -1,0 +1,12 @@
+{
+  "name": "cms-approver",
+  "url": "https://blog.devinflake.com/post/",
+  "redirect_url": "https://blog.devinflake.com/post/",
+  "public": false,
+  "default_permissions": {
+    "contents": "write",
+    "metadata": "read",
+    "pull_requests": "write"
+  },
+  "default_events": []
+}
