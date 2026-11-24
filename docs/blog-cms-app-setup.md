@@ -75,14 +75,20 @@ prints either password; only their bcrypt hashes enter the SealedSecret.
 
 ## 5. Seal the credentials
 
-Export the IDs from step 2 and, optionally, the existing ntfy destination:
+Export the IDs from step 2. To reuse the blog's existing ntfy destination,
+point the script at the already-sealed Secret instead of handling the URL
+directly:
 
 ```bash
 export WRITER_APP_ID=... WRITER_INSTALLATION_ID=...
 export PUBLISHER_APP_ID=... PUBLISHER_INSTALLATION_ID=...
 export APPROVER_APP_ID=... APPROVER_INSTALLATION_ID=...
-export NTFY_URL=... NTFY_TOPIC=...   # optional; values stay sealed
+export NTFY_FROM_SECRET=monitoring/alertmanager-ntfy
 ```
+
+The script reads that Secret's `url` key in-cluster, splits it into base URL and
+topic, and seals both values into the new manifest without printing them. If
+you prefer, set `NTFY_URL` and `NTFY_TOPIC` directly instead.
 
 Then run from the repository root:
 

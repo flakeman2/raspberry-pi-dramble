@@ -42,9 +42,28 @@ ensure_var() {
   fi
 }
 
-for cmd in kubeseal openssl python3 "$go_bin"; do
+for cmd in kubeseal openssl python3 base64 "$go_bin"; do
   require_command "$cmd"
 done
+
+ntfy_source=${NTFY_FROM_SECRET:-}
+if [[ -n "$ntfy_source" ]]; then
+  require_command kubectl
+  if [[ "$ntfy_source" != */* ]]; then
+    echo "NTFY_FROM_SECRET must be namespace/name" >&2
+    exit 1
+  fi
+  ntfy_ns=${ntfy_source%%/*}
+  ntfy_name=${ntfy_source#*/}
+  ntfy_full=$(kubectl -n "$ntfy_ns" get secret "$ntfy_name" -o jsonpath='{.data.url}' | base64 -d)
+  if [[ -z "$ntfy_full" || "$ntfy_full" != */* ]]; then
+    echo "ntfy source secret does not contain a usable url key" >&2
+    exit 1
+  fi
+  NTFY_URL=${ntfy_full%/*}
+  NTFY_TOPIC=${ntfy_full##*/}
+fi
+
 require_file "$admin_file"
 require_file "$guest_file"
 require_file "$key_dir/writer.pem"
