@@ -55,7 +55,9 @@ data goes to the same-origin API under `/post/api/`.
 
 ### API service in the cluster
 
-A new Go service, built as a small static binary, provides:
+A new Go service, built as a small static binary, provides the endpoints below.
+Its source lives in `services/blog-cms-api/`; CI publishes
+`ghcr.io/flakeman2/blog-cms-api:sha-<7>` on changes to `dev`.
 
 - `POST /post/api/login` — verifies either the admin or guest password hash;
   sets a signed, HttpOnly, Secure, SameSite cookie carrying the role.
@@ -142,6 +144,7 @@ on successful publish.
 
 ### raspberry-pi-dramble
 
+- `services/blog-cms-api/` (new) — API source, tests, Dockerfile and README.
 - `cluster/namespaces.yaml` — add namespace `blog-cms`.
 - `cluster/workloads/blog-cms-api/` (new) — Deployment, Service, Kustomization.
 - `gitops/apps/blog-cms-api/application.yaml` (new) — project `dramble`,
@@ -155,8 +158,8 @@ on successful publish.
   (templates), `docs/secrets.md`, `docs/architecture.md`,
   `docs/blog-rebuild.md`, `docs/gitops.md`, `gitops/apps/README.md`,
   `cluster/workloads/README.md`, `scripts/verify-docs.sh`.
-- `.github/workflows/build-blog-cms.yml` (new) — build/push the API image and
-  open the bump PR, using the same approver pattern as the Jekyll bump.
+- `.github/workflows/build-blog-cms.yml` (new) — test and publish the API image
+  to GHCR. The deployment PR pins the resulting `sha-<7>` tag.
 
 See [architecture.md](architecture.md) for the current route/workload tables,
 [gitops.md](gitops.md) for Argo sync rules, and [secrets.md](secrets.md) for the
