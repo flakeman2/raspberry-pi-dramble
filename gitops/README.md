@@ -1,10 +1,10 @@
 # GitOps
 
-Declarative cluster state for Argo CD. **Sixteen Applications are live and
-reconciling from `dev`**: the root app-of-apps, six first-party apps (including
-`grafana-dashboards`), seven add-ons — Sealed Secrets, MetalLB, Traefik,
-`traefik-config`, Prometheus, Grafana and Longhorn — and two cluster-policy
-apps, NetworkPolicies and PodDisruptionBudgets (2026-11-22).
+Declarative cluster state for Argo CD. **Seventeen Applications are live and
+reconciling from `dev`**: the root app-of-apps, seven first-party apps (including
+`grafana-dashboards` and `blog-cms-api`), seven add-ons — Sealed Secrets, MetalLB,
+Traefik, `traefik-config`, Prometheus, Grafana and Longhorn — and two
+cluster-policy apps, NetworkPolicies and PodDisruptionBudgets (2026-11-23).
 `scripts/install-addons.sh` is bootstrap-only; the child Applications are
 managed entirely by the root. The design, phased rollout, and conventions are
 in [../docs/gitops.md](../docs/gitops.md); the component upgrade that landed
@@ -13,7 +13,7 @@ first is in [../docs/upgrade.md](../docs/upgrade.md).
 ## Layout
 
 ```
-kustomization.yaml  Explicit list: the AppProject + 15 child Applications
+kustomization.yaml  Explicit list: the AppProject + 16 child Applications
 bootstrap/    Argo CD install and root-app.yaml — the only non-Git step
 projects/     AppProject definitions (source and destination boundaries)
 addons/       sealed-secrets, MetalLB, Traefik, traefik-config,
@@ -47,6 +47,6 @@ policies/     Cluster policy: NetworkPolicies and PodDisruptionBudgets,
 2. Run `scripts/install-addons.sh`: restore the sealed-secrets key, create
    namespaces, apply the sealed manifests, install Argo CD from
    [bootstrap/](bootstrap/README.md), and apply `bootstrap/root-app.yaml`.
-3. The root creates the `dramble` AppProject and all fifteen children. Apply
+3. The root creates the `dramble` AppProject and all sixteen children. Apply
    `bootstrap/ingressroute.yaml` only after the Traefik CRDs exist, so Argo CD's
    own public route is the last imperative step.

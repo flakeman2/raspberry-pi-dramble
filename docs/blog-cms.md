@@ -1,7 +1,8 @@
 # Blog post editor (design)
 
-Status: **proposed**. This document records the Phase 0 decisions for adding a
-browser-based post editor to the Flake blog. It is the design companion to
+Status: **implemented in GitOps**. This document records the Phase 0 decisions
+for adding a browser-based post editor to the Flake blog, plus the deployment
+shape now pinned in `dev`. It is the design companion to
 [blog-rebuild.md](blog-rebuild.md), which describes the current static Jekyll
 build and image pipeline.
 
@@ -192,9 +193,11 @@ SealedSecret workflow.
 - Client IP for rate limiting comes from the direct peer unless that peer is in
   `TRUSTED_PROXY_CIDRS`; forwarded headers are then read right-to-left so a
   client-supplied leftmost value cannot reset the login budget.
-- `cluster/workloads/jekyll/deployment.yaml` remains the only image tag source
-  of truth; `scripts/verify-docs.sh` must be extended to check the new API image
-  tag as well.
+- `cluster/workloads/jekyll/deployment.yaml` remains the source of truth for the
+  blog image tag, and `cluster/workloads/blog-cms-api/deployment.yaml` does the
+  same for the API image. `scripts/verify-docs.sh` already walks every
+  `cluster/workloads/**/deployment.yaml`, so both tags are checked against the
+  live Deployments.
 
 ## Phases
 

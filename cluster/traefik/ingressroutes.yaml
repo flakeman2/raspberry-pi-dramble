@@ -110,3 +110,23 @@ spec:
       port: 80
   tls:
     certResolver: letsencrypt
+---
+# More specific than the host-wide Jekyll route above. The API keeps the full
+# /post/api path prefix because the service registers its routes that way.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: blog-cms-api
+  namespace: blog-cms
+spec:
+  entryPoints:
+  - websecure
+  routes:
+  - kind: Rule
+    match: Host(`blog.devinflake.com`) && PathPrefix(`/post/api`)
+    priority: 100
+    services:
+    - name: blog-cms-api
+      port: 8080
+  tls:
+    certResolver: letsencrypt

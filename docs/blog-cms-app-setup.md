@@ -111,8 +111,9 @@ all exported values off-repo.
 ## 6. Deployment
 
 The generated SealedSecret is applied by the bootstrap path before Argo starts
-the `blog-cms-api` Application. The deployment PR pins the API image tag and
-adds the Argo Application, Traefik route and workload-local policy resources.
+the `blog-cms-api` Application. The deployment PR pins the API image tag and adds
+the Argo Application, Traefik route, namespace, NetworkPolicy and PDB. Bootstrap
+also waits for `blog-cms/blog-cms-api` to appear before declaring convergence.
 
 See [gitops.md](gitops.md#secrets) for the general SealedSecret workflow and
 [blog-rebuild.md](blog-rebuild.md) for the blog image pipeline this API drives.

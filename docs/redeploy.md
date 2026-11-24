@@ -274,12 +274,13 @@ The script is bootstrap-only. In order it:
    child.
 
 The root creates the `dramble` AppProject at wave `-10`, then reconciles
-fifteen child Applications listed in `gitops/kustomization.yaml`: the seven
-add-ons, six first-party apps and two cluster-policy apps (NetworkPolicies and
+sixteen child Applications listed in `gitops/kustomization.yaml`: the seven
+add-ons, seven first-party apps and two cluster-policy apps (NetworkPolicies and
 PodDisruptionBudgets). Add-ons and workloads are no longer installed
 imperatively — a merge into `dev` is what deploys them.
 
-It fails if a required Secret never unseals.
+It fails if a required Secret never unseals, including `blog-cms/blog-cms-api`
+because the CMS Deployment uses `envFrom`.
 
 ### Manual equivalent
 

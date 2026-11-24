@@ -196,6 +196,12 @@ The tag *is* the Ephesus commit, so the deployed tag names its own source and
 the `1.0.4`/`1.0.5` drift cannot recur. It also means the tag is never reused,
 which keeps `imagePullPolicy: IfNotPresent` honest.
 
+The browser editor at `https://blog.devinflake.com/post/` can perform steps 1–2
+without a local clone. Admin posts merge immediately; guest posts wait in the
+admin review queue. In either case, the resulting bump PR is approved and merged
+automatically by `cms-approver`, so Argo CD rolls out the new image without a
+manual merge. See [blog-cms.md](blog-cms.md).
+
 Secrets in Ephesus (none grant cluster access): `DOCKERHUB_USERNAME`,
 `DOCKERHUB_TOKEN`, and `DRAMBLE_BUMP_TOKEN` — a fine-grained PAT scoped to
 `flakeman2/raspberry-pi-dramble` for Contents + Pull requests.

@@ -326,22 +326,26 @@ B-series upgrade ever happens, revisit it rather than skipping it silently.
 
 ### 11. Pod disruption budgets and NetworkPolicies
 
-- **First-party PDBs added 2026-11-22.** Fourteen total: eight owned here and
+- **First-party PDBs added 2026-11-22.** Eight were added in that pass, joining
   six Longhorn's own (four `instance-manager` PDBs plus `csi-attacher` and
-  `csi-provisioner`). [`cluster/poddisruptionbudgets/`](../cluster/poddisruptionbudgets/)
-  sets `minAvailable: 2` for the 3-replica Jekyll pod, `minAvailable: 1` for the
+  `csi-provisioner`) for fourteen total at the time.
+  [`cluster/poddisruptionbudgets/`](../cluster/poddisruptionbudgets/) sets
+  `minAvailable: 2` for the 3-replica Jekyll pod, `minAvailable: 1` for the
   2-replica whoami, and `maxUnavailable: 1` for the six single-replica
   workloads — never `minAvailable: 1` there, which would wedge every drain.
-  The new `poddisruptionbudgets` Application reconciles them.
-- Seventeen NetworkPolicies exist: four shipped by the Argo CD chart, seven in
+  A ninth first-party PDB was added on 2026-11-23 for the 2-replica
+  `blog-cms-api` workload (`minAvailable: 1`), bringing the total to fifteen.
+  The `poddisruptionbudgets` Application reconciles them.
+- Eighteen NetworkPolicies exist: four shipped by the Argo CD chart, seven in
   `longhorn-system` (including `allow-prometheus-longhorn-metrics`, which lets
-  Prometheus scrape Longhorn over HTTPS), and six first-party policies added
-  2026-11-22. Ingress allow-lists isolate `monitoring`, `mysite-nginx`, `jekyll`
-  and `whoami` to node IPs (kubelet probes and SNAT'd Traefik traffic), the
-  `traefik` namespace and the `monitoring` namespace. The DynDNS CronJobs in
-  `default` are isolated to DNS (53) and HTTPS (443) egress. A sixth first-party
-  policy selects every pod in `longhorn-system`, closing the gap for the UI,
-  CSI sidecars/plugin, share-manager, global-manager and engine-image pods that
+  Prometheus scrape Longhorn over HTTPS), and seven first-party policies. Six
+  were added 2026-11-22; a seventh now covers `blog-cms`. Ingress allow-lists
+  isolate `monitoring`, `mysite-nginx`, `jekyll`, `whoami` and `blog-cms` to node
+  IPs (kubelet probes and SNAT'd Traefik traffic), the `traefik` namespace and
+  the `monitoring` namespace. The DynDNS CronJobs in `default` are isolated to
+  DNS (53) and HTTPS (443) egress. The `longhorn-system` first-party policy
+  selects every pod in that namespace, closing the gap for the UI, CSI
+  sidecars/plugin, share-manager, global-manager and engine-image pods that
   Longhorn's component policies do not select. Its allow-list is same-namespace
   pods, the five node IPs, `traefik` and `monitoring`; the seven Longhorn rules
   remain additive. Item 11 is now complete.

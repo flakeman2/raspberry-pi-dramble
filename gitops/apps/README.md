@@ -1,23 +1,24 @@
 # Apps
 
-First-party workloads, one directory per Argo CD `Application`. **All six are
+First-party workloads, one directory per Argo CD `Application`. **All seven are
 applied**, with automated sync, self-heal and prune.
 
 | Directory | Workload | Namespace | Source path | Notes |
 |---|---|---|---|---|
 | `mysite-nginx/` | `mysite-nginx` | `mysite-nginx` | `cluster/workloads/mysite` | Pinned `nginx:1.31.8` |
-| `jekyll/` | `jekyll-website` (3 replicas) | `jekyll` | `cluster/workloads/jekyll` | `flakeman2/jekyll:1.0.6`, built by Ephesus CI |
+| `jekyll/` | `jekyll-website` (3 replicas) | `jekyll` | `cluster/workloads/jekyll` | `flakeman2/jekyll:sha-36286dd`, built by Ephesus CI |
 | `whoami/` | `whoami` (2 replicas) | `whoami` | `gitops/apps/whoami` (this dir) | Phase 1 pilot; pinned `traefik/whoami:v1.12.0` |
 | `dns/` | two DynDNS CronJobs | `default` | `cluster/dns` | Reads the sealed `dyn-dns-credentials` |
 | `dashboards/` | IngressRoutes for Grafana, Longhorn, Prometheus, Argo CD | `longhorn-system`, `monitoring` | `cluster/dashboards` | Basic auth via `authsecret` |
 | `grafana-dashboards/` | four Grafana dashboards as labelled ConfigMaps | `monitoring` | `cluster/monitoring/dashboards` | Kustomize renders JSON into ConfigMaps for the Grafana sidecar |
+| `blog-cms-api/` | `blog-cms-api` (2 replicas) | `blog-cms` | `cluster/workloads/blog-cms-api` | Post editor API; pinned GHCR image |
 
 `pi-hole` is gone: its `ExternalName` pointed at an unreachable host, and the
 whole workload was deleted from the manifests on 2026-11-14.
 
 ### Why the source paths mostly stay under `cluster/`
 
-Only `whoami/` carries its own manifests. The other five **point at the
+Only `whoami/` carries its own manifests. The other six **point at the
 existing `cluster/…` paths instead of being moved here**: the `Application`
 manifests live in this repository and the root app-of-apps discovers them, but
 the workload payloads stay where they have always been. Moving them would break

@@ -5,6 +5,7 @@
 | `mysite/` | `mysite-nginx` | Static site for `devinflake.com` / `flakeman2.com` |
 | `jekyll/` | `jekyll` | Blog for `blog.devinflake.com` |
 | `whoami/` | `whoami` | Traefik whoami demo at `/whoami` |
+| `blog-cms-api/` | `blog-cms` | Post editor API behind `blog.devinflake.com/post/api` |
 
 ```bash
 kubectl apply -R -f cluster/workloads
@@ -33,6 +34,15 @@ The image, all four posts, and their history rebuild from
 [`flakeman2/Ephesus`](https://github.com/flakeman2/Ephesus). Procedure,
 the exact deployed commit, and verification:
 [../../docs/blog-rebuild.md](../../docs/blog-rebuild.md).
+
+## blog-cms-api
+
+`ghcr.io/flakeman2/blog-cms-api:sha-ba1030d`, 2 replicas, ClusterIP port 8080.
+HTTP health probes hit `/post/api/healthz`. Configuration comes from the
+`blog-cms/blog-cms-api` SealedSecret; `TRUSTED_PROXY_CIDRS` is a plain env value
+because it contains no credential. The higher-priority Traefik route sends
+`/post/api` on `blog.devinflake.com` here instead of to Jekyll. See
+[../../docs/blog-cms.md](../../docs/blog-cms.md).
 
 ## whoami
 

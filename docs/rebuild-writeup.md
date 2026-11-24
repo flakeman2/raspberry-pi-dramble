@@ -161,8 +161,8 @@ Argo CD `v3.6.1` (chart `10.18.0`) was adopted in phases:
 - **Phase 4** — kustomize/kubeconform/gitleaks CI gates and the Ephesus image
   pipeline.
 
-Today the root Application owns a `dramble` AppProject and **fifteen child
-Applications** — sixteen total — declared explicitly in
+As of 2026-11-23, the root Application owns a `dramble` AppProject and **sixteen
+child Applications** — seventeen total — declared explicitly in
 `gitops/kustomization.yaml`. There is no ApplicationSet at this scale. The root
 uses the `default` project because it creates `dramble` itself, the AppProject
 uses wave `-10`, and bootstrap files stay out of the build so Argo cannot manage
