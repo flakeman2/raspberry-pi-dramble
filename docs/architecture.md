@@ -181,7 +181,7 @@ provisioned from git through labelled ConfigMaps
 | Workload | Namespace | Image | Replicas | Service |
 |---|---|---|---|---|
 | `mysite-nginx` | mysite-nginx | `nginx:1.31.8` | 1 | ClusterIP 80/443 |
-| `jekyll-website` | jekyll | `flakeman2/jekyll:sha-36286dd` | 3 | ClusterIP 80 |
+| `jekyll-website` | jekyll | `flakeman2/jekyll:sha-1570e74` | 3 | ClusterIP 80 |
 | `whoami` | whoami | `traefik/whoami:v1.12.0` | 2 | ClusterIP 80 |
 
 `mysite-nginx` mounts the `mysite-content` RWX PVC at `/usr/share/nginx/html`
