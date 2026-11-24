@@ -8,14 +8,16 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
+	"net/netip"
 	"strings"
 	"sync"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+const maxRateKeys = 4096
 
 type session struct {
 	Role   string `json:"role"`
@@ -36,6 +38,12 @@ type rateAttempt struct {
 }
 
 func newRateLimiter(limit int, window time.Duration) *rateLimiter {
+	if limit <= 0 {
+		limit = 1
+	}
+	if window <= 0 {
+		window = time.Minute
+	}
 	return &rateLimiter{
 		attempts: make(map[string]*rateAttempt),
 		limit:    limit,
@@ -43,18 +51,41 @@ func newRateLimiter(limit int, window time.Duration) *rateLimiter {
 	}
 }
 
+func (l *rateLimiter) cleanup(now time.Time) {
+	for key, attempt := range l.attempts {
+		if now.After(attempt.reset) {
+			delete(l.attempts, key)
+		}
+	}
+}
+
+// allow reports whether another attempt is currently permitted without
+// consuming the budget. Login uses it before bcrypt verification so successful
+// logins do not count as failures.
 func (l *rateLimiter) allow(key string) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	now := time.Now()
-	for ip, attempt := range l.attempts {
-		if now.After(attempt.reset) {
-			delete(l.attempts, ip)
-		}
-	}
+	l.cleanup(now)
 	attempt, ok := l.attempts[key]
 	if !ok {
+		return len(l.attempts) < maxRateKeys
+	}
+	return attempt.count < l.limit
+}
+
+// take checks and consumes one unit of budget. It is used for authenticated
+// state-changing routes, where every request is itself the event being limited.
+func (l *rateLimiter) take(key string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := time.Now()
+	l.cleanup(now)
+	attempt, ok := l.attempts[key]
+	if !ok {
+		if len(l.attempts) >= maxRateKeys {
+			return false
+		}
 		l.attempts[key] = &rateAttempt{count: 1, reset: now.Add(l.window)}
 		return true
 	}
@@ -63,6 +94,16 @@ func (l *rateLimiter) allow(key string) bool {
 	}
 	attempt.count++
 	return true
+}
+
+func (l *rateLimiter) recordFailure(key string) {
+	l.take(key)
+}
+
+func (l *rateLimiter) reset(key string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	delete(l.attempts, key)
 }
 
 func encodeSession(key []byte, s session) (string, error) {
@@ -173,6 +214,11 @@ func (s *server) requireSession(w http.ResponseWriter, r *http.Request, roles ..
 			writeError(w, http.StatusForbidden, "invalid CSRF token")
 			return sess, false
 		}
+		key := clientIP(r, s.cfg.TrustedProxies) + "|" + sess.Role
+		if !s.actionLimiter.take(key) {
+			writeError(w, http.StatusTooManyRequests, "too many requests")
+			return sess, false
+		}
 	}
 	if len(roles) > 0 && !contains(roles, sess.Role) {
 		writeError(w, http.StatusForbidden, "insufficient role")
@@ -190,22 +236,55 @@ func contains(values []string, value string) bool {
 	return false
 }
 
-func clientIP(r *http.Request) string {
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		if parts := strings.Split(forwarded, ","); len(parts) > 0 {
-			if ip := strings.TrimSpace(parts[0]); ip != "" {
-				return ip
-			}
+func remoteIP(remote string) netip.Addr {
+	if addrPort, err := netip.ParseAddrPort(remote); err == nil {
+		return addrPort.Addr()
+	}
+	if addr, err := netip.ParseAddr(remote); err == nil {
+		return addr
+	}
+	return netip.Addr{}
+}
+
+func trustedIP(ip netip.Addr, prefixes []netip.Prefix) bool {
+	if !ip.IsValid() {
+		return false
+	}
+	for _, prefix := range prefixes {
+		if prefix.Contains(ip) {
+			return true
 		}
 	}
-	if real := strings.TrimSpace(r.Header.Get("X-Real-IP")); real != "" {
-		return real
+	return false
+}
+
+// clientIP only trusts X-Forwarded-For when the direct peer is a configured
+// proxy. It walks the list right-to-left so a client-supplied leftmost value
+// cannot reset the login budget.
+func clientIP(r *http.Request, trusted []netip.Prefix) string {
+	peer := remoteIP(r.RemoteAddr)
+	if !peer.IsValid() {
+		return r.RemoteAddr
 	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err == nil {
-		return host
+	if !trustedIP(peer, trusted) {
+		return peer.String()
 	}
-	return r.RemoteAddr
+	forwarded := strings.Join(r.Header.Values("X-Forwarded-For"), ",")
+	parts := strings.Split(forwarded, ",")
+	for i := len(parts) - 1; i >= 0; i-- {
+		candidate := strings.TrimSpace(parts[i])
+		if candidate == "" {
+			continue
+		}
+		ip, err := netip.ParseAddr(candidate)
+		if err != nil {
+			continue
+		}
+		if !trustedIP(ip, trusted) {
+			return ip.String()
+		}
+	}
+	return peer.String()
 }
 
 type loginRequest struct {
@@ -220,7 +299,8 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if !s.limiter.allow(clientIP(r)) {
+	key := clientIP(r, s.cfg.TrustedProxies)
+	if !s.limiter.allow(key) {
 		writeError(w, http.StatusTooManyRequests, "too many login attempts")
 		return
 	}
@@ -232,13 +312,16 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	case "guest":
 		hash = s.cfg.GuestHash
 	default:
+		s.limiter.recordFailure(key)
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
 	if req.Website != "" || bcrypt.CompareHashAndPassword(hash, []byte(req.Password)) != nil {
+		s.limiter.recordFailure(key)
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
+	s.limiter.reset(key)
 
 	csrf, err := s.setSession(w, req.Role)
 	if err != nil {
@@ -261,5 +344,5 @@ func (s *server) handleMe(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"role": sess.Role})
+	writeJSON(w, http.StatusOK, map[string]string{"role": sess.Role, "csrf": sess.CSRF})
 }

@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -24,6 +26,27 @@ type publishRequest struct {
 
 type approveRequest struct {
 	Number int `json:"number"`
+}
+
+type userError struct {
+	err error
+}
+
+func (e *userError) Error() string { return e.err.Error() }
+func (e *userError) Unwrap() error { return e.err }
+
+func invalidRequest(err error) error {
+	return &userError{err: err}
+}
+
+func writeHandledError(w http.ResponseWriter, status int, publicMessage string, err error) {
+	var uerr *userError
+	if errors.As(err, &uerr) {
+		writeError(w, http.StatusBadRequest, uerr.Error())
+		return
+	}
+	log.Printf("request failed: %v", err)
+	writeError(w, status, publicMessage)
 }
 
 func (s *server) handlePreview(w http.ResponseWriter, r *http.Request) {
@@ -72,9 +95,9 @@ func (s *server) handleSaveDraft(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	branch, err := s.saveDraft(r.Context(), req.Slug, req.Content)
+	branch, err := s.saveDraft(r.Context(), req.Slug, req.Content, sess.Role)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeHandledError(w, http.StatusBadGateway, "could not save draft", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -85,19 +108,36 @@ func (s *server) handleSaveDraft(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *server) saveDraft(ctx context.Context, requestedSlug, content string) (string, error) {
+func (s *server) saveDraft(ctx context.Context, requestedSlug, content, role string) (string, error) {
 	doc, err := parsePost(content)
 	if err != nil {
-		return "", err
+		return "", invalidRequest(err)
 	}
 	if err := doc.validate(); err != nil {
-		return "", err
+		return "", invalidRequest(err)
 	}
 	slug := doc.slug()
 	if requestedSlug != "" && requestedSlug != slug {
-		return "", fmt.Errorf("slug in request does not match front matter permalink")
+		return "", invalidRequest(fmt.Errorf("slug in request does not match front matter permalink"))
 	}
 	branch := "cms/" + slug
+
+	prs, err := s.gh.listOpenPRs(ctx, s.gh.writer, s.cfg.EphesusOwner, s.cfg.EphesusRepo, "master")
+	if err != nil {
+		return "", err
+	}
+	expectedLabel := "cms/admin"
+	if role == "guest" {
+		expectedLabel = "cms/guest"
+	}
+	for _, pr := range prs {
+		if pr.Head.Ref != branch {
+			continue
+		}
+		if !s.gh.isTrustedHead(pr, s.cfg.EphesusOwner, s.cfg.EphesusRepo) || !prHasLabel(pr, expectedLabel) {
+			return "", invalidRequest(fmt.Errorf("draft branch belongs to another role"))
+		}
+	}
 
 	exists, err := s.gh.branchExists(ctx, s.gh.writer, s.cfg.EphesusOwner, s.cfg.EphesusRepo, branch)
 	if err != nil {
@@ -129,13 +169,13 @@ func (s *server) saveDraft(ctx context.Context, requestedSlug, content string) (
 }
 
 func (s *server) ensurePR(ctx context.Context, req draftRequest, role string) (*pullRequest, *postDocument, error) {
-	branch, err := s.saveDraft(ctx, req.Slug, req.Content)
+	branch, err := s.saveDraft(ctx, req.Slug, req.Content, role)
 	if err != nil {
 		return nil, nil, err
 	}
 	doc, err := parsePost(req.Content)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, invalidRequest(err)
 	}
 
 	prs, err := s.gh.listOpenPRs(ctx, s.gh.writer, s.cfg.EphesusOwner, s.cfg.EphesusRepo, "master")
@@ -143,9 +183,13 @@ func (s *server) ensurePR(ctx context.Context, req draftRequest, role string) (*
 		return nil, nil, err
 	}
 	for _, pr := range prs {
-		if pr.Head.Ref == branch {
-			return &pr, doc, nil
+		if pr.Head.Ref != branch {
+			continue
 		}
+		if !s.gh.isTrustedHead(pr, s.cfg.EphesusOwner, s.cfg.EphesusRepo) {
+			return nil, nil, fmt.Errorf("existing pull request is not from the blog repository")
+		}
+		return &pr, doc, nil
 	}
 
 	body := fmt.Sprintf("Submitted from the blog post editor by the **%s** role.\n\n- Branch: `%s`\n- Permalink: `%s`\n\nVerification: %s", role, branch, doc.Permalink, verificationLine)
@@ -178,7 +222,7 @@ func (s *server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	pr, _, err := s.ensurePR(r.Context(), draftRequest{Slug: req.Slug, Content: req.Content}, sess.Role)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeHandledError(w, http.StatusBadGateway, "could not submit post", err)
 		return
 	}
 	message := "Post submitted for admin review."
@@ -206,7 +250,7 @@ func (s *server) handleListDrafts(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]map[string]any, 0, len(prs))
 	for _, pr := range prs {
-		if !strings.HasPrefix(pr.Head.Ref, "cms/") {
+		if !isPostPR(pr) || !s.gh.isTrustedHead(pr, s.cfg.EphesusOwner, s.cfg.EphesusRepo) {
 			continue
 		}
 		if sess.Role == "guest" && !prHasLabel(pr, "cms/guest") {
@@ -228,7 +272,7 @@ func (s *server) handleReview(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]map[string]any, 0, len(prs))
 	for _, pr := range prs {
-		if strings.HasPrefix(pr.Head.Ref, "cms/") {
+		if isPostPR(pr) && s.gh.isTrustedHead(pr, s.cfg.EphesusOwner, s.cfg.EphesusRepo) {
 			out = append(out, prResponse(pr))
 		}
 	}
@@ -249,8 +293,8 @@ func (s *server) handleApprove(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, "could not load pull request")
 		return
 	}
-	if !strings.HasPrefix(pr.Head.Ref, "cms/") || !prHasLabel(*pr, "cms/guest") {
-		writeError(w, http.StatusBadRequest, "only guest post PRs can be approved here")
+	if !isPostPR(*pr) || !s.gh.isTrustedHead(*pr, s.cfg.EphesusOwner, s.cfg.EphesusRepo) || !prHasLabel(*pr, "cms/guest") {
+		writeError(w, http.StatusBadRequest, "only open guest post PRs can be approved here")
 		return
 	}
 	if err := s.gh.mergePR(r.Context(), s.gh.publisher, s.cfg.EphesusOwner, s.cfg.EphesusRepo, pr.Number); err != nil {
@@ -276,7 +320,11 @@ func (s *server) handlePublish(w http.ResponseWriter, r *http.Request) {
 	}
 	pr, _, err := s.ensurePR(r.Context(), draftRequest{Slug: req.Slug, Content: req.Content}, "admin")
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeHandledError(w, http.StatusBadGateway, "could not publish post", err)
+		return
+	}
+	if !isPostPR(*pr) || !s.gh.isTrustedHead(*pr, s.cfg.EphesusOwner, s.cfg.EphesusRepo) || !prHasLabel(*pr, "cms/admin") {
+		writeError(w, http.StatusBadRequest, "only open admin post PRs can be published here")
 		return
 	}
 	if err := s.gh.mergePR(r.Context(), s.gh.publisher, s.cfg.EphesusOwner, s.cfg.EphesusRepo, pr.Number); err != nil {
@@ -289,6 +337,10 @@ func (s *server) handlePublish(w http.ResponseWriter, r *http.Request) {
 		"merged":  true,
 		"message": "Post published. Image build and deployment are in progress.",
 	})
+}
+
+func isPostPR(pr pullRequest) bool {
+	return pr.State == "open" && pr.Base.Ref == "master" && strings.HasPrefix(pr.Head.Ref, "cms/")
 }
 
 func prHasLabel(pr pullRequest, label string) bool {
