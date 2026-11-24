@@ -1,6 +1,6 @@
 # First-party PodDisruptionBudgets
 
-Eight PDBs owned by this repository, reconciled by the
+Nine PDBs owned by this repository, reconciled by the
 [`poddisruptionbudgets` Application](../../gitops/policies/poddisruptionbudgets/application.yaml).
 Longhorn's six PDBs and the chart-owned components are not touched.
 
@@ -13,6 +13,7 @@ It only makes maintenance drains orderly.
 | Workload | Replicas | PDB |
 |---|---|---|
 | `jekyll/jekyll-website` | 3 | `minAvailable: 2` |
+| `blog-cms/blog-cms-api` | 2 | `minAvailable: 1` |
 | `whoami/whoami` | 2 | `minAvailable: 1` |
 | `mysite-nginx/mysite-nginx` | 1 | `maxUnavailable: 1` |
 | `monitoring/grafana` | 1 | `maxUnavailable: 1` |

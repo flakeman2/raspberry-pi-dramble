@@ -12,10 +12,10 @@ app-of-apps then reconciles the Applications that consume these paths.
 | `traefik/` | Helm values, TLSOption, Middlewares, IngressRoutes |
 | `monitoring/` | Prometheus and Grafana Helm values, alert rules, scrape jobs and dashboards |
 | `dns/` | Dynamic DNS CronJobs |
-| `workloads/` | mysite, jekyll, whoami |
+| `workloads/` | mysite, jekyll, whoami, blog-cms-api |
 | `dashboards/` | Grafana/Longhorn UI IngressRoutes |
 | `networkpolicies/` | Ingress/egress allow-lists for first-party namespaces |
-| `poddisruptionbudgets/` | Eight first-party PDBs for orderly node drains |
+| `poddisruptionbudgets/` | Nine first-party PDBs for orderly node drains |
 | `secrets/` | Required Secrets and placeholder examples |
 
 These pins are the **live** stack: the repository was retargeted on

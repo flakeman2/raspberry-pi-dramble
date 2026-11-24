@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# The root app-of-apps renders exactly the AppProject and the fourteen child
+# The root app-of-apps renders exactly the AppProject and the sixteen child
 # Applications. Bootstrap files (namespace, Argo CD values, ingress routes and
 # root-app.yaml itself) are deliberately excluded: Argo CD must not reconcile
 # the manifest that installs it, and bootstrap/ingressroute.yaml needs Traefik
@@ -20,6 +20,7 @@ resources:
   - addons/grafana/application.yaml
 
   # First-party workloads and dashboards.
+  - apps/blog-cms-api/application.yaml
   - apps/dashboards/application.yaml
   - apps/dns/application.yaml
   - apps/grafana-dashboards/application.yaml

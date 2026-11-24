@@ -18,12 +18,17 @@ The chart installs its own `traefik.io` CRDs from `crds/`; wait for them to be
 established before applying the three files above on a fresh cluster
 (`kubectl wait --for condition=established crd/ingressroutes.traefik.io`).
 
+The `blog-cms-api` route uses `priority: 100` so `Host(blog.devinflake.com) &&
+PathPrefix(/post/api)` wins over the host-wide Jekyll fallback. The full path
+prefix is deliberately preserved because the Go service registers routes under
+`/post/api/...`.
+
 | File | Contents |
 |---|---|
 | `values.yaml` | Helm values (ACME, persistence, dashboard, logging, metrics) |
 | `tlsoption.yaml` | `TLSOption/default`, minimum TLS 1.2 |
 | `middlewares.yaml` | `basic-auth`, `redirect-to-https`, `ssl-redirect` |
-| `ingressroutes.yaml` | Host routes for mysite, jekyll, whoami, Traefik UI |
+| `ingressroutes.yaml` | Host routes for mysite, jekyll, blog CMS API, whoami, Traefik UI |
 
 ## TLS
 

@@ -42,7 +42,7 @@ pull requests are no longer opened against it. See
 | Ingress | Traefik `3.7.19` (chart `42.4.1`) at `192.168.0.201` — unchanged by the control-plane move |
 | TLS | Traefik built-in ACME (TLS-ALPN), Let's Encrypt production |
 | Monitoring | Prometheus `3.16.0` (chart `29.47.2`), Grafana `13.3.1` (chart `14.5.0`), Alertmanager, kube-state-metrics, node-exporter |
-| GitOps | Argo CD `v3.6.1` (chart `10.18.0`), root app-of-apps + 15 children tracking `dev` |
+| GitOps | Argo CD `v3.6.1` (chart `10.18.0`), root app-of-apps + 16 children tracking `dev` |
 | Metrics | metrics-server and CoreDNS, both bundled with k3s |
 | DNS | Park-Your-Domain dynamic DNS via two CronJobs |
 
@@ -59,9 +59,10 @@ pull requests are no longer opened against it. See
 > 2026-11-15/16 — before-and-after is recorded in
 > [docs/cluster-status.md](docs/cluster-status.md).
 >
-> **Current work:** all action items are complete. Argo CD reconciles the
-> cluster from `dev` (root + 15 children), with sealed secrets, Grafana
-> dashboards, NetworkPolicies and PDBs in place. See
+> **Current work:** all rebuild action items are complete. Argo CD reconciles the
+> cluster from `dev` (root + 16 children), with sealed secrets, Grafana
+> dashboards, NetworkPolicies and PDBs in place. The blog post editor API is
+> added through the same GitOps path. See
 > [docs/gitops.md](docs/gitops.md) and
 > [docs/action-items.md](docs/action-items.md).
 
@@ -73,8 +74,9 @@ hardening, backups and the accepted risks — see
 [docs/rebuild-writeup.md](docs/rebuild-writeup.md). The individual blog posts and
 runbooks remain the detailed record.
 
-The proposed browser-based blog post editor is designed in
-[docs/blog-cms.md](docs/blog-cms.md).
+The browser-based blog post editor design and rollout are documented in
+[docs/blog-cms.md](docs/blog-cms.md); the one-time GitHub App and credential
+setup is in [docs/blog-cms-app-setup.md](docs/blog-cms-app-setup.md).
 
 ## Repository layout
 
@@ -86,13 +88,13 @@ cluster/                     Manifests for everything the cluster runs
   traefik/                   Helm values + IngressRoutes/Middlewares/TLSOption
   monitoring/                Prometheus + Grafana Helm values
   dns/                       Dynamic DNS CronJobs
-  workloads/                 mysite, jekyll, whoami
+  workloads/                 mysite, jekyll, whoami, blog-cms-api
   dashboards/                IngressRoutes for Grafana/Longhorn UIs
   secrets/                   Secret requirements + example manifests (no values)
 scripts/                     Install scripts for k3s and the add-ons
 docs/                        Architecture, hardware, status, redeploy, secrets,
                              upgrade plan, GitOps plan, blog rebuild, rebuild write-up
-gitops/                      Argo CD root app-of-apps + 15 children tracking dev
+gitops/                      Argo CD root app-of-apps + 16 children tracking dev
 services/                    First-party service source (blog post editor API)
 ```
 

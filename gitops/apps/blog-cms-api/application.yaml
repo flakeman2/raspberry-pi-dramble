@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: blog-cms-api
+  namespace: argocd
+  annotations:
+    # Wave 1: the namespace and SealedSecret are applied by bootstrap before
+    # Argo CD starts, so the workload can start immediately on first sync.
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: dramble
+  source:
+    repoURL: https://github.com/flakeman2/raspberry-pi-dramble.git
+    targetRevision: dev
+    path: cluster/workloads/blog-cms-api
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: blog-cms
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

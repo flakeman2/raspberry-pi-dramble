@@ -11,6 +11,7 @@ cluster needs, how to create it, and how to rotate it.
 | `grafana` | `monitoring` | `admin-user`, `admin-password`, `ldap-toml` | Grafana deployment |
 | `dyn-dns-credentials` | `default` | `password-devinflake.com`, `password-flakeman2.com` | One key per dynamic-DNS CronJob — Namecheap requires a unique password per domain |
 | `alertmanager-ntfy` | `monitoring` | `url` (encrypted) | Alertmanager ntfy receiver, mounted via `url_file` |
+| `blog-cms-api` | `blog-cms` | session key, admin/guest bcrypt hashes, three GitHub App IDs/installation IDs/private keys, ntfy URL/topic | Blog post editor API, loaded with `envFrom` |
 | k3s join token | node filesystem | `/var/lib/rancher/k3s/server/node-token`, `k3s-agent.service.env` | k3s agents |
 | kubeconfig | workstation | client cert/key | `kubectl` / Helm |
 | ACME account + certs | `traefik` PVC | `/data/acme.json` | Traefik |
@@ -22,9 +23,12 @@ not managed here.
 
 The live cluster has no `cert-manager`, no image-pull registry Secret, and no
 SOPS or External Secrets controller. Sealed Secrets **is** deployed:
-`sealed-secrets-controller` `0.41.2` in `kube-system` reconciles the four
+`sealed-secrets-controller` `0.41.2` in `kube-system` reconciles the five
 manifests in `cluster/secrets/sealed/` into plain Kubernetes Secrets. Those
-plaintext Secrets exist only in the cluster, never in git.
+plaintext Secrets exist only in the cluster, never in git. Generate the CMS
+manifest with [scripts/setup-blog-cms-secret.sh](../scripts/setup-blog-cms-secret.sh)
+as described in [blog-cms-app-setup.md](blog-cms-app-setup.md); its plaintext
+inputs stay in mode-`0600` files outside the repository.
 
 ### Rotation decisions (2026-11-14)
 

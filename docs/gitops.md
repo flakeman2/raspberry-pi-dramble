@@ -1,8 +1,8 @@
 # GitOps with Argo CD
 
 **Status:** phases 1–4 complete. The root app-of-apps owns the `dramble`
-AppProject and **sixteen Applications** — the root plus fifteen children —
-all Synced/Healthy and reconciling from `dev` (2026-11-22).
+AppProject and **seventeen Applications** — the root plus sixteen children —
+all Synced/Healthy and reconciling from `dev` (2026-11-23).
 `scripts/install-addons.sh` is now bootstrap-only: it installs Argo CD, restores
 the sealed-secrets key and applies the root Application; the children are Git.
 Longhorn's Application keeps `prune: false` so a sync cannot delete its CRDs and
@@ -95,7 +95,7 @@ it lost no content.
 ```
 gitops/
   README.md               Conventions and the app-of-apps root
-  kustomization.yaml      Explicit AppProject + fifteen child Applications
+  kustomization.yaml      Explicit AppProject + sixteen child Applications
   bootstrap/              Argo CD install and root-app.yaml — the only non-Git step
   projects/               AppProject boundaries
   addons/                 sealed-secrets, MetalLB, Traefik, traefik-config,
@@ -113,7 +113,7 @@ Conventions:
   directories that hold real manifests (`whoami/`, and the root `gitops/`
   directory). Third-party charts use `source.helm` with committed values.
 - The root `Application` (`bootstrap/root-app.yaml`) points at `gitops/`. Its
-  `kustomization.yaml` lists the AppProject and all fifteen children
+  `kustomization.yaml` lists the AppProject and all sixteen children
   explicitly — no `ApplicationSet` generator at this scale. It uses the
   `default` project because it creates `dramble` itself, and bootstrap files
   stay out of the build so Argo cannot manage its own installer.
@@ -141,11 +141,11 @@ git is unrecoverable.** The key is the `sealed-secrets-key*` Secret in
 
 SOPS + age was the alternative and is **not** used. Do not mix the two.
 
-The inventory is four SealedSecrets — `authsecret`, `grafana`,
-`dyn-dns-credentials` and `alertmanager-ntfy` (see
-[secrets.md](secrets.md)) — all four now live in git. The k3s join token,
-kubeconfig, unified admin password and Traefik `acme.json` stay outside git
-entirely, with operator-local copies at mode `0600`.
+The inventory is five SealedSecrets — `authsecret`, `grafana`,
+`dyn-dns-credentials`, `alertmanager-ntfy` and `blog-cms-api` (see
+[secrets.md](secrets.md)) — all five now live in git. The k3s join token,
+kubeconfig, admin/guest password plaintexts, GitHub App private keys and Traefik
+`acme.json` stay outside git entirely, with operator-local copies at mode `0600`.
 
 ### Adopting a Secret that already exists
 
@@ -177,7 +177,7 @@ independent jobs**, so a red check names itself:
   charts rendered at their pinned versions, and every Kustomize build under
   `gitops/`, `gitops/apps/*/` and the two `cluster/` policy directories
   (`networkpolicies/`, `poddisruptionbudgets/`). The root build must
-  render exactly the AppProject plus fifteen child Applications. Chart
+  render exactly the AppProject plus sixteen child Applications. Chart
   versions are **single-sourced** from `scripts/install-addons.sh` and
   `gitops/bootstrap/values.yaml`, so CI cannot drift from the install path — a
   removed pin fails the job. The Traefik, MetalLB and Argo CD custom resources
@@ -238,7 +238,7 @@ gate.
 | 0. Upgrade | k3s, Longhorn, MetalLB, Traefik, monitoring charts | Argo CD's tested k8s range is met; volumes healthy | ✅ done 2026-11-16 |
 | 1. Pilot | Bootstrap Argo CD; adopt one stateless app (`whoami`) with manual sync | `argocd app diff` is empty; no surprise mutations | ✅ done 2026-11-17 |
 | 2. Workloads | `apps/` for mysite, jekyll, whoami, dashboards, DNS; sealed secrets | Apps auto-sync with self-heal; Grafana is code, not UI state | ✅ done 2026-11-17 |
-| 3. Addons | Traefik, Prometheus, Grafana as Helm Applications; root app-of-apps | Addons sync automatically with self-heal; bootstrap script only installs Argo CD | ✅ done 2026-11-21 — AppProject + 15 children / 16 Applications by 2026-11-22 |
+| 3. Addons | Traefik, Prometheus, Grafana as Helm Applications; root app-of-apps | Addons sync automatically with self-heal; bootstrap script only installs Argo CD | ✅ done 2026-11-21 — AppProject + 16 children / 17 Applications by 2026-11-23 |
 | 4. CI | kustomize/kubeconform/gitleaks gates; image pipeline | A bad manifest cannot merge | ✅ done 2026-11-21 — gates live 2026-11-17; image pipeline shipped in Ephesus |
 
 A fresh rebuild is now `scripts/install-addons.sh` → Argo CD sync. The script no
@@ -281,7 +281,7 @@ The floating-image issue is closed: workloads are pinned to `nginx:1.31.8`,
   repo and cross-repo PRs. At this scale, one repository wins.
 - **Longhorn is Argo-managed** (2026-11-21). It is CRD-heavy, upgrade-sensitive,
   and carries every volume, so it was the last phase-3 migration rather than the
-  first. It is now one of the root app's fifteen children with `prune: false`
+  first. It is now one of the root app's sixteen children with `prune: false`
   and no `ServerSideApply`; MetalLB set the precedent on 2026-11-18 with
   `prune` proven safe by listing what Argo tracks.
 - **Sealed Secrets over SOPS** (2026-11-17), see [Secrets](#secrets).

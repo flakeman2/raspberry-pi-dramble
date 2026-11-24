@@ -122,6 +122,8 @@ for _ in $(seq 1 60); do
   # The Alertmanager StatefulSet mounts this Secret; without it the pod stays
   # Pending even though the chart itself renders fine.
   require_secret monitoring alertmanager-ntfy || missing=1
+  # The CMS Deployment has envFrom on this Secret and cannot start without it.
+  require_secret blog-cms blog-cms-api || missing=1
 
   [ "$missing" -eq 0 ] && break
   sleep 10

@@ -10,6 +10,8 @@ sealed/
   authsecret.yaml             default/authsecret              → users
   grafana.yaml                monitoring/grafana              → admin-user, admin-password
   dyn-dns-credentials.yaml    default/dyn-dns-credentials     → password-devinflake.com, password-flakeman2.com
+  alertmanager-ntfy.yaml      monitoring/alertmanager-ntfy    → url
+  blog-cms-api.yaml           blog-cms/blog-cms-api           → CMS API configuration
 ```
 
 The **namespace, name and key names are plaintext** in a SealedSecret; only the
@@ -64,6 +66,7 @@ up, apply `sealed/` instead.
 | `authsecret` | default | `users` |
 | `grafana` | monitoring | `admin-user`, `admin-password` |
 | `dyn-dns-credentials` | default | `password-devinflake.com`, `password-flakeman2.com` |
+| `blog-cms-api` | blog-cms | session key, password hashes, GitHub App credentials, ntfy destination |
 
 ## Not stored in this repository
 

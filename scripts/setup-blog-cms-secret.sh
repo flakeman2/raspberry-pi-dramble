@@ -85,8 +85,8 @@ if [[ -z "$admin_password" || -z "$guest_password" ]]; then
   exit 1
 fi
 
-admin_hash=$(printf '%s' "$admin_password" | "$go_bin" run "$root/services/blog-cms-api/cmd/hashpassword")
-guest_hash=$(printf '%s' "$guest_password" | "$go_bin" run "$root/services/blog-cms-api/cmd/hashpassword")
+admin_hash=$(printf '%s' "$admin_password" | "$go_bin" -C "$root/services/blog-cms-api" run ./cmd/hashpassword)
+guest_hash=$(printf '%s' "$guest_password" | "$go_bin" -C "$root/services/blog-cms-api" run ./cmd/hashpassword)
 
 tmpdir=$(mktemp -d)
 trap 'rm -rf "$tmpdir"' EXIT
