@@ -37,7 +37,7 @@ the exact deployed commit, and verification:
 
 ## blog-cms-api
 
-`ghcr.io/flakeman2/blog-cms-api:sha-ba1030d`, 2 replicas, ClusterIP port 8080.
+`ghcr.io/flakeman2/blog-cms-api:sha-883299d`, 2 replicas, ClusterIP port 8080.
 HTTP health probes hit `/post/api/healthz`. Configuration comes from the
 `blog-cms/blog-cms-api` SealedSecret; `TRUSTED_PROXY_CIDRS` is a plain env value
 because it contains no credential. The higher-priority Traefik route sends
