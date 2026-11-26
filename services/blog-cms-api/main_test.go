@@ -119,14 +119,25 @@ func TestPostValidation(t *testing.T) {
 		t.Fatalf("unexpected slug %q", doc.slug())
 	}
 
-	bad := strings.Replace(validPost, "  - MiMo-V2.6-Flash\nverification:", "verification:", 1)
-	bad = strings.Replace(bad, "AI models discussed: MiMo-V2.6-Flash", "AI models discussed:", 1)
-	doc, err = parsePost(bad)
+	// With no ai_models front matter, the body disclosure is optional.
+	optional := strings.Replace(validPost, "  - MiMo-V2.6-Flash\nverification:", "verification:", 1)
+	optional = strings.Replace(optional, "AI models discussed: MiMo-V2.6-Flash", "", 1)
+	doc, err = parsePost(optional)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := doc.validate(); err != nil {
+		t.Fatalf("post without AI disclosure was rejected: %v", err)
+	}
+
+	// Once ai_models is present, every listed model must still be credited.
+	uncredited := strings.Replace(validPost, "AI models discussed: MiMo-V2.6-Flash", "AI models discussed:", 1)
+	doc, err = parsePost(uncredited)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := doc.validate(); err == nil {
-		t.Fatal("post missing AI disclosure was accepted")
+		t.Fatal("post listing an uncredited AI model was accepted")
 	}
 
 	badVerification := strings.Replace(validPost, verificationLine, "looks good to me", 1)
