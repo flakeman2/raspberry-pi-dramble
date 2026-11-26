@@ -31,7 +31,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: api
-          image: ghcr.io/flakeman2/blog-cms-api:sha-ba1030d
+          image: ghcr.io/flakeman2/blog-cms-api:sha-883299d
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
