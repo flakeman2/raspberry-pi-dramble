@@ -1,10 +1,13 @@
 # Blog post editor (design)
 
-Status: **implemented in GitOps**. This document records the Phase 0 decisions
-for adding a browser-based post editor to the Flake blog, plus the deployment
-shape now pinned in `dev`. It is the design companion to
-[blog-rebuild.md](blog-rebuild.md), which describes the current static Jekyll
-build and image pipeline.
+Status: **shipped and live**. The `/post/` editor is deployed in the Jekyll
+image, and its same-origin API is live under `/post/api/`. The refined UI (Write
+link beside the profile image, full-width Preview/Edit toggle, status box at the
+top, single visible page title) and optional `ai_models` validation are included.
+This document records the Phase 0 decisions for adding a browser-based post
+editor to the Flake blog, plus the deployment shape now pinned in `dev`. It is
+the design companion to [blog-rebuild.md](blog-rebuild.md), which describes the
+current static Jekyll build and image pipeline.
 
 ## Decisions
 
