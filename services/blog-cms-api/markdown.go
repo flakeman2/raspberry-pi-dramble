@@ -196,34 +196,35 @@ func (d *postDocument) validate() error {
 	if len(d.Tags) == 0 {
 		problems = append(problems, "at least one tag is required")
 	}
-	if len(d.AIModels) == 0 {
-		problems = append(problems, "ai_models must list every AI model used or discussed")
-	}
 	if d.Verification != verificationLine {
 		problems = append(problems, "verification text does not match the required publishing statement")
 	}
 
-	discussed := []string(nil)
-	for _, line := range strings.Split(d.Body, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "AI models discussed:") {
-			discussed = parseScalarList(strings.TrimSpace(strings.TrimPrefix(trimmed, "AI models discussed:")))
-			break
-		}
-	}
-	if len(discussed) == 0 {
-		problems = append(problems, "body must contain an 'AI models discussed:' line")
-	} else {
-		for _, model := range d.AIModels {
-			found := false
-			for _, item := range discussed {
-				if strings.EqualFold(item, model) {
-					found = true
-					break
-				}
+	// AI disclosure is optional, but a post that lists models must credit every
+	// one of them in the body.
+	if len(d.AIModels) > 0 {
+		discussed := []string(nil)
+		for _, line := range strings.Split(d.Body, "\n") {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "AI models discussed:") {
+				discussed = parseScalarList(strings.TrimSpace(strings.TrimPrefix(trimmed, "AI models discussed:")))
+				break
 			}
-			if !found {
-				problems = append(problems, fmt.Sprintf("AI models discussed line does not credit %q", model))
+		}
+		if len(discussed) == 0 {
+			problems = append(problems, "body must contain an 'AI models discussed:' line")
+		} else {
+			for _, model := range d.AIModels {
+				found := false
+				for _, item := range discussed {
+					if strings.EqualFold(item, model) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					problems = append(problems, fmt.Sprintf("AI models discussed line does not credit %q", model))
+				}
 			}
 		}
 	}

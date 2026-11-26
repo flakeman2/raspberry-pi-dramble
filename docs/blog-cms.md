@@ -79,8 +79,10 @@ Database-free state:
   devices.
 - Session state is a signed cookie (no server-side session store).
 - Required front matter is validated before a PR is opened: `title`, `date`,
-  `author`, `layout: post`, `permalink`, `tags`, AI-model disclosure, and the
-  verification line required by the blog's publishing policy.
+  `author`, `layout: post`, `permalink`, `tags`, and the verification line
+  required by the blog's publishing policy. `ai_models` and the matching
+  `AI models discussed:` body line are optional; when models are listed, every
+  one must be credited in that body line.
 
 ### Traefik routing
 
